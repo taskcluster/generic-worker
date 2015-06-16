@@ -60,6 +60,7 @@ func deleteHomeDir(path string, user string) error {
 		"-w", "C:\\",
 		"-n", "10",
 		"-accepteula",
+		"-i", "0",
 		"rmdir",
 		"/s",
 		"/q",
@@ -286,6 +287,7 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 		"-w", User.HomeDir,
 		"-n", "10",
 		"-accepteula",
+		"-i", "0",
 		wrapper,
 	}
 	cmd := exec.Command(command[0], command[1:]...)
