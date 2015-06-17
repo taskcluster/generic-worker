@@ -60,9 +60,7 @@ func deleteHomeDir(path string, user string) error {
 		// "-w", "C:\\",
 		// "-n", "10",
 		// "-accepteula",
-		"rmdir",
-		"/s",
-		"/q",
+		"rmdir /s /q",
 		path,
 	}
 	cmd := exec.Command(command[0], command[1:]...)
