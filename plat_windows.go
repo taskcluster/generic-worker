@@ -46,13 +46,13 @@ func deleteHomeDir(path string, user string) error {
 	}
 
 	// first try using task user
-	passwordFile := filepath.Dir(path) + "\\" + user + "\\_Passw0rd"
-	password, err := ioutil.ReadFile(passwordFile)
-	if err != nil || string(password) == "" {
-		debug("%#v", err)
-		debug("Failed to read password file %v, (to delete dir %v) trying to remove with generic worker account...", passwordFile, path)
-		return adminDeleteHomeDir(path)
-	}
+	// passwordFile := filepath.Dir(path) + "\\" + user + "\\_Passw0rd"
+	// password, err := ioutil.ReadFile(passwordFile)
+	// if err != nil || string(password) == "" {
+	// 	debug("%#v", err)
+	// 	debug("Failed to read password file %v, (to delete dir %v) trying to remove with generic worker account...", passwordFile, path)
+	// 	return adminDeleteHomeDir(path)
+	// }
 	command := []string{
 		// "C:\\Users\\Administrator\\PSTools\\PsExec.exe",
 		// "-u", user,
