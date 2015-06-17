@@ -29,6 +29,11 @@ func processCommandOutput(callback func(line string), prog string, options ...st
 
 func startup() error {
 	debug("Detected Windows platform...")
+	debug("Creating powershell script...")
+	err := createRunAsUserScript("C:\\generic-worker\\runasuser.ps1")
+	if err != nil {
+		return err
+	}
 	return taskCleanup()
 }
 
