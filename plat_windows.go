@@ -38,9 +38,6 @@ func startup() error {
 }
 
 func deleteHomeDir(path string, user string) error {
-	if true {
-		return nil
-	}
 	debug("Removing home directory '" + path + "'...")
 
 	adminDeleteHomeDir := func(path string) error {
@@ -318,7 +315,8 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 
 func taskCleanup() error {
 	// note if this fails, we carry on without throwing an error
-	deleteExistingOSUsers()
+	// deleteExistingOSUsers()
 	// this needs to succeed, so return an error if it doesn't
-	return createNewOSUser()
+	// return createNewOSUser()
+	return nil
 }
