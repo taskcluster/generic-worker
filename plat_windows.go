@@ -54,12 +54,12 @@ func deleteHomeDir(path string, user string) error {
 		return adminDeleteHomeDir(path)
 	}
 	command := []string{
-		"C:\\Users\\Administrator\\PSTools\\PsExec.exe",
-		"-u", user,
-		"-p", string(password),
-		"-w", "C:\\",
-		"-n", "10",
-		"-accepteula",
+		// "C:\\Users\\Administrator\\PSTools\\PsExec.exe",
+		// "-u", user,
+		// "-p", string(password),
+		// "-w", "C:\\",
+		// "-n", "10",
+		// "-accepteula",
 		"rmdir",
 		"/s",
 		"/q",
@@ -134,11 +134,11 @@ func generatePassword() string {
 func deleteExistingOSUsers() {
 	deleteHomeDirs()
 	debug("Looking for existing task users to delete...")
-	// err := processCommandOutput(deleteOSUserAccount, "wmic", "useraccount", "get", "name")
-	// if err != nil {
-	// 	debug("WARNING: could not list existing Windows user accounts")
-	// 	debug("%v", err)
-	// }
+	err := processCommandOutput(deleteOSUserAccount, "wmic", "useraccount", "get", "name")
+	if err != nil {
+		debug("WARNING: could not list existing Windows user accounts")
+		debug("%v", err)
+	}
 }
 
 func deleteHomeDirs() {
