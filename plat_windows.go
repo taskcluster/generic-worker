@@ -282,15 +282,26 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 		return Command{}, err
 	}
 
+	// command := []string{
+	// 	"C:\\Users\\Administrator\\PSTools\\PsExec.exe",
+	// 	"-u", User.Name,
+	// 	"-p", User.Password,
+	// 	"-w", User.HomeDir,
+	// 	"-n", "10",
+	// 	"-accepteula",
+	// 	wrapper,
+	// }
+
 	command := []string{
-		"C:\\Users\\Administrator\\PSTools\\PsExec.exe",
-		"-u", User.Name,
-		"-p", User.Password,
-		"-w", User.HomeDir,
-		"-n", "10",
-		"-accepteula",
+		"PowerShell",
+		"-File",
+		"C:\\generic-worker\\runasuser.ps1",
+		User.Name,
+		User.Password,
 		wrapper,
+		User.HomeDir,
 	}
+
 	cmd := exec.Command(command[0], command[1:]...)
 	debug("Running command: '" + strings.Join(command, "' '") + "'")
 	cmd.Stdout = os.Stdout
