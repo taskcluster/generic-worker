@@ -685,8 +685,8 @@ func (task *TaskRun) run() error {
 				finalTaskStatus = Errored
 				finalReason = "worker-shutdown" // internal error (create-process-error)
 				finalError = err
-				break
 			}
+			break
 		}
 		err = task.Commands[i].osCommand.Start()
 		if err != nil {
@@ -696,8 +696,8 @@ func (task *TaskRun) run() error {
 				finalTaskStatus = Errored
 				finalReason = "worker-shutdown" // internal error (start-process-error)
 				finalError = err
-				break
 			}
+			break
 		}
 		debug("Waiting for command to finish...")
 		// use a different variable for error since we process it later
