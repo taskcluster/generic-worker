@@ -17,6 +17,6 @@ func createRunAsUserScript(filename string) error {
 	scriptContents += "\r\n"
 	scriptContents += "$credentials = New-Object System.Management.Automation.PSCredential -ArgumentList @($username,(ConvertTo-SecureString -String $password -AsPlainText -Force))\r\n"
 	scriptContents += "\r\n"
-	scriptContents += "Start-Process $script -WorkingDirectory $dir -Credential ($credentials)\r\n"
+	scriptContents += "Start-Process $script -WorkingDirectory $dir -Credential ($credentials) -Wait\r\n"
 	return ioutil.WriteFile(filename, []byte(scriptContents), 0755)
 }
