@@ -198,6 +198,7 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 	script := filepath.Join(User.HomeDir, commandName+".bat")
 	log := filepath.Join(User.HomeDir, "public", "logs", commandName+".log")
 	contents := ":: This script runs command " + strconv.Itoa(index) + " defined in TaskId " + task.TaskId + "..." + "\r\n"
+	contents += "timeout /T 5\r\n"
 
 	// At the end of each command we export all the env vars, and import them
 	// at the start of the next command. Otherwise env variable changes would
@@ -251,6 +252,7 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 		contents += "set > " + env + "\r\n"
 		contents += "cd > " + dir + "\r\n"
 	}
+	contents += "timeout /T 5\r\n"
 
 	// exit with stored exit code
 	contents += "exit /b %tcexitcode%\r\n"
