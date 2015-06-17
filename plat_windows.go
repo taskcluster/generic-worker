@@ -69,7 +69,7 @@ func deleteHomeDir(path string, user string) error {
 	debug("Running command: '" + strings.Join(command, "' '") + "'")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	err = cmd.Run()
+	err := cmd.Run()
 	if err != nil {
 		debug("%#v", err)
 		debug("Failed to remove %v with user %v, trying to remove with generic worker account instead...")
