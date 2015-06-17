@@ -292,6 +292,7 @@ func (task *TaskRun) generateCommand(index int) (Command, error) {
 	debug("Running command: '" + strings.Join(command, "' '") + "'")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Stdin = strings.NewReader("blah blah")
 	task.Commands[index] = Command{logFile: "public/logs/" + commandName + ".log", osCommand: cmd}
 	return task.Commands[index], nil
 }
