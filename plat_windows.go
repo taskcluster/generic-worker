@@ -38,6 +38,9 @@ func startup() error {
 }
 
 func deleteHomeDir(path string, user string) error {
+	if true {
+		return nil
+	}
 	debug("Removing home directory '" + path + "'...")
 
 	adminDeleteHomeDir := func(path string) error {
@@ -65,7 +68,7 @@ func deleteHomeDir(path string, user string) error {
 		// "-w", "C:\\",
 		// "-n", "10",
 		// "-accepteula",
-		"rmdir /s /q",
+		"del /s /q /f",
 		path,
 	}
 	cmd := exec.Command(command[0], command[1:]...)
