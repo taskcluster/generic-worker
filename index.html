@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Generic-worker by taskcluster</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Generic-worker</h1>
+      <h2 class="project-tagline">A generic worker for task cluster, written in go</h2>
+      <a href="https://github.com/taskcluster/generic-worker" class="btn">View on GitHub</a>
+      <a href="https://github.com/taskcluster/generic-worker/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/taskcluster/generic-worker/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <h1>
+<a id="generic-worker" class="anchor" href="#generic-worker" aria-hidden="true"><span class="octicon octicon-link"></span></a>generic-worker</h1>
+
+<p><img src="https://tools.taskcluster.net/lib/assets/taskcluster-120.png">
+<a href="http://travis-ci.org/taskcluster/generic-worker"><img src="https://travis-ci.org/taskcluster/generic-worker.svg?branch=master" alt="Build Status"></a>
+<a href="https://godoc.org/github.com/taskcluster/generic-worker"><img src="https://godoc.org/github.com/taskcluster/generic-worker?status.svg" alt="GoDoc"></a>
+<a href="https://coveralls.io/github/taskcluster/generic-worker?branch=master"><img src="https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&amp;service=github" alt="Coverage Status"></a>
+<a href="http://mozilla.org/MPL/2.0"><img src="https://img.shields.io/badge/license-MPL%202.0-orange.svg" alt="License"></a></p>
+
+<p>A generic worker for task cluster, written in go.</p>
+
+<h1>
+<a id="install-binary" class="anchor" href="#install-binary" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install binary</h1>
+
+<ul>
+<li>Download the latest release for your platform from <a href="https://github.com/taskcluster/generic-worker/releases">https://github.com/taskcluster/generic-worker/releases</a>
+</li>
+<li>Download the latest release of livelog for your platform from <a href="https://github.com/taskcluster/livelog/releases">https://github.com/taskcluster/livelog/releases</a>
+</li>
+<li>For darwin/linux, make the binaries executable: <code>chmod a+x {generic-worker,livelog}*</code>
+</li>
+</ul>
+
+<h1>
+<a id="build-from-source" class="anchor" href="#build-from-source" aria-hidden="true"><span class="octicon octicon-link"></span></a>Build from source</h1>
+
+<p>If you prefer not to use a prepackaged binary, or want to have the latest unreleased version from the development head:</p>
+
+<ul>
+<li>Head over to <a href="http://golang.org/doc/install">http://golang.org/doc/install</a> and follow the instructions for your platform. Be sure to set your GOPATH to something appropriate.</li>
+<li>Run <code>go get github.com/taskcluster/generic-worker</code>
+</li>
+<li>Run <code>go get github.com/taskcluster/livelog</code>
+</li>
+</ul>
+
+<p>All being well, the binaries will be built under <code>${GOPATH}/bin</code>.</p>
+
+<h1>
+<a id="create-taskcluster-account" class="anchor" href="#create-taskcluster-account" aria-hidden="true"><span class="octicon octicon-link"></span></a>Create TaskCluster account</h1>
+
+<p>Head over to <a href="https://tools.taskcluster.net/auth/clients/">https://tools.taskcluster.net/auth/clients/</a> and create yourself a clientId with permanent credentials. Then go to <a href="https://tools.taskcluster.net/auth/roles/">https://tools.taskcluster.net/auth/roles/</a> and create a role called <code>client-id:&lt;your-client-id&gt;</code> and give it the scope <code>worker-developer</code>. Keep a note of your clientId and accessToken.</p>
+
+<h1>
+<a id="set-up-your-env" class="anchor" href="#set-up-your-env" aria-hidden="true"><span class="octicon octicon-link"></span></a>Set up your env</h1>
+
+<p>View the generic worker help, to see what config you need to set up:</p>
+
+<pre><code>generic-worker --help
+</code></pre>
+
+<p>This should display something like this:</p>
+
+<pre><code>generic-worker
+generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
+See http://taskcluster.github.io/generic-worker/ for more details. Essentially, the worker is
+the taskcluster component that executes tasks. It requests tasks from the taskcluster queue,
+and reports back results to the queue.
+
+  Usage:
+    generic-worker run                     [--config         CONFIG-FILE]
+                                           [--configure-for-aws]
+    generic-worker install                 [--config         CONFIG-FILE]
+                                           [--nssm           NSSM-EXE]
+                                           [--password       PASSWORD]
+                                           [--service-name   SERVICE-NAME]
+                                           [--username       USERNAME]
+    generic-worker show-payload-schema
+    generic-worker --help
+    generic-worker --version
+
+  Targets:
+    run                                     Runs the generic-worker in an infinite loop.
+    show-payload-schema                     Each taskcluster task defines a payload to be
+                                            interpreted by the worker that executes it. This
+                                            payload is validated against a json schema baked
+                                            into the release. This option outputs the json
+                                            schema used in this version of the generic
+                                            worker.
+    install                                 This will install the generic worker as a
+                                            Windows service. If the Windows user USERNAME
+                                            does not already exist on the system, the user
+                                            will be created. This user will be used to run
+                                            the service.
+
+  Options:
+    --configure-for-aws                     This will create the CONFIG-FILE for an AWS
+                                            installation by querying the AWS environment
+                                            and setting appropriate values.
+    --config CONFIG-FILE                    Json configuration file to use. See
+                                            configuration section below to see what this
+                                            file should contain.
+                                            [default: generic-worker.config]
+    --help                                  Display this help text.
+    --nssm NSSM-EXE                         The full path to nssm.exe to use for
+                                            installing the service.
+                                            [default: C:\nssm-2.24\win64\nssm.exe]
+    --password PASSWORD                     The password for the username specified
+                                            with -u|--username option. If not specified
+                                            a random password will be generated.
+    --service-name SERVICE-NAME             The name that the Windows service should be
+                                            installed under. [default: Generic Worker]
+    --username USERNAME                     The Windows user to run the generic worker
+                                            Windows service as. If the user does not
+                                            already exist on the system, it will be
+                                            created. [default: GenericWorker]
+    --version                               The release version of the generic-worker.
+
+
+  Configuring the generic worker:
+
+    The configuration file for the generic worker is specified with -c|--config CONFIG-FILE
+    as described above. Its format is a json dictionary of name/value pairs.
+
+        ** REQUIRED ** properties
+        =========================
+
+          access_token                      Taskcluster access token used by generic worker
+                                            to talk to taskcluster queue.
+          client_id                         Taskcluster client id used by generic worker to
+                                            talk to taskcluster queue.
+          worker_group                      Typically this would be an aws region - an
+                                            identifier to uniquely identify which pool of
+                                            workers this worker logically belongs to.
+          worker_id                         A name to uniquely identify your worker.
+          worker_type                       This should match a worker_type managed by the
+                                            provisioner you have specified.
+          livelog_secret                    This should match the secret used by the
+                                            stateless dns server; see
+                                            https://github.com/taskcluster/stateless-dns-server
+          public_ip                         The IP address for clients to be directed to
+                                            for serving live logs; see
+                                            https://github.com/taskcluster/livelog and
+                                            https://github.com/taskcluster/stateless-dns-server
+
+        ** OPTIONAL ** properties
+        =========================
+
+          certificate                       Taskcluster certificate, when using temporary
+                                            credentials only.
+          provisioner_id                    The taskcluster provisioner which is taking care
+                                            of provisioning environments with generic-worker
+                                            running on them. [default: aws-provisioner-v1]
+          refresh_urls_prematurely_secs     The number of seconds before azure urls expire,
+                                            that the generic worker should refresh them.
+                                            [default: 310]
+          debug                             Logging filter; see
+                                            https://github.com/tj/go-debug [default: *]
+          livelog_executable                Filepath of LiveLog executable to use; see
+                                            https://github.com/taskcluster/livelog
+          subdomain                         Subdomain to use in stateless dns name for live
+                                            logs; see
+                                            https://github.com/taskcluster/stateless-dns-server
+                                            [default: taskcluster-worker.net]
+
+    Here is an syntactically valid example configuration file:
+
+            {
+              "access_token":               "123bn234bjhgdsjhg234",
+              "client_id":                  "hskdjhfasjhdkhdbfoisjd",
+              "worker_group":               "dev-test",
+              "worker_id":                  "IP_10-134-54-89",
+              "worker_type":                "win2008-worker",
+              "provisioner_id":             "my-provisioner",
+              "livelog_secret":             "baNaNa-SouP4tEa",
+              "public_ip":                  "12.24.35.46"
+            }
+
+
+    If an optional config setting is not provided in the json configuration file, the
+    default will be taken (defaults documented above).
+
+    If no value can be determined for a required config setting, the generic-worker will
+    exit with a failure message.
+</code></pre>
+
+<h1>
+<a id="start-the-generic-worker" class="anchor" href="#start-the-generic-worker" aria-hidden="true"><span class="octicon octicon-link"></span></a>Start the generic worker</h1>
+
+<p>Simply run:</p>
+
+<pre><code>generic-worker --config CONFIG-FILE
+</code></pre>
+
+<p>and watch logs for a successful startup. If you can see it is polling the Queue, and the process does not exit, then you can continue. If it reports a problem, follow any instructions it provides. If you are really stuck, join #taskcluster channel on irc.mozilla.org, and ask for help.</p>
+
+<p>It should look something like this:</p>
+
+<pre><code>21:22:28.016 4ms    4ms    generic-worker - Detected darwin platform
+21:22:28.016 5ms    5ms    queue - Making http request: &amp;{GET https://queue.taskcluster.net/v1/poll-task-url/test-provisioner/IKS0ndoITKKaRfytmhmn7A HTTP/1.1 1 1 map[Content-Type:[application/json] Authorization:[Hawk id="hkhwW8sQRFiau1ie1b29tQ", mac="9fb6kOZFnPPkGlLFFUdkYlVQn2DMVnF+vEZRQXj2tZY=", ts="1449264148", nonce="zn2CRy0e"]] &lt;nil&gt; 0 [] false queue.taskcluster.net map[] map[] &lt;nil&gt; map[]   &lt;nil&gt; &lt;nil&gt;}
+21:22:29.261 1s     1s     generic-worker - Refreshing signed urls in 24m49.966236028s
+21:22:29.261 3us    3us    generic-worker -   Priority (1) Delete URL: https://taskclusterqueuev1.queue.core.windows.net/queue-cnvdrxdarepvm5abnzfwx5ek-cgajs77bixgp6ckx67cditsd-5/messages/{{messageId}}?popreceipt={{popReceipt}}&amp;sv=2015-04-05&amp;se=2015-12-04T21%3A52%3A29Z&amp;sp=p&amp;spr=https&amp;sig=F0pBtAwEU7GKUPVgv9a0ztKTUv%2FEWGGnttQkGaNzHq8%3D&amp;st=2015-12-04T21%3A07%3A29Z
+21:22:29.261 889ns  879ns  generic-worker -   Priority (1) Poll URL:   https://taskclusterqueuev1.queue.core.windows.net/queue-cnvdrxdarepvm5abnzfwx5ek-cgajs77bixgp6ckx67cditsd-5/messages?visibilitytimeout=300&amp;sv=2015-04-05&amp;se=2015-12-04T21%3A52%3A29Z&amp;sp=p&amp;spr=https&amp;sig=F0pBtAwEU7GKUPVgv9a0ztKTUv%2FEWGGnttQkGaNzHq8%3D&amp;st=2015-12-04T21%3A07%3A29Z
+21:22:29.261 791ns  781ns  generic-worker -   Priority (2) Delete URL: https://taskclusterqueuev1.queue.core.windows.net/queue-cnvdrxdarepvm5abnzfwx5ek-cgajs77bixgp6ckx67cditsd-1/messages/{{messageId}}?popreceipt={{popReceipt}}&amp;sv=2015-04-05&amp;se=2015-12-04T21%3A52%3A29Z&amp;sp=p&amp;spr=https&amp;sig=dMIZ6%2FyVhl5FaOxSXthdQV7VIGlr3IA0QrffTr5%2B0vw%3D&amp;st=2015-12-04T21%3A07%3A29Z
+21:22:29.261 722ns  712ns  generic-worker -   Priority (2) Poll URL:   https://taskclusterqueuev1.queue.core.windows.net/queue-cnvdrxdarepvm5abnzfwx5ek-cgajs77bixgp6ckx67cditsd-1/messages?visibilitytimeout=300&amp;sv=2015-04-05&amp;se=2015-12-04T21%3A52%3A29Z&amp;sp=p&amp;spr=https&amp;sig=dMIZ6%2FyVhl5FaOxSXthdQV7VIGlr3IA0QrffTr5%2B0vw%3D&amp;st=2015-12-04T21%3A07%3A29Z
+2015/12/04 22:22:30 Binding queue/pmoore_test1/44889277-c3f6-4f23-936c-c5a338cf0592 to exchange/taskcluster-queue/v1/artifact-created with routing key *.d9vbIkBAS_-9MAEdE9zbJw.*.*.*.test-provisioner.IKS0ndoITKKaRfytmhmn7A.*.*.#
+2015/12/04 22:22:30 Binding queue/pmoore_test1/44889277-c3f6-4f23-936c-c5a338cf0592 to exchange/taskcluster-queue/v1/task-completed with routing key *.d9vbIkBAS_-9MAEdE9zbJw.*.*.*.test-provisioner.IKS0ndoITKKaRfytmhmn7A.*.*.#
+21:22:30.488 1s     1s     generic-worker - Zero tasks returned in Azure XML QueueMessagesList
+21:22:30.678 189ms  189ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
+21:22:30.678 1us    1us    generic-worker - No task claimed from any Azure queue...
+21:22:30.876 197ms  197ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
+21:22:31.065 189ms  189ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
+21:22:31.065 1us    1us    generic-worker - No task claimed from any Azure queue...
+</code></pre>
+
+<h1>
+<a id="create-a-test-job" class="anchor" href="#create-a-test-job" aria-hidden="true"><span class="octicon octicon-link"></span></a>Create a test job</h1>
+
+<p>Go to <a href="https://tools.taskcluster.net/task-creator/">https://tools.taskcluster.net/task-creator/</a> and create a task to run on your generic worker.</p>
+
+<p>Use <a href="task-definition-example.json">this example</a> as a template, but make sure to edit <code>provisionerId</code> and <code>workerType</code> values so that they match what you set in your config file.</p>
+
+<p>Please note you should <em>NOT</em> use the default value of <code>aws-provisioner</code> for the <code>provisionerId</code> since then the production aws provisioner may start spawning ec2 instances, and the docker-worker may try to run the job. By specifying something unique for your local environment, the aws provisioner and docker workers will leave this task alone, and only your machine will claim the task.</p>
+
+<p>Don't forget to submit the task by clicking the <em>Create Task</em> icon.</p>
+
+<p>If all is well, your local generic worker should pick up the job you submit, run it, and report back status.</p>
+
+<h1>
+<a id="run-the-generic-worker-test-suite" class="anchor" href="#run-the-generic-worker-test-suite" aria-hidden="true"><span class="octicon octicon-link"></span></a>Run the generic worker test suite</h1>
+
+<p>For this you need to have the source files (you cannot run the tests from the binary package).</p>
+
+<p>Then cd into the source directory, and run:</p>
+
+<pre><code>go test -v ./...
+</code></pre>
+
+<h1>
+<a id="further-information" class="anchor" href="#further-information" aria-hidden="true"><span class="octicon octicon-link"></span></a>Further information</h1>
+
+<p>Please see:</p>
+
+<ul>
+<li><a href="http://docs.taskcluster.net/">TaskCluster Documentation</a></li>
+<li>
+<a href="http://docs.taskcluster.net/presentations/">Generic Worker presentations</a> (focus on Windows platform)</li>
+<li><a href="http://tools.taskcluster.net/">TaskCluster Web Tools</a></li>
+<li><a href="https://bugzilla.mozilla.org/buglist.cgi?f1=product&amp;list_id=12722874&amp;o1=equals&amp;query_based_on=Taskcluster%20last%202%20days&amp;o2=equals&amp;query_format=advanced&amp;f2=component&amp;v1=Taskcluster&amp;v2=Generic-Worker&amp;known_name=Taskcluster%20last%202%20days">Generic Worker Open Bugs</a></li>
+</ul>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/taskcluster/generic-worker">Generic-worker</a> is maintained by <a href="https://github.com/taskcluster">taskcluster</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
