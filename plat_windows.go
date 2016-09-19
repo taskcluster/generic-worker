@@ -171,13 +171,36 @@ func generatePassword() string {
 }
 
 func deleteExistingOSUsers() {
-	deleteHomeDirs()
+  err := retry(5, func() error {
+    var err error
+    err = deleteHomeDirs()
+    return err
+  })
+  if err != nil {
+    log.Println(err)
+    return
+  }
 	log.Println("Looking for existing task users to delete...")
 	err := processCommandOutput(deleteOSUserAccount, "wmic", "useraccount", "get", "name")
 	if err != nil {
 		log.Println("WARNING: could not list existing Windows user accounts")
 		log.Printf("%v", err)
 	}
+}
+
+func retry(attempts int, callback func() error) (err error) {
+  for i := 0; ; i++ {
+    err = callback()
+    if err == nil {
+      return nil
+    }
+    if i >= (attempts - 1) {
+      break
+    }
+    time.Sleep((i + 1) * (time.Minute))
+    log.Println("retrying...")
+  }
+  return fmt.Errorf("after %d attempts, last error: %s", attempts, err)
 }
 
 func deleteHomeDirs() {
