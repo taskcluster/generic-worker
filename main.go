@@ -917,7 +917,10 @@ func (task *TaskRun) resolve(e *executionErrors) *CommandExecutionError {
 	if !e.Occurred() {
 		return ResourceUnavailable(task.StatusManager.ReportCompleted())
 	}
-	return ResourceUnavailable(task.StatusManager.ReportFailed())
+	if (*e)[0].TaskStatus == failed {
+		return ResourceUnavailable(task.StatusManager.ReportFailed())
+	}
+	return ResourceUnavailable(task.StatusManager.ReportException((*e)[0].Reason))
 }
 
 func (task *TaskRun) setMaxRunTimer() {
