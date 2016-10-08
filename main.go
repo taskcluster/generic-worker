@@ -50,19 +50,15 @@ var (
 	// to. In future we might require more channels to perform requests in
 	// parallel, in which case we won't have a single global package var.
 	signedURLsResponseChan chan *queue.PollTaskUrlsResponse
-	// write to this to close signedurlmanager
-	signedDoneChan chan<- bool
 	// Channel to request task status updates to the TaskStatusHandler (from
 	// any goroutine)
 	taskStatusUpdate chan<- TaskStatusUpdate
 	// Channel to read errors from after requesting a task status update on
 	// taskStatusUpdate channel
 	taskStatusUpdateErr <-chan error
-	// write to this to close task status update manager
-	taskStatusDoneChan chan<- bool
-	config             *Config
-	configFile         string
-	Features           []Feature = []Feature{
+	config              *Config
+	configFile          string
+	Features            []Feature = []Feature{
 		&OSGroupsFeature{},
 		&LiveLogFeature{},
 		&ChainOfTrustFeature{},
@@ -422,11 +418,11 @@ func runWorker() {
 
 	// Start the SignedURLsManager in a dedicated go routine, to take care of
 	// keeping signed urls up-to-date (i.e. refreshing as old urls expire).
-	signedURLsRequestChan, signedURLsResponseChan, signedDoneChan = SignedURLsManager()
+	signedURLsRequestChan, signedURLsResponseChan = SignedURLsManager()
 
 	// Start the TaskStatusHandler in a dedicated go routine, to take care of
 	// all communication with Queue regarding the status of a TaskRun.
-	taskStatusUpdate, taskStatusUpdateErr, taskStatusDoneChan = TaskStatusHandler()
+	taskStatusUpdate, taskStatusUpdateErr = TaskStatusHandler()
 
 	// loop forever claiming and running tasks!
 	lastActive := time.Now()
@@ -891,9 +887,6 @@ func (task *TaskRun) ExecuteCommand(index int) *CommandExecutionError {
 	if errCommand != nil {
 		return exceptionOrFailure(errCommand)
 	}
-	if err != nil {
-		panic(err)
-	}
 	return nil
 }
 
@@ -960,6 +953,7 @@ func (task *TaskRun) resolve(e *executionErrors) *CommandExecutionError {
 		IfStatusIn: map[TaskStatus]bool{
 			Claimed:   true,
 			Reclaimed: true,
+			Aborted:   true,
 		},
 	}
 	return ResourceUnavailable(<-taskStatusUpdateErr)
@@ -976,8 +970,16 @@ func (task *TaskRun) setMaxRunTimer() {
 	// additional retries left.
 	go func() {
 		time.Sleep(time.Second * time.Duration(task.Payload.MaxRunTime))
-		task.Log("Aborting task - max run time exceeded!")
-		task.kill()
+		taskStatusUpdate <- TaskStatusUpdate{
+			Task:   task,
+			Status: Aborted,
+			IfStatusIn: map[TaskStatus]bool{
+				Claimed:   true,
+				Reclaimed: true,
+			},
+		}
+		// ignore any error - in the wrong go routine to properly handle it
+		<-taskStatusUpdateErr
 	}()
 }
 

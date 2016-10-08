@@ -21,6 +21,7 @@ type TaskStatusUpdate struct {
 // Enumerate task status to aid life-cycle decision making
 // Use strings for benefit of simple logging/reporting
 const (
+	Aborted   TaskStatus = "Aborted"
 	Cancelled TaskStatus = "Cancelled"
 	Succeeded TaskStatus = "Succeeded"
 	Failed    TaskStatus = "Failed"
@@ -46,10 +47,9 @@ const (
 // informing the Queue about the status). Errors
 // from talking to the Queue are returned on err
 // channel.
-func TaskStatusHandler() (request chan<- TaskStatusUpdate, err <-chan error, done chan<- bool) {
+func TaskStatusHandler() (request chan<- TaskStatusUpdate, err <-chan error) {
 	r := make(chan TaskStatusUpdate)
 	e := make(chan error)
-	d := make(chan bool)
 
 	// we'll make all these functions internal to TaskStatusHandler so that
 	// they can only be called inside here, so that reading/writing to the
@@ -166,53 +166,62 @@ func TaskStatusHandler() (request chan<- TaskStatusUpdate, err <-chan error, don
 		return nil
 	}
 
+	abort := func(task *TaskRun) error {
+		log.Printf("Aborting task %v - max run time exceeded!", task.TaskID)
+		task.Log("Aborting task - max run time exceeded!")
+		// defer func() {
+		// 	if r := recover(); r != nil {
+		// 		log.Printf("Panic occured when killing process - ignoring!\n%v", r)
+		// 	}
+		// }()
+		task.kill()
+		return nil
+	}
+
 	cancel := func(task *TaskRun, reason TaskUpdateReason) error {
 		//TODO: implement cancelling of tasks
 		return nil
 	}
 
 	go func() {
-		for {
-			select {
-			case update := <-r:
-				// only update if either IfStatusIn is nil
-				// or it is non-nil but it has "true" value
-				// for key of current status
-				// note - task could have been aborted externally, so update.Task.Status
-				// may not be correct in case of task canellation, but this race
-				// condition will always exist, even if we add a check for the current
-				// value, so then better to fail with a 409 RequestConflict
-				if update.IfStatusIn == nil || update.IfStatusIn[update.Task.Status] {
-					task := update.Task
-					task.Status = update.Status
-					switch update.Status {
-					// Cancelling is when you decide not to run a job which you haven't yet claimed
-					case Cancelled:
-						e <- cancel(task, update.Reason)
-					case Succeeded:
-						e <- reportCompleted(task)
-					case Failed:
-						e <- reportFailed(task)
-					case Errored:
-						e <- reportException(task, update.Reason)
-					case Claimed:
-						e <- claim(task)
-					case Reclaimed:
-						e <- reclaim(task)
-					default:
-						log.Printf("Internal error: unknown task status: %v", update.Status)
-						os.Exit(64)
-					}
-				} else {
-					// current status is such that we shouldn't update to new
-					// status, so report that state transition was not allowed
-					e <- fmt.Errorf("Not able to update status from %v to %v. This is because you can only update to status %v if the previous status was one of: %v", update.Task.Status, update.Status, update.Status, update.IfStatusIn)
+		for update := range r {
+			// only update if either IfStatusIn is nil
+			// or it is non-nil but it has "true" value
+			// for key of current status
+			// note - task could have been aborted externally, so update.Task.Status
+			// may not be correct in case of task canellation, but this race
+			// condition will always exist, even if we add a check for the current
+			// value, so then better to fail with a 409 RequestConflict
+			if update.IfStatusIn == nil || update.IfStatusIn[update.Task.Status] {
+				task := update.Task
+				task.Status = update.Status
+				switch update.Status {
+				// Aborting is when you stop running a job you already claimed
+				case Aborted:
+					e <- abort(task)
+				// Cancelling is when you decide not to run a job which you haven't yet claimed
+				case Cancelled:
+					e <- cancel(task, update.Reason)
+				case Succeeded:
+					e <- reportCompleted(task)
+				case Failed:
+					e <- reportFailed(task)
+				case Errored:
+					e <- reportException(task, update.Reason)
+				case Claimed:
+					e <- claim(task)
+				case Reclaimed:
+					e <- reclaim(task)
+				default:
+					log.Printf("Internal error: unknown task status: %v", update.Status)
+					os.Exit(64)
 				}
-			case <-d:
-				close(d)
-				break
+			} else {
+				// current status is such that we shouldn't update to new
+				// status, so report that state transition was not allowed
+				e <- fmt.Errorf("Not able to update status from %v to %v. This is because you can only update to status %v if the previous status was one of: %v", update.Task.Status, update.Status, update.Status, update.IfStatusIn)
 			}
 		}
 	}()
-	return r, e, d
+	return r, e
 }
