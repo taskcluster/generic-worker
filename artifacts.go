@@ -318,7 +318,7 @@ func (task *TaskRun) uploadLog(logFile string) *CommandExecutionError {
 }
 
 func (task *TaskRun) uploadArtifact(artifact Artifact) *CommandExecutionError {
-	if task.Status == Failed {
+	if task.Status == failed {
 		return nil
 	}
 	log.Println("Uploading artifact: " + artifact.Base().CanonicalPath)
