@@ -11,12 +11,15 @@ import (
 	"syscall"
 	"unicode/utf16"
 	"unsafe"
+
+	"github.com/contester/runlib/subprocess"
+	"github.com/contester/runlib/win32"
 )
 
 var zeroProcAttr syscall.ProcAttr
 var zeroSysProcAttr syscall.SysProcAttr
 
-func StartProcess(argv0 string, argv []string, attr *syscall.ProcAttr, username, password string) (pid int, handle uintptr, err error) {
+func StartProcess(argv0 string, argv []string, attr *syscall.ProcAttr, username, password string, loginInfo *subprocess.LoginInfo) (pid int, handle uintptr, err error) {
 	if len(argv0) == 0 {
 		return 0, 0, syscall.EWINDOWS
 	}
@@ -109,16 +112,31 @@ func StartProcess(argv0 string, argv []string, attr *syscall.ProcAttr, username,
 
 	pi := new(syscall.ProcessInformation)
 
-	flags := (sys.CreationFlags | syscall.CREATE_UNICODE_ENVIRONMENT) &^ CREATE_NEW_CONSOLE
+	flags := (sys.CreationFlags | syscall.CREATE_UNICODE_ENVIRONMENT) &^ win32.CREATE_NEW_CONSOLE
 	if username+password != "" {
-		err = CreateProcessWithLogon(
-			syscall.StringToUTF16Ptr(username),
-			syscall.StringToUTF16Ptr("."),
-			syscall.StringToUTF16Ptr(password),
-			LOGON_WITH_PROFILE,
+		/*
+			err = CreateProcessWithLogon(
+				syscall.StringToUTF16Ptr(username),
+				syscall.StringToUTF16Ptr("."),
+				syscall.StringToUTF16Ptr(password),
+				win32.LOGON_WITH_PROFILE,
+				argv0p,
+				argvp,
+				flags,
+				nil,
+				dirp,
+				si,
+				pi,
+			)
+		*/
+		err = CreateProcessAsUser(
+			loginInfo.HUser,
 			argv0p,
 			argvp,
-			flags,
+			nil,
+			nil,
+			true,
+			win32.CREATE_NEW_PROCESS_GROUP|win32.CREATE_NEW_CONSOLE|win32.CREATE_SUSPENDED|syscall.CREATE_UNICODE_ENVIRONMENT|win32.CREATE_BREAKAWAY_FROM_JOB,
 			nil,
 			dirp,
 			si,
@@ -139,7 +157,7 @@ func StartProcess(argv0 string, argv []string, attr *syscall.ProcAttr, username,
 		)
 	}
 	if err != nil {
-		fmt.Printf("\n\n\n\nusername: %q\npassword: %q\nLOGON_WITH_PROFILE: %q\nargv0p: %q\nargvp: %q\nflags: %q\nattr.Env: %q\ndirp: %q\nsi: %q\npi: %q\n\n\n\n\n", username, password, LOGON_WITH_PROFILE, argv0p, argvp, flags, attr.Env, dirp, si, pi)
+		fmt.Printf("\n\n\n\nusername: %q\npassword: %q\nLOGON_WITH_PROFILE: %q\nargv0p: %q\nargvp: %q\nflags: %q\nattr.Env: %q\ndirp: %q\nsi: %q\npi: %q\n\n\n\n\n", username, password, win32.LOGON_WITH_PROFILE, argv0p, argvp, flags, attr.Env, dirp, si, pi)
 		return 0, 0, err
 	}
 	defer syscall.CloseHandle(syscall.Handle(pi.Thread))

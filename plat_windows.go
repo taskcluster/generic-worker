@@ -24,6 +24,13 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+type OSUser struct {
+	HomeDir   string
+	Name      string
+	Password  string
+	LoginInfo *subprocess.LoginInfo
+}
+
 func immediateShutdown() {
 	cmd := exec.Command("C:\\Windows\\System32\\shutdown.exe", "/s")
 	err := cmd.Run()
@@ -153,10 +160,12 @@ func (user *OSUser) createOSUserAccountForce(okIfExists bool) error {
 		return err
 	}
 	log.Println("Creating local profile...")
-	_, err = subprocess.NewLoginInfo(user.Name, user.Password)
+	var li *subprocess.LoginInfo
+	li, err = subprocess.NewLoginInfo(user.Name, user.Password)
 	if okIfExists {
 		return nil
 	}
+	user.LoginInfo = li
 	return err
 }
 
@@ -232,6 +241,7 @@ func (task *TaskRun) generateCommand(index int) error {
 	cmd := exec.Command(wrapper)
 	cmd.Username = TaskUser.Name
 	cmd.Password = TaskUser.Password
+	cmd.LoginInfo = TaskUser.LoginInfo
 	cmd.Dir = TaskUser.HomeDir
 	cmd.Stdout = task.logWriter
 	cmd.Stderr = task.logWriter

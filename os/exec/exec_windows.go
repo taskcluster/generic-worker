@@ -18,6 +18,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/contester/runlib/subprocess"
 	myos "github.com/taskcluster/generic-worker/os"
 )
 
@@ -96,8 +97,9 @@ type Cmd struct {
 	// Non-standard entries, added for generic-worker
 	// to enable running process as a different user on windows
 	// if not set (i.e. empty strings), then they are not used
-	Username string
-	Password string
+	Username  string
+	Password  string
+	LoginInfo *subprocess.LoginInfo
 }
 
 // Start starts the specified command but does not wait for it to complete.
@@ -147,6 +149,7 @@ func (c *Cmd) Start() error {
 		},
 		c.Username,
 		c.Password,
+		c.LoginInfo,
 	)
 	if err != nil {
 		c.closeDescriptors(c.closeAfterStart)

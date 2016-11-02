@@ -116,12 +116,6 @@ type (
 		ContentType string    `json:"contentType"`
 	}
 
-	OSUser struct {
-		HomeDir  string
-		Name     string
-		Password string
-	}
-
 	TaskStatus       string
 	TaskUpdateReason string
 )

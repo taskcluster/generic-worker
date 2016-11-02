@@ -8,12 +8,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/contester/runlib/subprocess"
 	mysyscall "github.com/taskcluster/generic-worker/syscall"
 )
 
 var Kill os.Signal = syscall.SIGKILL
 
-func startProcess(name string, argv []string, attr *os.ProcAttr, username, password string) (p *Process, err error) {
+func startProcess(name string, argv []string, attr *os.ProcAttr, username, password string, loginInfo *subprocess.LoginInfo) (p *Process, err error) {
 	// If there is no SysProcAttr (ie. no Chroot or changed
 	// UID/GID), double-check existence of the directory we want
 	// to chdir into.  We can make the error clearer this way.
@@ -37,7 +38,7 @@ func startProcess(name string, argv []string, attr *os.ProcAttr, username, passw
 		sysattr.Files = append(sysattr.Files, f.Fd())
 	}
 
-	pid, h, e := mysyscall.StartProcess(name, argv, sysattr, username, password)
+	pid, h, e := mysyscall.StartProcess(name, argv, sysattr, username, password, loginInfo)
 	if e != nil {
 		return nil, &os.PathError{Op: "fork/exec", Path: name, Err: e}
 	}

@@ -14,6 +14,12 @@ import (
 	"strings"
 )
 
+type OSUser struct {
+	HomeDir  string
+	Name     string
+	Password string
+}
+
 func exceptionOrFailure(errCommand error) *CommandExecutionError {
 	switch errCommand.(type) {
 	case *exec.ExitError:

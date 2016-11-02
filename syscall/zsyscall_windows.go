@@ -1,5 +1,5 @@
 // Generated with
-//  go run /usr/local/Cellar/go/1.5.1/libexec/src/syscall/mksyscall_windows.go -output syscall/zsyscall_windows.go syscall/syscall_windows.go
+//  go run /usr/local/Cellar/go/1.7.3/libexec/src/syscall/mksyscall_windows.go -output syscall/zsyscall_windows.go syscall/syscall_windows.go
 // and then modified to improve layout, and to refer to system syscall package instead of local one, where appropriate.
 
 package syscall
@@ -7,22 +7,65 @@ package syscall
 import (
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 var _ unsafe.Pointer
 
 var (
-	modadvapi32 = syscall.NewLazyDLL("advapi32.dll")
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
-	moduserenv  = syscall.NewLazyDLL("userenv.dll")
+	modadvapi32 = windows.NewLazySystemDLL("advapi32.dll")
+	modkernel32 = windows.NewLazySystemDLL("kernel32.dll")
 
+	procCreateProcessAsUserW    = modadvapi32.NewProc("CreateProcessAsUserW")
 	procCreateProcessWithLogonW = modadvapi32.NewProc("CreateProcessWithLogonW")
 	procCreateProcessW          = modkernel32.NewProc("CreateProcessW")
-	procCreateProfile           = moduserenv.NewProc("CreateProfile")
 )
 
-const LOGON_WITH_PROFILE = 0x00000001
-const CREATE_NEW_CONSOLE = 0x00000010
+func CreateProcessAsUser(
+	token syscall.Handle,
+	appName *uint16,
+	commandLine *uint16,
+	procSecurity *syscall.SecurityAttributes,
+	threadSecurity *syscall.SecurityAttributes,
+	inheritHandles bool,
+	creationFlags uint32,
+	env *uint16,
+	currentDir *uint16,
+	startupInfo *syscall.StartupInfo,
+	outProcInfo *syscall.ProcessInformation,
+) (err error) {
+	var _p0 uint32
+	if inheritHandles {
+		_p0 = 1
+	} else {
+		_p0 = 0
+	}
+	r1, _, e1 := syscall.Syscall12(
+		procCreateProcessAsUserW.Addr(),
+		11,
+		uintptr(token),
+		uintptr(unsafe.Pointer(appName)),
+		uintptr(unsafe.Pointer(commandLine)),
+		uintptr(unsafe.Pointer(procSecurity)),
+		uintptr(unsafe.Pointer(threadSecurity)),
+		uintptr(_p0),
+		uintptr(creationFlags),
+		uintptr(unsafe.Pointer(env)),
+		uintptr(unsafe.Pointer(currentDir)),
+		uintptr(unsafe.Pointer(startupInfo)),
+		uintptr(unsafe.Pointer(outProcInfo)),
+		0,
+	)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = error(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
 
 func CreateProcessWithLogon(
 	username *uint16,
