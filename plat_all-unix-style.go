@@ -47,7 +47,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	TaskUser = OSUser{
+	TaskUser = &OSUser{
 		HomeDir:  pwd,
 		Name:     "",
 		Password: "",

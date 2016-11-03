@@ -40,7 +40,7 @@ var (
 	configureForAws bool
 	// General platform independent user settings, such as home directory, username...
 	// Platform specific data should be managed in plat_<platform>.go files
-	TaskUser OSUser
+	TaskUser *OSUser
 	// Queue is the object we will use for accessing queue api. See
 	// https://docs.taskcluster.net/reference/platform/queue/api-docs
 	Queue       *queue.Queue
