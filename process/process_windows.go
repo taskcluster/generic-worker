@@ -147,6 +147,12 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 	return command, nil
 }
 
+// For now, I don't see a simple way to terminate the process outside of the
+// subprocess library.  However, we can set a time limit, so the only thing we
+// can't do is kill a process in response to cancelling of a task. That wasn't
+// implemented before, so we haven't lost anything, over the old
+// implementation. However, at some point, we should find a way to kill the
+// process for when we want to cancel tasks.
 func (c *Command) Kill() error {
 	return nil
 }
