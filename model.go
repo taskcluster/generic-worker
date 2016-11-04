@@ -80,10 +80,11 @@ type (
 		Status              TaskStatus                   `json:"-"`
 		Commands            []*process.Command           `json:"-"`
 		// not exported
-		reclaimTimer  *time.Timer
-		logWriter     io.Writer
-		Queue         *queue.Queue       `json:"-"`
-		StatusManager *TaskStatusManager `json:"-"`
+		logWriter          io.Writer
+		reclaimTimer       *time.Timer
+		maxRunTimeDeadline time.Time
+		Queue              *queue.Queue       `json:"-"`
+		StatusManager      *TaskStatusManager `json:"-"`
 	}
 
 	// Custom time format to enable unmarshalling of azure xml directly into go

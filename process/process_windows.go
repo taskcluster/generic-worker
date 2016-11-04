@@ -3,6 +3,8 @@ package process
 import (
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"time"
 
 	"github.com/contester/runlib/platform"
@@ -60,6 +62,7 @@ func GetVerdict(r *Result) Verdict {
 
 type Command struct {
 	*subprocess.Subprocess
+	Deadline time.Time
 }
 
 type Result struct {
@@ -96,6 +99,12 @@ func (c *Command) String() string {
 }
 
 func (c *Command) Execute() (r *Result) {
+	if !c.Deadline.IsZero() {
+		c.HardTimeLimit = c.Deadline.Sub(time.Now())
+		if c.HardTimeLimit < 0 {
+			log.Printf("WARNING: Deadline %v exceeded before command %v has been executed!", c.Deadline, c)
+		}
+	}
 	result, err := c.Subprocess.Execute()
 	return &Result{
 		SubprocessResult: result,
@@ -103,7 +112,7 @@ func (c *Command) Execute() (r *Result) {
 	}
 }
 
-func NewCommand(commandLine string, workingDirectory *string, env *[]string, username, password string, timeLimit time.Duration) (*Command, error) {
+func NewCommand(commandLine string, workingDirectory *string, env *[]string, username, password string, deadline time.Time) (*Command, error) {
 	var loginInfo *subprocess.LoginInfo
 	var desktopName string
 	if username != "" {
@@ -118,7 +127,7 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 		}
 	}
 	command := &Command{
-		&subprocess.Subprocess{
+		Subprocess: &subprocess.Subprocess{
 			TimeQuantum: time.Second / 4,
 			Cmd: &subprocess.CommandLine{
 				ApplicationName: nil,
@@ -127,22 +136,25 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 			},
 			CurrentDirectory:    workingDirectory,
 			TimeLimit:           0,
-			HardTimeLimit:       timeLimit,
+			HardTimeLimit:       0,
 			MemoryLimit:         0,
 			CheckIdleness:       false,
 			RestrictUi:          false,
 			ProcessAffinityMask: 0,
 			NoJob:               true,
 			Environment:         env,
-			StdIn:               nil,
-			StdOut:              nil,
-			StdErr:              nil,
-			JoinStdOutErr:       true,
+			StdIn: &subprocess.Redirect{
+				Mode: subprocess.REDIRECT_NONE,
+			},
+			StdOut:        nil,
+			StdErr:        nil,
+			JoinStdOutErr: true,
 			Options: &subprocess.PlatformOptions{
 				Desktop: desktopName,
 			},
 			Login: loginInfo,
 		},
+		Deadline: deadline,
 	}
 	return command, nil
 }
@@ -158,4 +170,15 @@ func (c *Command) Kill() error {
 }
 
 func (c *Command) DirectOutput(writer io.Writer) {
+	r, w, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	c.StdOut = &subprocess.Redirect{
+		Mode: subprocess.REDIRECT_PIPE,
+		Pipe: w,
+	}
+	go func() {
+		io.Copy(writer, r)
+	}()
 }

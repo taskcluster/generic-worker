@@ -945,6 +945,7 @@ func (task *TaskRun) resolve(e *executionErrors) *CommandExecutionError {
 }
 
 func (task *TaskRun) setMaxRunTimer() {
+	task.maxRunTimeDeadline = time.Now().Add(time.Second * time.Duration(task.Payload.MaxRunTime))
 	// Terminating the Worker Early
 	// ----------------------------
 	// If the worker finds itself having to terminate early, for example a spot
@@ -954,7 +955,7 @@ func (task *TaskRun) setMaxRunTimer() {
 	// resolve the run as exception and create a new run, if the task has
 	// additional retries left.
 	go func() {
-		time.Sleep(time.Second * time.Duration(task.Payload.MaxRunTime))
+		time.Sleep(task.maxRunTimeDeadline.Sub(time.Now()))
 		// ignore any error - in the wrong go routine to properly handle it
 		task.StatusManager.Abort()
 	}()

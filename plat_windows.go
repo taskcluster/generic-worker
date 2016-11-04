@@ -214,7 +214,7 @@ func deleteOSUserAccount(line string) {
 func (task *TaskRun) generateCommand(index int) error {
 	commandName := fmt.Sprintf("command_%06d", index)
 	wrapper := filepath.Join(TaskUser.HomeDir, commandName+"_wrapper.bat")
-	command, err := process.NewCommand(wrapper, &TaskUser.HomeDir, nil, TaskUser.Name, TaskUser.Password, 0)
+	command, err := process.NewCommand(wrapper, &TaskUser.HomeDir, nil, TaskUser.Name, TaskUser.Password, task.maxRunTimeDeadline)
 	if err != nil {
 		return err
 	}
@@ -519,7 +519,7 @@ func runCommands(allowFail bool, osUser *OSUser, commands ...[]string) error {
 	for _, command := range commands {
 		commandLine := strings.Join(command, " ")
 		log.Println("Running command: '" + commandLine + "'")
-		cmd, err := process.NewCommand(commandLine, nil, nil, osUser.Name, osUser.Password, 0)
+		cmd, err := process.NewCommand(commandLine, nil, nil, osUser.Name, osUser.Password, time.Time{})
 		if err != nil {
 			return err
 		}
