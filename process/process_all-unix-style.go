@@ -31,6 +31,14 @@ func (r *Result) Failed() bool {
 	return r.SystemError == nil && r.ExitError != nil
 }
 
+func (r *Result) CrashCause() error {
+	return r.SystemError
+}
+
+func (r *Result) FailureCause() *exec.ExitError {
+	return r.ExitError
+}
+
 func (r *Result) Crashed() bool {
 	return r.SystemError != nil
 }

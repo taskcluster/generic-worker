@@ -886,11 +886,11 @@ func (task *TaskRun) ExecuteCommand(index int) *CommandExecutionError {
 	switch {
 	case result.Failed():
 		return &CommandExecutionError{
-			Cause:      result.ExitError,
+			Cause:      result.FailureCause(),
 			TaskStatus: failed,
 		}
 	case result.Crashed():
-		panic(result.SystemError)
+		panic(result.CrashCause())
 	}
 	return nil
 }
