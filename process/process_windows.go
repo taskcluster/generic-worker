@@ -143,12 +143,10 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 			ProcessAffinityMask: 0,
 			NoJob:               true,
 			Environment:         env,
-			StdIn: &subprocess.Redirect{
-				Mode: subprocess.REDIRECT_NONE,
-			},
-			StdOut:        nil,
-			StdErr:        nil,
-			JoinStdOutErr: true,
+			StdIn:               nil,
+			StdOut:              nil,
+			StdErr:              nil,
+			JoinStdOutErr:       true,
 			Options: &subprocess.PlatformOptions{
 				Desktop: desktopName,
 			},
@@ -175,7 +173,7 @@ func (c *Command) DirectOutput(writer io.Writer) {
 		panic(err)
 	}
 	c.StdOut = &subprocess.Redirect{
-		Mode: subprocess.REDIRECT_PIPE,
+		Mode: subprocess.REDIRECT_FILE,
 		Pipe: w,
 	}
 	go func() {
