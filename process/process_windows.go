@@ -131,6 +131,8 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 		}
 	}
 	maxDuration := deadline.Sub(time.Now())
+	log.Printf("Max Duration: %v", maxDuration)
+	log.Printf("Deadline: %v", deadline)
 	command := &Command{
 		Subprocess: &subprocess.Subprocess{
 			TimeQuantum: time.Second / 4,
