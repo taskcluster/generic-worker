@@ -91,7 +91,9 @@ func (r *Result) CrashCause() error {
 }
 
 func (r *Result) String() string {
-	return GetVerdict(r).String()
+	return fmt.Sprintf(`Exit Code: %v
+Success Code: %v
+%v`, r.ExitCode, r.SuccessCode, GetVerdict(r))
 }
 
 func (c *Command) String() string {
