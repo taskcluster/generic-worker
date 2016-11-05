@@ -130,6 +130,7 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 			return nil, err
 		}
 	}
+	maxDuration := deadline.Sub(time.Now())
 	command := &Command{
 		Subprocess: &subprocess.Subprocess{
 			TimeQuantum: time.Second / 4,
@@ -140,7 +141,7 @@ func NewCommand(commandLine string, workingDirectory *string, env *[]string, use
 			},
 			CurrentDirectory:    workingDirectory,
 			TimeLimit:           0,
-			HardTimeLimit:       0,
+			HardTimeLimit:       maxDuration,
 			MemoryLimit:         0,
 			CheckIdleness:       false,
 			RestrictUi:          false,
