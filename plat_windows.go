@@ -519,7 +519,12 @@ func runCommands(allowFail bool, osUser *OSUser, commands ...[]string) error {
 	for _, command := range commands {
 		commandLine := strings.Join(command, " ")
 		log.Println("Running command: '" + commandLine + "'")
-		cmd, err := process.NewCommand(commandLine, nil, nil, osUser.Name, osUser.Password, time.Time{})
+		var cmd *process.Command
+		if osUser != nil {
+			cmd, err = process.NewCommand(commandLine, nil, nil, osUser.Name, osUser.Password, time.Time{})
+		} else {
+			cmd, err = process.NewCommand(commandLine, nil, nil, "", "", time.Time{})
+		}
 		if err != nil {
 			return err
 		}
