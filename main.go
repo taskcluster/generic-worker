@@ -881,6 +881,7 @@ func (task *TaskRun) ExecuteCommand(index int) *CommandExecutionError {
 	}
 
 	result := task.Commands[index].Execute()
+	task.Logf("Exit Code: %v", result.ExitCode)
 	task.Logf("%v", result)
 
 	switch {
