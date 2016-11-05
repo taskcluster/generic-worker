@@ -45,8 +45,10 @@ func (v Verdict) String() string {
 
 func GetVerdict(r *Result) Verdict {
 	switch {
-	case r.SuccessCode == 0:
+	case r.SuccessCode == 0 && r.ExitCode == 0:
 		return SUCCESS
+	case r.SuccessCode == 0 && r.ExitCode != 0:
+		return FAIL
 	case r.SuccessCode&(subprocess.EF_PROCESS_LIMIT_HIT|subprocess.EF_PROCESS_LIMIT_HIT_POST) != 0:
 		return SECURITY_VIOLATION
 	case r.SuccessCode&(subprocess.EF_INACTIVE|subprocess.EF_TIME_LIMIT_HARD) != 0:
