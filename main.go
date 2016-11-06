@@ -945,7 +945,6 @@ func (task *TaskRun) resolve(e *executionErrors) *CommandExecutionError {
 }
 
 func (task *TaskRun) setMaxRunTimer() {
-	task.maxRunTimeDeadline = time.Now().Add(time.Second * time.Duration(task.Payload.MaxRunTime))
 	// Terminating the Worker Early
 	// ----------------------------
 	// If the worker finds itself having to terminate early, for example a spot
@@ -1037,6 +1036,8 @@ func (task *TaskRun) run() (err *executionErrors) {
 	log.Printf("Running task https://tools.taskcluster.net/task-inspector/#%v/%v", task.TaskID, task.RunID)
 
 	task.Commands = make([]*process.Command, len(task.Payload.Command))
+	// need to include deadline in commands, so need to set it already here
+	task.maxRunTimeDeadline = time.Now().Add(time.Second * time.Duration(task.Payload.MaxRunTime))
 	// generate commands, in case features want to modify them
 	for i, _ := range task.Payload.Command {
 		err := task.generateCommand(i) // platform specific
