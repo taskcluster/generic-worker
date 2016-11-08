@@ -544,6 +544,9 @@ func runCommands(allowFail bool, osUser *OSUser, commands ...string) error {
 
 		log.Println("Finished running above command")
 
+		if res.SystemError != nil {
+			panic(res.SystemError)
+		}
 		if !res.Succeeded() {
 			log.Printf("%v", res)
 			if !allowFail {
