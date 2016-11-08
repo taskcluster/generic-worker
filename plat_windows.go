@@ -451,7 +451,7 @@ func deployStartup(user *OSUser, configFile string, exePath string) error {
 	if err != nil {
 		return fmt.Errorf("I was not able to write the file \"Run Generic Worker.xml\" to file location %q with 0644 permissions, due to: %s", xmlFilePath, err)
 	}
-	err = runCommands(false, nil, "schtasks /create /tn \"Run Generic Worker on login\" /xml "+xmlFilePath)
+	err = runCommands(false, nil, "schtasks /create /tn \"Run Generic Worker on login\" /xml \""+xmlFilePath+"\"")
 	if err != nil {
 		return fmt.Errorf("Not able to schedule task \"Run Generic Worker on login\" using schtasks command, due to error: %s\n\nAlso see stderr/stdout logs for output of the command that failed.", err)
 	}
