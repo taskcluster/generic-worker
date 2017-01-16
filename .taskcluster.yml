@@ -75,6 +75,6 @@ tasks:
         - mkdir public/build
         - 'copy "%GOPATH%/bin/generic-worker.exe" public/build/generic-worker-windows-amd64.exe'
       artifacts:
-        - path: public/build/generic-worker-windows-amd64.exe:
+        - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
