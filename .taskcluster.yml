@@ -33,7 +33,8 @@ tasks:
             BASE_PACKAGE="$(echo '{{ event.base.repo.url }}' | sed -n 's/^https:\/\/\(.*\)\.git/\1/p')"
             go get -d "${BASE_PACKAGE}"
             cd "${GOPATH}/src/${BASE_PACKAGE}"
-            git fetch '{{ event.head.repo.url }}'
+            git remote add user '{{ event.head.repo.url }}'
+            git fetch --tags user
             git checkout '{{ event.head.sha }}'
             go get -t ./...
       artifacts:
