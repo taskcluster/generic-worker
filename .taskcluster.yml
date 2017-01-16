@@ -1,0 +1,46 @@
+# The version is always required
+version: 0
+# Top level metadata is always required
+metadata:
+  name: "TaskCluster Generic Worker Tests"
+  description: "These tests should ensure that any new commits against generic worker codebase are tested across all supported worker types in gekco."
+  owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+  source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+tasks:
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Build linux64 generic-worker"
+      description: "This builds the 64 bit linux version of generic-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # This must be set in order access GitHub info from inside your environment
+        env: true
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    payload:
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+            HEAD_PACKAGE="$(echo '{{ event.head.repo.url }}' | sed -n 's/^https:\/\/\(.*\)\.git/\1/p')"
+            BASE_PACKAGE="$(echo '{{ event.base.repo.url }}' | sed -n 's/^https:\/\/\(.*\)\.git/\1/p')"
+            go get -d "${BASE_PACKAGE}"
+            cd "${GOPATH}/src/${BASE_PACKAGE}"
+            git fetch '{{ event.head.repo.url }}'
+            git checkout '{{ event.head.sha }}'
+            go get -t ./...
+      artifacts:
+        # public/build/generic-worker-darwin-amd64:
+        public/build/generic-worker-linux-amd64:
+          path: "${GOPATH}/bin/generic-worker"
+          expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
+        # public/build/generic-worker-windows-386.exe:
+        # public/build/ generic-worker-windows-amd64.exe:
