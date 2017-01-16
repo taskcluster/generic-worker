@@ -62,12 +62,9 @@ tasks:
           - push
     payload:
       maxRunTime: 3600
-      env:
-        HEAD_PACKAGE: '{{ event.head.repo.url }}'
-        BASE_PACKAGE: '{{ event.base.repo.url }}'
       command:
-        - go get -d "${BASE_PACKAGE}"
-        - cd "%GOPATH%/src/%BASE_PACKAGE%"
+        - go get -d "github.com/%GITHUB_BASE_USER%/generic-worker"
+        - cd "%GOPATH%/src/github.com/%GITHUB_BASE_USER%/generic-worker"
         - git remote add user '{{ event.head.repo.url }}'
         - git fetch --tags user
         - git checkout '{{ event.head.sha }}'
