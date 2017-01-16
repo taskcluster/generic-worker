@@ -39,7 +39,7 @@ tasks:
       artifacts:
         # public/build/generic-worker-darwin-amd64:
         public/build/generic-worker-linux-amd64:
-          path: "${GOPATH}/bin/generic-worker"
+          path: "/go/bin/generic-worker"
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
         # public/build/generic-worker-windows-386.exe:
