@@ -35,7 +35,7 @@ tasks:
             cd "${GOPATH}/src/${BASE_PACKAGE}"
             git fetch '{{ event.head.repo.url }}'
             git checkout '{{ event.head.sha }}'
-            go get -u -t ./...
+            go get -t ./...
       artifacts:
         # public/build/generic-worker-darwin-amd64:
         public/build/generic-worker-linux-amd64:
