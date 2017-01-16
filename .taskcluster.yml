@@ -69,7 +69,7 @@ tasks:
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" fetch --tags user
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" checkout {{ event.head.sha }}
         - go get -t github.com/{{ event.base.user.login }}/generic-worker/...
-        - mkdirs public/build
+        - "mkdir public\build"
         - 'copy "%GOPATH%\bin\generic-worker.exe" "public\build\generic-worker-windows-amd64.exe"'
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
