@@ -63,14 +63,14 @@ tasks:
     payload:
       maxRunTime: 3600
       command:
+        - set GOPATH=%CD%\gopath
         - go get -d "github.com/%GITHUB_BASE_USER%/generic-worker"
-        - cd "%GOPATH%/src/github.com/%GITHUB_BASE_USER%/generic-worker"
-        - git remote add user '{{ event.head.repo.url }}'
-        - git fetch --tags user
-        - git checkout '{{ event.head.sha }}'
+        - git -C "%GOPATH%\src\github.com\%GITHUB_BASE_USER%\generic-worker" remote add user '{{ event.head.repo.url }}'
+        - git -C "%GOPATH%\src\github.com\%GITHUB_BASE_USER%\generic-worker" fetch --tags user
+        - git -C "%GOPATH%\src\github.com\%GITHUB_BASE_USER%\generic-worker" checkout '{{ event.head.sha }}'
         - go get -t ./...
         - mkdir public/build
-        - 'copy "%GOPATH%/bin/generic-worker.exe" public/build/generic-worker-windows-amd64.exe'
+        - 'copy "%GOPATH%\bin\generic-worker.exe" public\build\generic-worker-windows-amd64.exe'
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
