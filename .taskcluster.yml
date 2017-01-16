@@ -29,8 +29,8 @@ tasks:
         - /bin/bash
         - -vxec
         - |
-            HEAD_PACKAGE="$(echo '{{ event.head.repo.url }}' | sed -n 's/^https:\/\///p')"
-            BASE_PACKAGE="$(echo '{{ event.base.repo.url }}' | sed -n 's/^https:\/\///p')"
+            HEAD_PACKAGE="$(echo '{{ event.head.repo.url }}' | sed -n 's/^https:\/\/\(.*\)\.git/\1/p')"
+            BASE_PACKAGE="$(echo '{{ event.base.repo.url }}' | sed -n 's/^https:\/\/\(.*\)\.git/\1/p')"
             go get -d "${BASE_PACKAGE}"
             cd "${GOPATH}/src/${BASE_PACKAGE}"
             git fetch '{{ event.head.repo.url }}'
