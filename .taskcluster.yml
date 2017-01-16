@@ -45,3 +45,36 @@ tasks:
           type: file
         # public/build/generic-worker-windows-386.exe:
         # public/build/ generic-worker-windows-amd64.exe:
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: win2012r2
+    metadata:
+      name: "Build Windows 32 bit generic-worker"
+      description: "This builds the 32 bit Windows version of generic-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # This must be set in order access GitHub info from inside your environment
+        env: true
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    payload:
+      maxRunTime: 3600
+      env:
+        HEAD_PACKAGE: '{{ event.head.repo.url }}'
+        BASE_PACKAGE: '{{ event.base.repo.url }}'
+      command:
+        - go get -d "${BASE_PACKAGE}"
+        - cd "%GOPATH%/src/%BASE_PACKAGE%"
+        - git remote add user '{{ event.head.repo.url }}'
+        - git fetch --tags user
+        - git checkout '{{ event.head.sha }}'
+        - go get -t ./...
+        - mkdir public/build
+        - 'copy "%GOPATH%/bin/generic-worker.exe" public/build/generic-worker-windows-amd64.exe'
+      artifacts:
+        - path: public/build/generic-worker-windows-amd64.exe:
+          expires: "{{ '2 weeks' | $fromNow }}"
+          type: file
