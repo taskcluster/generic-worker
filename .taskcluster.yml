@@ -9,6 +9,11 @@ metadata:
 tasks:
   - provisionerId: "{{ taskcluster.docker.provisionerId }}"
     workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Build linux64 generic-worker"
+      description: "This builds the 64 bit linux version of generic-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
       github:
         # This must be set in order access GitHub info from inside your environment
