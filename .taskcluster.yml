@@ -34,9 +34,10 @@ tasks:
             git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" fetch --tags user
             git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" checkout '{{ event.head.sha }}'
             go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
-            go get -t github.com/{{ event.base.user.login }}/generic-worker/gw-codegen
+            go get github.com/{{ event.base.user.login }}/generic-worker/gw-codegen
             go generate github.com/{{ event.base.user.login }}/generic-worker
-            test $(git status --porcelain | wc -l) == 0
+            go get github.com/{{ event.base.user.login }}/generic-worker
+            test $(git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" status --porcelain | wc -l) == 0
             GORACE=history_size=7 go test -v -t github.com/{{ event.base.user.login }}/generic-worker/...
             "${GOPATH}/bin/ineffassign" "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker"
 
@@ -71,10 +72,16 @@ tasks:
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" remote add user {{ event.head.repo.url }}
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" fetch --tags user
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" checkout {{ event.head.sha }}
-        - go get -t github.com/{{ event.base.user.login }}/generic-worker/...
+        - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+        - go get github.com/{{ event.base.user.login }}/generic-worker/gw-codegen
+        - go generate github.com/{{ event.base.user.login }}/generic-worker
+        - go get github.com/{{ event.base.user.login }}/generic-worker
         - 'mkdir "public\build"'
         - 'copy "%GOPATH%\bin\generic-worker.exe" "public\build\generic-worker-windows-amd64.exe"'
+        - test $(git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" status --porcelain | wc -l) == 0
+        - set GORACE=history_size=7
         - go test -v github.com/{{ event.base.user.login }}/generic-worker/...
+        - "${GOPATH}/bin/ineffassign" "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker"
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
