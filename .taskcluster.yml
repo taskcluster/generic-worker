@@ -109,7 +109,7 @@ tasks:
         - mkdir "public\build"'
         - set GOPATH=%CD%\gopath
         - set GOROOT=%CD%\go
-        - set PATH=%PATH%;%CD%\git\bin;%GOROOT%\bin
+        - set PATH=%CD%\git\bin;%GOPATH%\bin;%GOROOT%\bin;%PATH%
         - go get -d "github.com/{{ event.base.user.login }}/generic-worker"
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" remote add user {{ event.head.repo.url }}
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" fetch --tags user
