@@ -80,7 +80,7 @@ tasks:
         - test $(git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" status --porcelain | wc -l) == 0
         - set GORACE=history_size=7
         - go test -v github.com/{{ event.base.user.login }}/generic-worker/...
-        - "${GOPATH}/bin/ineffassign" "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker"
+        - '"${GOPATH}/bin/ineffassign" "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker"'
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
