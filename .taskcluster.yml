@@ -106,8 +106,10 @@ tasks:
     payload:
       maxRunTime: 3600
       command:
-        - 'mkdir "public\build"'
+        - mkdir "public\build"'
         - set GOPATH=%CD%\gopath
+        - set GOROOT=%CD%\go,
+        - set PATH=%PATH%;%CD%\git\bin;%GOROOT%\bin
         - go get -d "github.com/{{ event.base.user.login }}/generic-worker"
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" remote add user {{ event.head.repo.url }}
         - git -C "%GOPATH%\src\github.com\{{ event.base.user.login }}\generic-worker" fetch --tags user
@@ -125,3 +127,12 @@ tasks:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
+      mounts:
+        - content:
+            url: https://storage.googleapis.com/golang/go1.7.4.windows-386.zip
+          directory: .
+          format: zip
+        - content:
+            url: https://github.com/git-for-windows/git/releases/download/v2.11.0.windows.3/Git-2.11.0.3-32-bit.tar.bz2
+          directory: git
+          format: tar.bz2
