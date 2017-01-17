@@ -125,3 +125,4 @@ tasks:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
+
