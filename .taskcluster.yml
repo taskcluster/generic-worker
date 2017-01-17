@@ -40,7 +40,6 @@ tasks:
             test $(git -C "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker" status --porcelain | wc -l) == 0
             GORACE=history_size=7 go test -v -t github.com/{{ event.base.user.login }}/generic-worker/...
             "${GOPATH}/bin/ineffassign" "${GOPATH}/src/github.com/{{ event.base.user.login }}/generic-worker"
-
       artifacts:
         # public/build/generic-worker-darwin-amd64:
         public/build/generic-worker-linux-amd64:
