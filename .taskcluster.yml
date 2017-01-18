@@ -96,7 +96,13 @@ tasks:
         - go generate
         - go get -v
         - 'copy "..\..\..\..\bin\generic-worker.exe" "..\..\..\..\..\public\build\generic-worker-windows-amd64.exe"'
-        - test $(git -C status --porcelain | wc -l) == 0
+        - ':: this counts the number of lines returned by git status
+          git status --porcelain | find /c /v “” > tmp1.txt
+          set /P lines=<tmp1.txt
+          :: this checks that if more than 0 lines are returned, we fail
+          if %lines% gtr 0 (
+              exit /b 64
+          )'
         - set GORACE=history_size=7
         - go test -v ./...
         - '"${GOPATH}/bin/ineffassign"'
@@ -143,8 +149,14 @@ tasks:
         - cd ..
         - go generate
         - go get -v
-        - 'copy "%GOPATH%\bin\generic-worker.exe" "public\build\generic-worker-windows-amd64.exe"'
-        - test $(git status --porcelain | wc -l) == 0
+        - 'copy "%GOPATH%\bin\generic-worker.exe" "..\..\..\..\..\public\build\generic-worker-windows-amd64.exe"'
+        - ':: this counts the number of lines returned by git status
+          git status --porcelain | find /c /v “” > tmp1.txt
+          set /P lines=<tmp1.txt
+          :: this checks that if more than 0 lines are returned, we fail
+          if %lines% gtr 0 (
+              exit /b 64
+          )'
         - set GORACE=history_size=7
         - go test -v ./...
         - '"${GOPATH}/bin/ineffassign"'
