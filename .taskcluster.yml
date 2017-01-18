@@ -47,7 +47,7 @@ tasks:
             go generate
             go get -v
             test "$(git status --porcelain | wc -l)" == 0
-            GORACE=history_size=7 go test -v -t ./...
+            GORACE=history_size=7 go test -v ./...
             "${GOPATH}/bin/ineffassign"
       artifacts:
         # public/build/generic-worker-darwin-amd64:
