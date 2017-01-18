@@ -48,7 +48,7 @@ tasks:
             go get -v -t ./...
             test "$(git status --porcelain | wc -l)" == 0
             GORACE=history_size=7 go test -v ./...
-            "${GOPATH}/bin/ineffassign"
+            "${GOPATH}/bin/ineffassign" .
       artifacts:
         # public/build/generic-worker-darwin-amd64:
         public/build/generic-worker-linux-amd64:
@@ -105,7 +105,7 @@ tasks:
           )'
         - set GORACE=history_size=7
         - go test -v ./...
-        - '"${GOPATH}/bin/ineffassign"'
+        - '"${GOPATH}/bin/ineffassign" .'
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -159,7 +159,7 @@ tasks:
           )'
         - set GORACE=history_size=7
         - go test -v ./...
-        - '"${GOPATH}/bin/ineffassign"'
+        - '"${GOPATH}/bin/ineffassign" .'
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
