@@ -87,6 +87,7 @@ tasks:
         - git --version
         - git config --local core.autocrlf false
         - git config core.autocrlf
+        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
@@ -146,6 +147,7 @@ tasks:
         - git --version
         - git config --local core.autocrlf false
         - git config core.autocrlf
+        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
