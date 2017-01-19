@@ -100,6 +100,8 @@ tasks:
           if %lines% gtr 0 (
               exit /b 64
           )
+          :: it seems we need an extra command to get a zero exit code
+          echo Yay, generated code is consistent with checked in code.
         - set GORACE=history_size=7
         - go test -v ./...
         - ineffassign .
@@ -154,6 +156,8 @@ tasks:
           if %lines% gtr 0 (
               exit /b 64
           )
+          :: it seems we need an extra command to get a zero exit code
+          echo Yay, generated code is consistent with checked in code.
         - set GORACE=history_size=7
         - go test -v ./...
         - ineffassign .
