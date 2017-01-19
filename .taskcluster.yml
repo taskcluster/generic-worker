@@ -83,9 +83,6 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
-        - git --version
-        - git config core.autocrlf
-        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
@@ -96,17 +93,8 @@ tasks:
         - 'copy "..\..\..\..\bin\generic-worker.exe" "..\..\..\..\..\public\build\generic-worker-windows-amd64.exe"'
         - |
           :: this counts the number of lines returned by git status
-          git status
-          git diff
-          git status --porcelain
-          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
-          git status --porcelain
-          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
-          git status --porcelain
-          dir
           :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
-          type ..\tmp1.txt
           set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
@@ -149,9 +137,6 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
-        - git --version
-        - git config core.autocrlf
-        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
@@ -162,17 +147,8 @@ tasks:
         - 'copy "%GOPATH%\bin\generic-worker.exe" "..\..\..\..\..\public\build\generic-worker-windows-amd64.exe"'
         - |
           :: this counts the number of lines returned by git status
-          git status
-          git diff
-          git status --porcelain
-          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
-          git status --porcelain
-          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
-          git status --porcelain
-          dir
           :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
-          type ..\tmp1.txt
           set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
