@@ -69,8 +69,6 @@ tasks:
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
       github:
-        # This must be set in order access GitHub info from inside your environment
-        env: true
         # Events that will trigger this task
         events:
           - pull_request.*
@@ -103,6 +101,7 @@ tasks:
           git status --porcelain
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
+          type tmp1.txt
           set /P lines=<tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
@@ -130,8 +129,6 @@ tasks:
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
       github:
-        # This must be set in order access GitHub info from inside your environment
-        env: true
         # Events that will trigger this task
         events:
           - pull_request.*
@@ -165,6 +162,7 @@ tasks:
           git status --porcelain
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
+          type tmp1.txt
           set /P lines=<tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
