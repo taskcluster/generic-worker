@@ -22,8 +22,6 @@ tasks:
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
       github:
-        # This must be set in order access GitHub info from inside your environment
-        env: true
         # Events that will trigger this task
         events:
           - pull_request.*
@@ -86,6 +84,7 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
+        - git config --local core.autocrlf false
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
@@ -142,6 +141,7 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
+        - git config --local core.autocrlf false
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
