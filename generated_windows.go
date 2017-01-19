@@ -438,7 +438,7 @@ func taskPayloadSchema() string {
       "type": "array"
     }
   },
-  "required": [
+  "REQUIRED": [
     "command",
     "maxRunTime"
   ],
