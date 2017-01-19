@@ -84,7 +84,8 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
-        - git config --local core.autocrlf false
+        - git config --local core.autocrlf true
+        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
@@ -141,7 +142,8 @@ tasks:
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
-        - git config --local core.autocrlf false
+        - git config --local core.autocrlf true
+        - git config --list
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
         - cd gw-codegen
