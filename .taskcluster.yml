@@ -80,12 +80,12 @@ tasks:
         - 'mkdir "public\build"'
         - set GOPATH=%CD%\gopath
         - set PATH=%GOPATH%\bin;%PATH%
+        - git config core.autocrlf false
         - 'go get -d "github.com/{{ event.base.user.login }}/generic-worker"'
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
         - git --version
-        - git config --local core.autocrlf false
         - git config core.autocrlf
         - git config --list
         - git checkout {{ event.head.sha }}
@@ -140,12 +140,12 @@ tasks:
         - set GOPATH=%CD%\gopath
         - set GOROOT=%CD%\go
         - set PATH=%CD%\git\bin;%GOPATH%\bin;%GOROOT%\bin;%PATH%
+        - git config core.autocrlf false
         - go get -d "github.com/{{ event.base.user.login }}/generic-worker"
         - 'cd "gopath\src\github.com\{{ event.base.user.login }}\generic-worker"'
         - git remote add user {{ event.head.repo.url }}
         - git fetch --tags user
         - git --version
-        - git config --local core.autocrlf false
         - git config core.autocrlf
         - git config --list
         - git checkout {{ event.head.sha }}
