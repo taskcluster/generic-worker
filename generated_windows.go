@@ -442,7 +442,7 @@ func taskPayloadSchema() string {
     "command",
     "maxRunTime"
   ],
-  "TITLE": "gENERIC WORKER PAYLOAD",
+  "title": "Generic worker payload",
   "type": "object"
 }`
 }
