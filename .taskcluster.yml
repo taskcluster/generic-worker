@@ -97,11 +97,9 @@ tasks:
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
           set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
-          if %lines% gtr 0 (
-              exit /b 64
-          )
-          :: it seems we need an extra command to get a zero exit code
-          echo Yay, generated code is consistent with checked in code.
+          if %lines% gtr 0 exit /b 64
+          :: find.exe will have exited with exit code 1, so need to explicitly exit with 0
+          exit /b 0
         - set GORACE=history_size=7
         - go test -v ./...
         - ineffassign .
@@ -153,11 +151,9 @@ tasks:
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
           set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
-          if %lines% gtr 0 (
-              exit /b 64
-          )
-          :: it seems we need an extra command to get a zero exit code
-          echo Yay, generated code is consistent with checked in code.
+          if %lines% gtr 0 exit /b 64
+          :: find.exe will have exited with exit code 1, so need to explicitly exit with 0
+          exit /b 0
         - set GORACE=history_size=7
         - go test -v ./...
         - ineffassign .
