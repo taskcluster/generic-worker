@@ -100,6 +100,10 @@ tasks:
           git diff
           git status --porcelain
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
+          git status --porcelain
+          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
+          git status --porcelain
+          dir
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
           type tmp1.txt
           set /P lines=<tmp1.txt
@@ -161,6 +165,10 @@ tasks:
           git diff
           git status --porcelain
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
+          git status --porcelain
+          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
+          git status --porcelain
+          dir
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
           type tmp1.txt
           set /P lines=<tmp1.txt
