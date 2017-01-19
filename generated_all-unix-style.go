@@ -417,8 +417,8 @@ func taskPayloadSchema() string {
       "title": "Feature flags",
       "type": "object"
     },
-    "MAXrUNtIME": {
-      "DESCRIPTION": "mAXIMUM TIME THE TASK CONTAINER CAN RUN IN SECONDS",
+    "maxRunTime": {
+      "description": "Maximum time the task container can run in seconds",
       "maximum": 86400,
       "minimum": 1,
       "multipleOf": 1,

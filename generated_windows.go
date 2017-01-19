@@ -429,7 +429,7 @@ func taskPayloadSchema() string {
       },
       "type": "array"
     },
-    "OSgROUPS": {
+    "osGroups": {
       "description": "A list of OS Groups that the task user should be a member of. Requires\nscope ` + "`" + `generic-worker:os-group:\u003cos-group\u003e` + "`" + ` for each group listed.",
       "items": {
         "type": "string"
