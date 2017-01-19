@@ -104,9 +104,10 @@ tasks:
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain
           dir
-          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
-          type tmp1.txt
-          set /P lines=<tmp1.txt
+          :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
+          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
+          type ..\tmp1.txt
+          set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
               exit /b 64
@@ -169,9 +170,10 @@ tasks:
           git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain
           dir
-          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
-          type tmp1.txt
-          set /P lines=<tmp1.txt
+          :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
+          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
+          type ..\tmp1.txt
+          set /P lines=<..\tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
           if %lines% gtr 0 (
               exit /b 64
