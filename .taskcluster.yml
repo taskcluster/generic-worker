@@ -100,6 +100,8 @@ tasks:
           :: this counts the number of lines returned by git status
           git status
           git diff
+          git status --porcelain
+          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
           set /P lines=<tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
@@ -160,6 +162,8 @@ tasks:
           :: this counts the number of lines returned by git status
           git status
           git diff
+          git status --porcelain
+          git status --porcelain | C:\Windows\System32\find.exe /v /c ""
           git status --porcelain | C:\Windows\System32\find.exe /v /c "" > tmp1.txt
           set /P lines=<tmp1.txt
           :: this checks that if more than 0 lines are returned, we fail
