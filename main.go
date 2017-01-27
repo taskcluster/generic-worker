@@ -492,7 +492,6 @@ func runWorker() {
 				}
 			} else {
 				log.Print("*NOT* Removing task directories as 'cleanUpTaskDirs' is set to 'false' in generic worker config...")
-				return
 			}
 			tasksResolved++
 			if tasksResolved == config.NumberOfTasksToRun {
