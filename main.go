@@ -460,6 +460,8 @@ func runWorker() {
 	lastReportedNoTasks := time.Now()
 	tasksResolved := uint(0)
 	for {
+		prepareTaskEnvironment()
+
 		// See https://bugzil.la/1298010 - routinely check if this worker type is
 		// outdated, and shut down if a new deployment is required.
 		if configureForAws && time.Now().Sub(lastQueriedProvisioner) > time.Duration(config.CheckForNewDeploymentEverySecs)*time.Second {

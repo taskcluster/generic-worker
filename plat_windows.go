@@ -90,7 +90,7 @@ func deleteTaskDir(path string) error {
 	return err
 }
 
-func prepareTaskEnvironment() error {
+func prepareTaskEnvironment() {
 	taskDirName := "task_" + strconv.Itoa(int(time.Now().Unix()))
 	taskContext = &TaskContext{
 		TaskDir: filepath.Join(config.TasksDir, taskDirName),
@@ -108,12 +108,12 @@ func prepareTaskEnvironment() error {
 		}
 		err := user.CreateNew()
 		if err != nil {
-			return err
+			panic(err)
 		}
 		// create desktop and login
 		loginInfo, desktop, err := process.NewDesktopSession(user.Name, user.Password)
 		if err != nil {
-			return err
+			panic(err)
 		}
 		taskContext.DesktopSession = &process.DesktopSession{
 			User:      user,
@@ -125,10 +125,13 @@ func prepareTaskEnvironment() error {
 		// from parent process
 		err = RedirectAppData(loginInfo.HUser, filepath.Join(config.TasksDir, "AppData"))
 		if err != nil {
-			return err
+			panic(err)
 		}
 	}
-	return os.MkdirAll(filepath.Join(taskContext.TaskDir, "public", "logs"), 0777)
+	err := os.MkdirAll(filepath.Join(taskContext.TaskDir, "public", "logs"), 0777)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // Uses [A-Za-z0-9] characters (default set) to avoid strange escaping problems
@@ -341,7 +344,7 @@ func taskCleanup() error {
 		deleteExistingOSUsers()
 	}
 	// this needs to succeed, so return an error if it doesn't
-	return prepareTaskEnvironment()
+	return nil
 }
 
 func install(arguments map[string]interface{}) (err error) {

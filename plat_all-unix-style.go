@@ -131,3 +131,6 @@ func (task *TaskRun) addGroupsToUser(groups []string) error {
 func (task *TaskRun) formatCommand(index int) string {
 	return shell.Escape(task.Payload.Command[index]...)
 }
+
+func prepareTaskEnvironment() {
+}
