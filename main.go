@@ -1207,3 +1207,22 @@ func convertNilToEmptyString(val interface{}) string {
 	}
 	return val.(string)
 }
+
+func prepareTaskEnvironment() {
+	taskDirName := "task_" + strconv.Itoa(int(time.Now().Unix()))
+	taskContext = &TaskContext{
+		TaskDir: filepath.Join(config.TasksDir, taskDirName),
+	}
+	if !config.RunTasksAsCurrentUser {
+		// username can only be 20 chars, uuids are too long, therefore use
+		// prefix (5 chars) plus seconds since epoch (10 chars) note, if we run
+		// as current user, we don't want a task_* subdirectory, we want to run
+		// from same directory every time. Also important for tests.
+		userName := taskDirName
+		prepareTaskUser(userName)
+	}
+	err := os.MkdirAll(filepath.Join(taskContext.TaskDir, "public", "logs"), 0777)
+	if err != nil {
+		panic(err)
+	}
+}

@@ -132,5 +132,5 @@ func (task *TaskRun) formatCommand(index int) string {
 	return shell.Escape(task.Payload.Command[index]...)
 }
 
-func prepareTaskEnvironment() {
+func prepareTaskUser(username string) {
 }

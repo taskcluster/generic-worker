@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/dchest/uniuri"
 	"github.com/taskcluster/generic-worker/process"
@@ -90,45 +89,30 @@ func deleteTaskDir(path string) error {
 	return err
 }
 
-func prepareTaskEnvironment() {
-	taskDirName := "task_" + strconv.Itoa(int(time.Now().Unix()))
-	taskContext = &TaskContext{
-		TaskDir: filepath.Join(config.TasksDir, taskDirName),
+func prepareTaskUser(userName string) {
+	// create user
+	user := &runtime.OSUser{
+		Name:     userName,
+		Password: generatePassword(),
 	}
-	if !config.RunTasksAsCurrentUser {
-		// username can only be 20 chars, uuids are too long, therefore use
-		// prefix (5 chars) plus seconds since epoch (10 chars) note, if we run
-		// as current user, we don't want a task_* subdirectory, we want to run
-		// from same directory every time. Also important for tests.
-		userName := taskDirName
-		// create user
-		user := &runtime.OSUser{
-			Name:     userName,
-			Password: generatePassword(),
-		}
-		err := user.CreateNew()
-		if err != nil {
-			panic(err)
-		}
-		// create desktop and login
-		loginInfo, desktop, err := process.NewDesktopSession(user.Name, user.Password)
-		if err != nil {
-			panic(err)
-		}
-		taskContext.DesktopSession = &process.DesktopSession{
-			User:      user,
-			LoginInfo: loginInfo,
-			Desktop:   desktop,
-		}
-		// note we only do this if not running as current user, since when running as
-		// current user, this would have no effect on env vars - they are inherited
-		// from parent process
-		err = RedirectAppData(loginInfo.HUser, filepath.Join(config.TasksDir, "AppData"))
-		if err != nil {
-			panic(err)
-		}
+	err := user.CreateNew()
+	if err != nil {
+		panic(err)
 	}
-	err := os.MkdirAll(filepath.Join(taskContext.TaskDir, "public", "logs"), 0777)
+	// create desktop and login
+	loginInfo, desktop, err := process.NewDesktopSession(user.Name, user.Password)
+	if err != nil {
+		panic(err)
+	}
+	taskContext.DesktopSession = &process.DesktopSession{
+		User:      user,
+		LoginInfo: loginInfo,
+		Desktop:   desktop,
+	}
+	// note we only do this if not running as current user, since when running as
+	// current user, this would have no effect on env vars - they are inherited
+	// from parent process
+	err = RedirectAppData(loginInfo.HUser, filepath.Join(config.TasksDir, "AppData"))
 	if err != nil {
 		panic(err)
 	}
