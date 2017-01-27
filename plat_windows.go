@@ -63,11 +63,6 @@ func processCommandOutput(callback func(line string), prog string, options ...st
 	return nil
 }
 
-func startup() error {
-	log.Print("Detected Windows platform...")
-	return taskCleanup()
-}
-
 func deleteTaskDir(path string) error {
 	log.Print("Trying to remove directory '" + path + "' via os.RemoveAll(path) call as GenericWorker user...")
 	err := os.RemoveAll(path)
@@ -138,37 +133,6 @@ func deleteExistingOSUsers() {
 		log.Print("WARNING: could not list existing Windows user accounts")
 		log.Printf("%v", err)
 	}
-}
-
-func deleteTaskDirs() {
-	if !config.CleanUpTaskDirs {
-		log.Print("*NOT* Removing task directories as 'cleanUpTaskDirs' is set to 'false' in generic worker config...")
-		return
-	}
-	taskDirsParent, err := os.Open(config.TasksDir)
-	if err != nil {
-		log.Print("WARNING: Could not open " + config.TasksDir + " directory to find old home directories to delete")
-		log.Printf("%v", err)
-		return
-	}
-	defer taskDirsParent.Close()
-	fi, err := taskDirsParent.Readdir(-1)
-	if err != nil {
-		log.Print("WARNING: Could not read complete directory listing to find old home directories to delete")
-		log.Printf("%v", err)
-		// don't return, since we may have partial listings
-	}
-	for _, file := range fi {
-		fileName := file.Name()
-		path := filepath.Join(config.TasksDir, fileName)
-		if file.IsDir() {
-			if strings.HasPrefix(fileName, "task_") {
-				// ignore any error occuring here, not a lot we can do about it...
-				deleteTaskDir(path)
-			}
-		}
-	}
-
 }
 
 func deleteOSUserAccount(line string) {

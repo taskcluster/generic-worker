@@ -412,8 +412,8 @@ func loadConfig(filename string, queryUserData bool) (*Config, error) {
 }
 
 func runWorker() {
-	// Any custom startup per platform...
-	err := startup()
+	log.Printf("Detected %s platform", runtime.GOOS)
+	err := taskCleanup()
 	// any errors are fatal
 	if err != nil {
 		log.Printf("OH NO!!!\n\n%#v", err)
@@ -485,9 +485,14 @@ func runWorker() {
 				}
 			}
 		} else {
-			err := taskCleanup()
-			if err != nil {
-				log.Printf("Error cleaning up after task!\n%v", err)
+			if config.CleanUpTaskDirs {
+				err := taskCleanup()
+				if err != nil {
+					log.Printf("Error cleaning up after task!\n%v", err)
+				}
+			} else {
+				log.Print("*NOT* Removing task directories as 'cleanUpTaskDirs' is set to 'false' in generic worker config...")
+				return
 			}
 			tasksResolved++
 			if tasksResolved == config.NumberOfTasksToRun {
@@ -1225,4 +1230,31 @@ func prepareTaskEnvironment() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func deleteTaskDirs() {
+	taskDirsParent, err := os.Open(config.TasksDir)
+	if err != nil {
+		log.Print("WARNING: Could not open " + config.TasksDir + " directory to find old home directories to delete")
+		log.Printf("%v", err)
+		return
+	}
+	defer taskDirsParent.Close()
+	fi, err := taskDirsParent.Readdir(-1)
+	if err != nil {
+		log.Print("WARNING: Could not read complete directory listing to find old home directories to delete")
+		log.Printf("%v", err)
+		// don't return, since we may have partial listings
+	}
+	for _, file := range fi {
+		fileName := file.Name()
+		path := filepath.Join(config.TasksDir, fileName)
+		if file.IsDir() {
+			if strings.HasPrefix(fileName, "task_") {
+				// ignore any error occuring here, not a lot we can do about it...
+				deleteTaskDir(path)
+			}
+		}
+	}
+
 }
