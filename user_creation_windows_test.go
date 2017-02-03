@@ -13,10 +13,10 @@ func TestRunAfterUserCreation(t *testing.T) {
 	}
 	config.RunAfterUserCreation = filepath.Join(cwd, "testdata", "run-after-user.bat")
 	PrepareTaskEnvironment()
+	defer taskCleanup()
 	file := filepath.Join(taskContext.TaskDir, "run-after-user.txt")
 	_, err := os.Stat(file)
 	if err != nil {
 		t.Fatal("Got error when looking for file %v: %v", file, err)
 	}
-	taskCleanup()
 }
