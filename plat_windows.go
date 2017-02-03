@@ -103,6 +103,10 @@ func prepareTaskUser(userName string) {
 		LoginInfo: loginInfo,
 		Desktop:   desktop,
 	}
+	err = os.MkdirAll(taskContext.TaskDir)
+	if err != nil {
+		panic(err)
+	}
 	// note we only do this if not running as current user, since when running as
 	// current user, this would have no effect on env vars - they are inherited
 	// from parent process
