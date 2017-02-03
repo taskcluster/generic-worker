@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/dchest/uniuri"
 	"github.com/taskcluster/generic-worker/process"
@@ -109,10 +110,20 @@ func prepareTaskUser(userName string) {
 	if err != nil {
 		panic(err)
 	}
-	if len(config.RunAfterUserCreation) > 0 {
-		err = runtime.RunCommands(false, config.RunAfterUserCreation)
+	if script := config.RunAfterUserCreation; script != "" {
+		var noDeadline time.Time
+		command, err := process.NewCommand(script, &taskContext.TaskDir, nil, noDeadline, taskContext.DesktopSession)
 		if err != nil {
 			panic(err)
+		}
+		command.DirectOutput(os.Stdout)
+		result := command.Execute()
+		log.Printf("%v", result)
+		switch {
+		case result.Failed():
+			panic(result.FailureCause())
+		case result.Crashed():
+			panic(result.CrashCause())
 		}
 	}
 }
