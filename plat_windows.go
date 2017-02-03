@@ -109,6 +109,12 @@ func prepareTaskUser(userName string) {
 	if err != nil {
 		panic(err)
 	}
+	if len(config.RunAfterUserCreation) > 0 {
+		err = runtime.RunCommands(false, config.RunAfterUserCreation)
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 // Uses [A-Za-z0-9] characters (default set) to avoid strange escaping problems
