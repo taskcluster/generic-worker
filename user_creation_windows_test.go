@@ -18,4 +18,5 @@ func TestRunAfterUserCreation(t *testing.T) {
 	if err != nil {
 		t.Fatal("Got error when looking for file %v: %v", file, err)
 	}
+	taskCleanup()
 }
