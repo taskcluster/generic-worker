@@ -103,7 +103,7 @@ func prepareTaskUser(userName string) {
 		LoginInfo: loginInfo,
 		Desktop:   desktop,
 	}
-	err = os.MkdirAll(taskContext.TaskDir)
+	err = os.MkdirAll(taskContext.TaskDir, 0777)
 	if err != nil {
 		panic(err)
 	}
