@@ -18,8 +18,8 @@ func TestAppDataNotShared(t *testing.T) {
 	td := testTask()
 
 	// submit twice, so we see if there is a problem for the second task
-	taskID1, myQueue := submitTask(t, td, payload)
-	taskID2, _ := submitTask(t, td, payload)
+	submitTask(t, td, payload)
+	taskID2, myQueue := submitTask(t, td, payload)
 
 	config.NumberOfTasksToRun = 2
 	runWorker()
