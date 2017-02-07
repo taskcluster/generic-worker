@@ -28,7 +28,7 @@ func TestAppDataNotShared(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not retrieve task status")
 	}
-	if tsr.Status.State != "succeeded" {
-		t.Fatalf("Was expecting state %q but got %q", "succeeded", tsr.Status.State)
+	if tsr.Status.State != "completed" {
+		t.Fatalf("Was expecting state %q but got %q", "completed", tsr.Status.State)
 	}
 }
