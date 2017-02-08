@@ -110,8 +110,6 @@ func prepareTaskUser(userName string) {
 	if err != nil {
 		panic(err)
 	}
-	// Also useful when running as current user, but only when creating an environment block
-	// (not when specifying no environment, and inheriting from parent process).
 	err = RedirectAppData(loginInfo.HUser, filepath.Join(taskContext.TaskDir, "AppData"))
 	if err != nil {
 		panic(err)
