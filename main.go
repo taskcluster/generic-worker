@@ -494,6 +494,7 @@ func runWorker() {
 			if config.IdleTimeoutSecs > 0 {
 				idleTime := time.Now().Sub(lastActive)
 				if idleTime.Seconds() > float64(config.IdleTimeoutSecs) {
+					taskCleanup()
 					exitOrShutdown(config.ShutdownMachineOnIdle, fmt.Sprintf("Worker idle for idleShutdownTimeoutSecs seconds (%v)", idleTime), 0)
 					break
 				}
