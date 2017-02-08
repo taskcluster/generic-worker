@@ -4,31 +4,49 @@ import "testing"
 
 // Test APPDATA / LOCALAPPDATA folder are not shared between tasks
 func TestAppDataNotShared(t *testing.T) {
-	// Assuming they are not reused, both tasks should be able to write to
-	// them. If they are reused, the second task should fail since it does not
-	// have permission to write to the file that is owned by the previous user.
 	setup(t)
-	payload := GenericWorkerPayload{
+
+	// Run two tasks in sequence...
+
+	// First task:
+	payload1 := GenericWorkerPayload{
 		Command: []string{
 			"echo hello > %APPDATA%\\hello.txt",
-			"echo hello > %LOCALAPPDATA%\\hello.txt",
+			"echo hello > %LOCALAPPDATA%\\sir.txt",
+			`if not exist "%APPDATA%\hello.txt" exit /b 64`,
+			`if not exist "%LOCALAPPDATA%\sir.txt" exit /b 65`,
 		},
 		MaxRunTime: 10,
 	}
-	td := testTask()
+	td1 := testTask()
 
-	// submit twice, so we see if there is a problem for the second task
-	submitTask(t, td, payload)
-	taskID2, myQueue := submitTask(t, td, payload)
+	taskID1, myQueue := submitTask(t, td1, payload1)
+
+	// Second task:
+	payload2 := GenericWorkerPayload{
+		Command: []string{
+			// make sure files don't already exist, because we should have
+			// fresh folders created
+			`if exist "%APPDATA%\hello.txt" exit /b 66`,
+			`if exist "%LOCALAPPDATA%\sir.txt" exit /b 67`,
+		},
+		MaxRunTime: 10,
+	}
+	td2 := testTask()
+
+	taskID2, _ := submitTask(t, td2, payload)
 
 	config.NumberOfTasksToRun = 2
 	runWorker()
 
-	tsr, err := myQueue.Status(taskID2)
-	if err != nil {
-		t.Fatalf("Could not retrieve task status")
-	}
-	if tsr.Status.State != "completed" {
-		t.Fatalf("Was expecting state %q but got %q", "completed", tsr.Status.State)
+	// make sure both tasks resolved successfully
+	for _, taskID := range []string{taskID1, taskID2} {
+		tsr, err := myQueue.Status(taskID)
+		if err != nil {
+			t.Fatalf("Could not retrieve task status")
+		}
+		if tsr.Status.State != "completed" {
+			t.Fatalf("Was expecting state %q but got %q", "completed", tsr.Status.State)
+		}
 	}
 }
