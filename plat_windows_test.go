@@ -6,6 +6,10 @@ import "testing"
 func TestAppDataNotShared(t *testing.T) {
 	setup(t)
 
+	if config.RunTasksAsCurrentUser {
+		t.Skip("Not running, since APPDATA does not change when running as current user")
+	}
+
 	// Run two tasks in sequence...
 
 	// First task:
