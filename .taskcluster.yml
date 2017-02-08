@@ -84,7 +84,7 @@ tasks:
         - 'mkdir "public\build"'
         - set GOPATH=%CD%\gopath
         - set GOROOT=%CD%\go
-        - set PATH=%CD%\git\bin;%GOPATH%\bin;%GOROOT%\bin;%PATH%
+        - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
         - git config --global core.autocrlf false
         - 'go get -d "github.com/taskcluster/generic-worker"'
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
