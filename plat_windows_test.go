@@ -34,7 +34,7 @@ func TestAppDataNotShared(t *testing.T) {
 	}
 	td2 := testTask()
 
-	taskID2, _ := submitTask(t, td2, payload)
+	taskID2, _ := submitTask(t, td2, payload2)
 
 	config.NumberOfTasksToRun = 2
 	runWorker()
