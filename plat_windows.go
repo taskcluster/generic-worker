@@ -110,7 +110,7 @@ func prepareTaskUser(userName string) {
 	if err != nil {
 		panic(err)
 	}
-	err = RedirectAppData(loginInfo.HUser, filepath.Join(config.TasksDir, "AppData"))
+	err = RedirectAppData(loginInfo.HUser, filepath.Join(taskContext.TaskDir, "AppData"))
 	if err != nil {
 		panic(err)
 	}
