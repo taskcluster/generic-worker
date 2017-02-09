@@ -90,6 +90,7 @@ func prepareTaskUser(userName string) {
 	user := &runtime.OSUser{
 		Name:     userName,
 		Password: generatePassword(),
+		Home:     taskContext.TaskDir,
 	}
 	err := user.CreateNew()
 	if err != nil {
