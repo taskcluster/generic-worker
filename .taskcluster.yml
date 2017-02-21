@@ -312,6 +312,7 @@ tasks:
         - path: public/build/generic-worker-darwin-amd64
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
+      # hold yer hat steady...
       mounts:
         - cacheName: generic-worker-checkout
           directory: go/src
