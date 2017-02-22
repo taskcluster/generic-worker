@@ -96,7 +96,7 @@ func setup(t *testing.T) {
 	// Needed for tests that don't call runWorker()
 	// but test methods/functions directly
 	taskContext = &TaskContext{
-		TaskDir: config.TasksDir,
+		TaskDir: testdataDir,
 	}
 
 	// useful for expiry dates of tasks
