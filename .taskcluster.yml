@@ -281,10 +281,6 @@ tasks:
       - generic-worker:cache:generic-worker-checkout
     payload:
       maxRunTime: 3600
-      artifacts:
-        - expires: "{{ '2 weeks' | $fromNow }}"
-          type: file
-          path: public/build/generic-worker-darwin-amd64
       command:
         - - /bin/bash
           - -vxec
