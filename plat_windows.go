@@ -106,10 +106,6 @@ func prepareTaskUser(userName string) {
 		Desktop:     newDesktop,
 		OrigDesktop: origDesktop,
 	}
-	err = os.MkdirAll(taskContext.TaskDir, 0777)
-	if err != nil {
-		panic(err)
-	}
 	err = RedirectAppData(loginInfo.HUser, filepath.Join(taskContext.TaskDir, "AppData"))
 	if err != nil {
 		panic(err)
