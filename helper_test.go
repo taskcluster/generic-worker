@@ -90,6 +90,7 @@ func setup(t *testing.T) {
 
 	if os.Getenv("GW_TESTS_GENERATE_USERS") != "" {
 		config.RunTasksAsCurrentUser = false
+		config.TasksDir = defaultTasksDir()
 	}
 
 	// Needed for tests that don't call runWorker()

@@ -588,3 +588,8 @@ func RedirectAppData(hUser syscall.Handle, folder string) (err error) {
 	}
 	return win32.SetAndCreateFolder(hUser, &win32.FOLDERID_LocalAppData, filepath.Join(folder, "Local"))
 }
+
+func defaultTasksDir() string {
+	// all user directories are peers of the current USERPROFILE env var
+	return filepath.Dir(os.Getenv("USERPROFILE"))
+}
