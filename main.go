@@ -1237,10 +1237,12 @@ func PrepareTaskEnvironment() {
 		userName := taskDirName
 		prepareTaskUser(userName)
 	}
-	err := os.MkdirAll(filepath.Join(taskContext.TaskDir, "public", "logs"), 0777)
+	logDir := filepath.Join(taskContext.TaskDir, "public", "logs")
+	err := os.MkdirAll(logDir, 0777)
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("Created dir: %v", logDir)
 }
 
 func deleteTaskDirs() {
