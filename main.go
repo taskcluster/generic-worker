@@ -1229,10 +1229,6 @@ func PrepareTaskEnvironment() {
 	taskContext = &TaskContext{
 		TaskDir: filepath.Join(config.TasksDir, taskDirName),
 	}
-	err = os.MkdirAll(taskContext.TaskDir, 0777)
-	if err != nil {
-		panic(err)
-	}
 	if !config.RunTasksAsCurrentUser {
 		// username can only be 20 chars, uuids are too long, therefore use
 		// prefix (5 chars) plus seconds since epoch (10 chars) note, if we run
