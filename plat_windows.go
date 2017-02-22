@@ -220,7 +220,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		for _, x := range [2][2]string{{env, "set "}, {dir, "cd "}} {
 			file, err := os.Open(x[0])
 			if err != nil {
-				panic(err)
+				panic(fmt.Errorf("Could not write to file %v\n%v", x[0], err))
 			}
 			defer file.Close()
 
