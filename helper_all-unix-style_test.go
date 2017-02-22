@@ -89,7 +89,7 @@ func goRun(goFile string) [][]string {
 }
 
 func copyArtifact(path string) [][]string {
-	sourcePath := filepath.Join(cwd, "testdata", path)
+	sourcePath := filepath.Join(testdataDir, path)
 	return [][]string{
 		{
 			"mkdir",

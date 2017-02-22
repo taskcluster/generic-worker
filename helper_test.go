@@ -18,17 +18,17 @@ import (
 )
 
 var (
-	inAnHour tcclient.Time
-	cwd      string
+	inAnHour    tcclient.Time
+	testdataDir string
 )
 
 func setup(t *testing.T) {
 	// some basic setup...
-	var err error
-	cwd, err = os.Getwd()
+	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Test failed during setup phase!")
 	}
+	testdataDir = filepath.Join(cwd, "testdata")
 
 	// configure the worker
 	config = &Config{
@@ -61,7 +61,7 @@ func setup(t *testing.T) {
 		ShutdownMachineOnInternalError: false,
 		SigningKeyLocation:             filepath.Join("testdata", "private-opengpg-key"),
 		Subdomain:                      "taskcluster-worker.net",
-		TasksDir:                       filepath.Join(cwd, "testdata"),
+		TasksDir:                       testdataDir,
 		WorkerGroup:                    "test-worker-group",
 		WorkerID:                       "test-worker-id",
 		WorkerType:                     slugid.Nice(),
