@@ -220,7 +220,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		for _, x := range [2][2]string{{env, "set "}, {dir, "cd "}} {
 			file, err := os.Open(x[0])
 			if err != nil {
-				panic(fmt.Errorf("Could not write to file %v\n%v", x[0], err))
+				panic(fmt.Errorf("Could not read from file %v\n%v", x[0], err))
 			}
 			defer file.Close()
 
@@ -288,6 +288,10 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	log.Printf("Script %q:", script)
 	log.Print("Contents:")
 	log.Print(string(fileContents))
+
+	log.Printf("Wrapper script %q:", wrapper)
+	log.Print("Contents:")
+	log.Print(contents)
 
 	if err != nil {
 		panic(err)
