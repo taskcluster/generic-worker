@@ -77,8 +77,9 @@ git clean -fdX
 CGO_ENABLED=1 GORACE="history_size=7" go test -v -race -timeout 1h ./...
 go vet ./...
 golint ./...
-go get github.com/gordonklaus/ineffassign
-ineffassign .
+go get github.com/alecthomas/gometalinter
+gometalinter --install
+gometalinter --deadline 10m $(go list ./... | grep -v /vendor/ | sed 's/github.com\/taskcluster\/generic-worker/./')
 
 echo "Build successful!"
 git status
