@@ -322,7 +322,7 @@ tasks:
   - provisionerId: pmoore-manual
     workerType: raspberry-pi-3b
     metadata:
-      name: "Build/test ARM6 generic-worker on Linux"
+      name: "Build/test ARM6 generic-worker on Linux (Raspberry PI)"
       description: "This builds the ARM6 Linux version of generic-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
