@@ -314,10 +314,6 @@ tasks:
       mounts:
         - cacheName: generic-worker-checkout
           directory: go/src
-        - content:
-            url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
-          directory: go1.8
-          format: tar.gz
 
   ##########################################################
   #################### Linux ARM6 build ####################
@@ -375,3 +371,7 @@ tasks:
       mounts:
         - cacheName: generic-worker-checkout
           directory: gopath/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
+          directory: go1.8
+          format: tar.gz
