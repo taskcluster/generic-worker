@@ -162,6 +162,7 @@ func TestDirectoryArtifacts(t *testing.T) {
 			S3Artifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "SampleArtifacts/%%%/v/X",
+					Name:          "SampleArtifacts/%%%/v/X",
 					Expires:       inAnHour,
 				},
 				MimeType: "application/octet-stream",
@@ -169,6 +170,7 @@ func TestDirectoryArtifacts(t *testing.T) {
 			S3Artifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "SampleArtifacts/_/X.txt",
+					Name:          "SampleArtifacts/_/X.txt",
 					Expires:       inAnHour,
 				},
 				MimeType: "text/plain; charset=utf-8",
@@ -176,6 +178,7 @@ func TestDirectoryArtifacts(t *testing.T) {
 			S3Artifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "SampleArtifacts/b/c/d.jpg",
+					Name:          "SampleArtifacts/b/c/d.jpg",
 					Expires:       inAnHour,
 				},
 				MimeType: "image/jpeg",
@@ -206,6 +209,7 @@ func TestMissingFileArtifact(t *testing.T) {
 			ErrorArtifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "TestMissingFileArtifact/no_such_file",
+					Name:          "TestMissingFileArtifact/no_such_file",
 					Expires:       inAnHour,
 				},
 				Message: "Could not read file '" + filepath.Join(taskContext.TaskDir, "TestMissingFileArtifact", "no_such_file") + "'",
@@ -237,6 +241,7 @@ func TestMissingDirectoryArtifact(t *testing.T) {
 			ErrorArtifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "TestMissingDirectoryArtifact/no_such_dir",
+					Name:          "TestMissingDirectoryArtifact/no_such_dir",
 					Expires:       inAnHour,
 				},
 				Message: "Could not read directory '" + filepath.Join(taskContext.TaskDir, "TestMissingDirectoryArtifact", "no_such_dir") + "'",
@@ -268,6 +273,7 @@ func TestFileArtifactIsDirectory(t *testing.T) {
 			ErrorArtifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "SampleArtifacts/b/c",
+					Name:          "SampleArtifacts/b/c",
 					Expires:       inAnHour,
 				},
 				Message: "File artifact '" + filepath.Join(taskContext.TaskDir, "SampleArtifacts", "b", "c") + "' exists as a directory, not a file, on the worker",
@@ -291,6 +297,7 @@ func TestDirectoryArtifactIsFile(t *testing.T) {
 		}{{
 			Expires: inAnHour,
 			Path:    "SampleArtifacts/b/c/d.jpg",
+			Name:    "SampleArtifacts/b/c/d.jpg",
 			Type:    "directory",
 		}},
 
