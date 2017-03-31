@@ -132,7 +132,7 @@ func gzipCompressFile(rawContentFile string) string {
 
 func (artifact S3Artifact) ProcessResponse(resp interface{}) (err error) {
 	response := resp.(*queue.S3ArtifactResponse)
-	rawContentFile := filepath.Join(taskContext.TaskDir, artifact.Base().CanonicalPath)
+	rawContentFile := filepath.Join(taskContext.TaskDir, artifact.CanonicalPath)
 
 	// if Content-Encoding is gzip then we will need to gzip content...
 	transferContentFile := rawContentFile
@@ -238,8 +238,8 @@ func (task *TaskRun) PayloadArtifacts() []Artifact {
 				subName := filepath.Join(base.Name, relativePath)
 				b := BaseArtifact{
 					CanonicalPath: canonicalPath(subPath),
-					Expires:       artifact.Expires,
 					Name:          canonicalPath(subName),
+					Expires:       artifact.Expires,
 				}
 				switch {
 				case info.IsDir():
@@ -336,6 +336,7 @@ func (task *TaskRun) uploadLog(logFile string) *CommandExecutionError {
 		S3Artifact{
 			BaseArtifact: BaseArtifact{
 				CanonicalPath: logFile,
+				Name:          logFile,
 				// logs expire when task expires
 				Expires: task.Definition.Expires,
 			},
@@ -366,7 +367,7 @@ func (task *TaskRun) uploadArtifact(artifact Artifact) *CommandExecutionError {
 			return Failure(err)
 		case httpbackoff.BadHttpResponseCode:
 			if t.HttpResponseCode/100 == 5 {
-				return ResourceUnavailable(fmt.Errorf("TASK EXCEPTION due to response code %v from Queue when uploading artifact %v", t.HttpResponseCode, artifact))
+				return ResourceUnavailable(fmt.Errorf("TASK EXCEPTION due to response code %v from Queue when uploading artifact %#v", t.HttpResponseCode, artifact))
 			} else {
 				// if not a 5xx error, then either task cancelled, or a problem with the request == worker bug
 				task.StatusManager.UpdateStatus()
@@ -374,10 +375,10 @@ func (task *TaskRun) uploadArtifact(artifact Artifact) *CommandExecutionError {
 				if status == deadlineExceeded || status == cancelled {
 					return nil
 				}
-				panic(fmt.Errorf("TASK FAIL due to response code %v from Queue when uploading artifact %v", t.HttpResponseCode, artifact))
+				panic(fmt.Errorf("TASK FAIL due to response code %v from Queue when uploading artifact %#v", t.HttpResponseCode, artifact))
 			}
 		default:
-			panic(fmt.Errorf("TASK EXCEPTION due to non-recoverable error when uploading artifact: %v", t))
+			panic(fmt.Errorf("TASK EXCEPTION due to non-recoverable error when uploading artifact: %#v", t))
 		}
 	}
 	// unmarshal response into object
