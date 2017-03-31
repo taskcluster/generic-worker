@@ -40,6 +40,7 @@ type (
 
 	BaseArtifact struct {
 		CanonicalPath string
+		Name          string
 		Expires       tcclient.Time
 	}
 
@@ -205,7 +206,12 @@ func (task *TaskRun) PayloadArtifacts() []Artifact {
 	for _, artifact := range task.Payload.Artifacts {
 		base := BaseArtifact{
 			CanonicalPath: canonicalPath(artifact.Path),
+			Name:          artifact.Name,
 			Expires:       artifact.Expires,
+		}
+		// if no name given, use canonical path
+		if base.Name == "" {
+			base.Name = base.CanonicalPath
 		}
 		switch artifact.Type {
 		case "file":
@@ -219,14 +225,21 @@ func (task *TaskRun) PayloadArtifacts() []Artifact {
 				// I think we don't need to handle incomingErr != nil since
 				// resolve(...) gets called which should catch the same issues
 				// raised in incomingErr - *** I GUESS *** !!
-				relativePath, err := filepath.Rel(taskContext.TaskDir, path)
+				subPath, err := filepath.Rel(taskContext.TaskDir, path)
 				if err != nil {
-					log.Printf("WIERD ERROR - skipping file: %s", err)
-					return nil
+					// this indicates a bug in the code
+					panic(err)
 				}
+				relativePath, err := filepath.Rel(base.CanonicalPath, subPath)
+				if err != nil {
+					// this indicates a bug in the code
+					panic(err)
+				}
+				subName := filepath.Join(base.Name, relativePath)
 				b := BaseArtifact{
-					CanonicalPath: canonicalPath(relativePath),
+					CanonicalPath: canonicalPath(subPath),
 					Expires:       artifact.Expires,
+					Name:          canonicalPath(subName),
 				}
 				switch {
 				case info.IsDir():
@@ -343,7 +356,7 @@ func (task *TaskRun) uploadArtifact(artifact Artifact) *CommandExecutionError {
 	parsp, err := task.Queue.CreateArtifact(
 		task.TaskID,
 		strconv.Itoa(int(task.RunID)),
-		artifact.Base().CanonicalPath,
+		artifact.Base().Name,
 		&par,
 	)
 	if err != nil {
