@@ -306,6 +306,7 @@ func TestDirectoryArtifactIsFile(t *testing.T) {
 			ErrorArtifact{
 				BaseArtifact: BaseArtifact{
 					CanonicalPath: "SampleArtifacts/b/c/d.jpg",
+					Name:          "SampleArtifacts/b/c/d.jpg",
 					Expires:       inAnHour,
 				},
 				Message: "Directory artifact '" + filepath.Join(taskContext.TaskDir, "SampleArtifacts", "b", "c", "d.jpg") + "' exists as a file, not a directory, on the worker",
