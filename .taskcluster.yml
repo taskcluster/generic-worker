@@ -330,7 +330,6 @@ tasks:
             cd 'generic-worker'
             if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
             git remote -v
-            git ls-remote '{{ event.head.user.login }}'
             git fetch --tags '{{ event.head.user.login }}'
             git checkout -f '{{ event.head.sha }}'
             git clean -fdx
@@ -394,7 +393,6 @@ tasks:
   #           cd 'generic-worker'
   #           if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
   #           git remote -v
-  #           git ls-remote '{{ event.head.user.login }}'
   #           git fetch --tags '{{ event.head.user.login }}'
   #           git checkout -f '{{ event.head.sha }}'
   #           git clean -fdx
