@@ -7,6 +7,38 @@ metadata:
   owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
   source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
 tasks:
+  - provisionerId: '{{ taskcluster.docker.provisionerId }}'
+    workerType: '{{ taskcluster.docker.workerType }}'
+    extra:
+      github:
+        events:
+          - push
+        branches:
+          - master
+    scopes:
+      - auth:aws-s3:read-write:taskcluster-raw-docs/generic-worker/
+    payload:
+      maxRunTime: 3600
+      image: taskcluster/upload-project-docs:latest
+      features:
+        taskclusterProxy:
+          true
+      command:
+        - /bin/bash
+        - '--login'
+        - '-cx'
+        - >-
+          git clone {{event.head.repo.url}} repo &&
+          cd repo &&
+          git config advice.detachedHead false &&
+          git checkout {{event.head.sha}} &&
+          export DOCS_PROJECT=generic-worker DOCS_TIER=workers DOCS_FOLDER=docs DOCS_README=README.md &&
+          upload-project-docs
+    metadata:
+      name: "generic-worker docs upload"
+      description: "Upload documentation for this project"
+      owner: '{{ event.head.user.email }}'
+      source: '{{ event.head.repo.url }}'
 
 
   ##########################################################
@@ -79,8 +111,8 @@ tasks:
           source ~/env_private.sh
           go get -d "github.com/taskcluster/generic-worker"
           cd "${GOPATH}/src/github.com/taskcluster/generic-worker"
-          git remote add user '{{ event.head.repo.url }}'
-          git fetch --tags user
+          git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'
+          git fetch --tags '{{ event.head.user.login }}'
           git checkout '{{ event.head.sha }}'
           go get github.com/taskcluster/livelog
           cd gw-codegen
@@ -89,7 +121,7 @@ tasks:
           go generate
           go get -v -t ./...
           test "$(git status --porcelain | wc -l)" == 0
-          GORACE=history_size=7 go test -v ./...
+          GORACE=history_size=7 go test -v -race ./...
       artifacts:
         public/build/generic-worker-linux-amd64:
           path: "/go/bin/generic-worker"
@@ -124,8 +156,8 @@ tasks:
         - git config --global core.autocrlf false
         - 'go get -d "github.com/taskcluster/generic-worker"'
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add user {{ event.head.repo.url }}
-        - git fetch --tags user
+        - 'git remote add "{{ event.head.user.login }}" "{{ event.head.repo.url }}"'
+        - 'git fetch --tags "{{ event.head.user.login }}"'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog
         - cd gw-codegen
@@ -145,9 +177,9 @@ tasks:
           exit /b 0
         - set GORACE=history_size=7
         - C:\generic-worker\generic-worker-test-creds.cmd
-        - go test -v ./...
+        - go test -v -race ./...
         - set GW_TESTS_GENERATE_USERS=true
-        - go test -v
+        - go test -v -race
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -190,8 +222,8 @@ tasks:
         - git config --global core.autocrlf false
         - go get -d "github.com/taskcluster/generic-worker"
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add user {{ event.head.repo.url }}
-        - git fetch --tags user
+        - 'git remote add "{{ event.head.user.login }}" "{{ event.head.repo.url }}"'
+        - 'git fetch --tags "{{ event.head.user.login }}"'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog
         - cd gw-codegen
@@ -256,8 +288,8 @@ tasks:
         - git config --global core.autocrlf false
         - go get -d "github.com/taskcluster/generic-worker"
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add user {{ event.head.repo.url }}
-        - git fetch --tags user
+        - 'git remote add "{{ event.head.user.login }}" "{{ event.head.repo.url }}"'
+        - 'git fetch --tags "{{ event.head.user.login }}"'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog
         - cd gw-codegen
@@ -277,9 +309,9 @@ tasks:
           exit /b 0
         - set GORACE=history_size=7
         - C:\generic-worker\generic-worker-test-creds.cmd
-        - go test -v ./...
+        - go test -v -race ./...
         - set GW_TESTS_GENERATE_USERS=true
-        - go test -v
+        - go test -v -race
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -298,6 +330,8 @@ tasks:
   #################### OS X 10.11 build ####################
   ##########################################################
 
+  # - provisionerId: scl3-puppet
+  #   workerType: os-x-10-10-gw
   - provisionerId: pmoore-manual
     workerType: mac-os-x
     metadata:
@@ -319,14 +353,17 @@ tasks:
         - - /bin/bash
           - -vxec
           - |
-            export GOPATH="$(pwd)/go"
+            export GOROOT="$(pwd)/go1.8/go"
+            export GOPATH="$(pwd)/gopath"
+            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             source "${GW_CREDS_BOOTSTRAP}"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             mkdir -p public/build
-            cd "go/src/github.com/taskcluster"
+            cd "${GOPATH}/src/github.com/taskcluster"
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
             cd 'generic-worker'
-            git fetch --tags
+            if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
+            git fetch --tags '{{ event.head.user.login }}'
             git checkout -f '{{ event.head.sha }}'
             git clean -fdx
             go get -u github.com/taskcluster/livelog
@@ -338,11 +375,79 @@ tasks:
             cp "${GOPATH}/bin/generic-worker" "../../../../../public/build/generic-worker-darwin-amd64"
             # output of wc command can contain spaces on darwin, so no quotes around expression
             test $(git status --porcelain | wc -l) == 0
-            GORACE=history_size=7 go test -v ./...
+            GORACE=history_size=7 go test -race -v ./...
       artifacts:
         - path: public/build/generic-worker-darwin-amd64
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
       mounts:
         - cacheName: generic-worker-checkout
-          directory: go/src
+          directory: gopath/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.8.darwin-amd64.tar.gz
+          directory: go1.8
+          format: tar.gz
+
+  ##########################################################
+  #################### Linux ARM6 build ####################
+  ##########################################################
+
+  ############ Currently not using Raspberry PI ############
+  ############    --- therefore disabled ---    ############
+
+  # - provisionerId: pmoore-manual
+  #   workerType: raspberry-pi-3b
+  #   metadata:
+  #     name: "Build/test ARM6 generic-worker on Linux (Raspberry PI)"
+  #     description: "This builds the ARM6 Linux version of generic-worker"
+  #     owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+  #     source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+  #   extra:
+  #     github:
+  #       # Events that will trigger this task
+  #       events:
+  #         - pull_request.*
+  #         - push
+  #   scopes:
+  #     - generic-worker:cache:generic-worker-checkout
+  #   payload:
+  #     maxRunTime: 3600
+  #     command:
+  #       - - /bin/bash
+  #         - -vxec
+  #         - |
+  #           export GOROOT="$(pwd)/go1.8/go"
+  #           export GOPATH="$(pwd)/gopath"
+  #           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+  #           export CGO_ENABLED=0
+  #           source "${GW_CREDS_BOOTSTRAP}"
+  #           mkdir -p "${GOPATH}/src/github.com/taskcluster"
+  #           mkdir -p public/build
+  #           cd "${GOPATH}/src/github.com/taskcluster"
+  #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
+  #           cd 'generic-worker'
+  #           if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
+  #           git fetch --tags '{{ event.head.user.login }}'
+  #           git checkout -f '{{ event.head.sha }}'
+  #           git clean -fdx
+  #           go get -u github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+  #           cd gw-codegen
+  #           go get
+  #           cd ..
+  #           go generate
+  #           go get -v -t ./...
+  #           cp "${GOPATH}/bin/generic-worker" "../../../../../public/build/generic-worker-linux-armv6l"
+  #           test "$(git status --porcelain | wc -l)" == 0
+  #           GORACE=history_size=7 go test -v ./...
+  #           ineffassign .
+  #     artifacts:
+  #       - path: public/build/generic-worker-linux-armv6l
+  #         expires: "{{ '2 weeks' | $fromNow }}"
+  #         type: file
+  #     mounts:
+  #       - cacheName: generic-worker-checkout
+  #         directory: gopath/src
+  #       - content:
+  #           url: https://storage.googleapis.com/golang/go1.8.linux-armv6l.tar.gz
+  #         directory: go1.8
+  #         format: tar.gz

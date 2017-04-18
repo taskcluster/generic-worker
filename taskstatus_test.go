@@ -16,6 +16,7 @@ func TestResolveResolvedTask(t *testing.T) {
 		MaxRunTime: 60,
 		Artifacts: []struct {
 			Expires tcclient.Time `json:"expires"`
+			Name    string        `json:"name,omitempty"`
 			Path    string        `json:"path"`
 			Type    string        `json:"type"`
 		}{
@@ -57,5 +58,5 @@ func TestResolveResolvedTask(t *testing.T) {
 	payload.Env = envRawMessage
 
 	_, _ = submitTask(t, td, payload)
-	runWorker()
+	RunWorker()
 }
