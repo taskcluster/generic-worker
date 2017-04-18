@@ -462,8 +462,8 @@ func RunWorker() {
 			lastQueriedProvisioner = time.Now()
 			shutdownIfNewDeploymentID()
 		}
-		// make sure at least 1 second passes between iterations
-		waitASec := time.NewTimer(time.Second * 1)
+		// make sure at least 5 seconds passes between iterations
+		wait5Seconds := time.NewTimer(time.Second * 5)
 		taskFound := FindAndRunTask()
 		if !taskFound {
 			// let's not be over-verbose in logs - has cost implications
@@ -495,10 +495,10 @@ func RunWorker() {
 			lastActive = time.Now()
 			PrepareTaskEnvironment()
 		}
-		// To avoid hammering queue, make sure there is at least a second
+		// To avoid hammering queue, make sure there is at least 5 seconds
 		// between consecutive requests. Note we do this even if a task ran,
-		// since a task could complete in less than a second.
-		<-waitASec.C
+		// since a task could complete in less than that amount of time.
+		<-wait5Seconds.C
 	}
 }
 
@@ -521,9 +521,6 @@ func FindAndRunTask() bool {
 	}
 
 	for _, taskResponse := range resp.Tasks {
-		// from this point on we should "break" rather than "continue", since
-		// there could be more tasks on the same queue - we only "continue"
-		// to next queue if we found nothing on this queue...
 		taskFound = true
 		taskQueue := queue.New(
 			&tcclient.Credentials{
