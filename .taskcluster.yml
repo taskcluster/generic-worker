@@ -119,7 +119,7 @@ tasks:
         - git config --global core.autocrlf false
         - 'go get -d "github.com/taskcluster/generic-worker"'
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add '{{ event.head.user.login }}' {{ event.head.repo.url }}
+        - git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'
         - git fetch --tags '{{ event.head.user.login }}'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
@@ -186,7 +186,7 @@ tasks:
         - git config --global core.autocrlf false
         - go get -d "github.com/taskcluster/generic-worker"
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add '{{ event.head.user.login }}' {{ event.head.repo.url }}
+        - git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'
         - git fetch --tags '{{ event.head.user.login }}'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
@@ -253,7 +253,7 @@ tasks:
         - git config --global core.autocrlf false
         - go get -d "github.com/taskcluster/generic-worker"
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
-        - git remote add '{{ event.head.user.login }}' {{ event.head.repo.url }}
+        - git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'
         - git fetch --tags '{{ event.head.user.login }}'
         - git checkout {{ event.head.sha }}
         - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
@@ -329,6 +329,7 @@ tasks:
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
             cd 'generic-worker'
             if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
+            git remote -v
             git ls-remote '{{ event.head.user.login }}'
             git fetch --tags '{{ event.head.user.login }}'
             git checkout -f '{{ event.head.sha }}'
@@ -392,6 +393,7 @@ tasks:
   #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
   #           cd 'generic-worker'
   #           if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
+  #           git remote -v
   #           git ls-remote '{{ event.head.user.login }}'
   #           git fetch --tags '{{ event.head.user.login }}'
   #           git checkout -f '{{ event.head.sha }}'
