@@ -543,12 +543,9 @@ func FindAndRunTask() bool {
 
 		task.StatusManager = NewTaskStatusManager(task)
 
-		// Now we found a task, run it, and then exit the loop. This is because
-		// the loop is in order of priority, most important first, so we will
-		// run the most important task we find, and then return, ignorning
-		// remaining urls for lower priority tasks that might still be left to
-		// loop through, since by the time we complete the first task, maybe
-		// higher priority jobs are waiting, so we need to poll afresh.
+		// Now we found a task, run it, and then exit the loop.  Work is returned
+		// by the queue in the order of priority.  Higher priority tasks will be claimed
+		// and returned before lower priority tasks.
 		log.Print("Task found")
 		execErr := task.Run()
 		if execErr.Occurred() {
