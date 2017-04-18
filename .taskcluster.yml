@@ -392,6 +392,7 @@ tasks:
   #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
   #           cd 'generic-worker'
   #           if [ ! -d '.git/refs/remotes/{{ event.head.user.login }}' ]; then git remote add '{{ event.head.user.login }}' '{{ event.head.repo.url }}'; fi
+  #           git ls-remote '{{ event.head.user.login }}'
   #           git fetch --tags '{{ event.head.user.login }}'
   #           git checkout -f '{{ event.head.sha }}'
   #           git clean -fdx
