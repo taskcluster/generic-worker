@@ -13,6 +13,7 @@ import (
 type OSUser struct {
 	Name     string
 	Password string
+	Home     string
 }
 
 func (user *OSUser) EnsureCreated() error {
@@ -27,7 +28,7 @@ func (user *OSUser) Create(okIfExists bool) error {
 	log.Print("Creating Windows user " + user.Name + "...")
 	userExisted, err := AllowError(
 		"The account already exists",
-		"net", "user", user.Name, user.Password, "/add", "/expires:never", "/passwordchg:no", "/y",
+		"net", "user", user.Name, user.Password, "/add", "/expires:never", "/passwordchg:no", "/y", "/homedir:" + user.Home, "/profilepath:" + user.Home,
 	)
 	if err != nil {
 		return err

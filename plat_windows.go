@@ -86,10 +86,15 @@ func deleteTaskDir(path string) error {
 }
 
 func prepareTaskUser(userName string) {
+	err = os.MkdirAll(taskContext.TaskDir, 0777)
+	if err != nil {
+		panic(err)
+	}
 	// create user
 	user := &runtime.OSUser{
 		Name:     userName,
 		Password: generatePassword(),
+		Home:     taskContext.TaskDir,
 	}
 	err := user.CreateNew()
 	if err != nil {
@@ -105,10 +110,6 @@ func prepareTaskUser(userName string) {
 		LoginInfo:   loginInfo,
 		Desktop:     newDesktop,
 		OrigDesktop: origDesktop,
-	}
-	err = os.MkdirAll(taskContext.TaskDir, 0777)
-	if err != nil {
-		panic(err)
 	}
 	err = RedirectAppData(loginInfo.HUser, filepath.Join(taskContext.TaskDir, "AppData"))
 	if err != nil {
