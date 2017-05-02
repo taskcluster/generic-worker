@@ -48,7 +48,45 @@ tasks:
 
 
   ##########################################################
-  ##################### linux 64 build #####################
+  ##################### Linter - Linux #####################
+  ##########################################################
+
+  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
+    workerType: "{{ taskcluster.docker.workerType }}"
+    metadata:
+      name: "Lint generic-worker (platform independent)"
+      description: "This lints the source code of generic-worker"
+      owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
+      source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.*
+          - push
+    payload:
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          go get -d "github.com/taskcluster/generic-worker"
+          cd "${GOPATH}/src/github.com/taskcluster/generic-worker"
+          git remote add user '{{ event.head.repo.url }}'
+          git fetch --tags user
+          git checkout '{{ event.head.sha }}'
+          go get github.com/alecthomas/gometalinter
+          cd gw-codegen
+          go get -v
+          cd ..
+          go generate
+          go get -d -v -t ./...
+          "${GOPATH}/bin/gometalinter" --install
+          "${GOPATH}/bin/gometalinter" --deadline 10m $(go list ./... | grep -v /vendor/ | sed 's/github.com\/taskcluster\/generic-worker/./')
+
+  ##########################################################
+  ##################### Linux 64 build #####################
   ##########################################################
 
   - provisionerId: "{{ taskcluster.docker.provisionerId }}"
@@ -81,7 +119,7 @@ tasks:
           cd "${GOPATH}/src/github.com/taskcluster/generic-worker"
           git fetch '{{ event.head.repo.url }}' "+refs/*:refs/tasks/${TASK_ID}/*"
           git checkout '{{ event.head.sha }}'
-          go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+          go get github.com/taskcluster/livelog
           cd gw-codegen
           go get -v
           cd ..
@@ -89,7 +127,6 @@ tasks:
           go get -v -t ./...
           test "$(git status --porcelain | wc -l)" == 0
           GORACE=history_size=7 go test -v -race ./...
-          "${GOPATH}/bin/ineffassign" .
       artifacts:
         public/build/generic-worker-linux-amd64:
           path: "/go/bin/generic-worker"
@@ -126,7 +163,7 @@ tasks:
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
         - 'git fetch "{{ event.head.repo.url }}" "+refs/*:refs/tasks/%TASK_ID%/*"'
         - git checkout {{ event.head.sha }}
-        - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+        - go get github.com/taskcluster/livelog
         - cd gw-codegen
         - go get -v
         - cd ..
@@ -147,7 +184,6 @@ tasks:
         - go test -v -race ./...
         - set GW_TESTS_GENERATE_USERS=true
         - go test -v -race
-        - ineffassign .
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -192,7 +228,7 @@ tasks:
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
         - 'git fetch "{{ event.head.repo.url }}" "+refs/*:refs/tasks/%TASK_ID%/*"'
         - git checkout {{ event.head.sha }}
-        - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+        - go get github.com/taskcluster/livelog
         - cd gw-codegen
         - go get -v
         - cd ..
@@ -213,7 +249,6 @@ tasks:
         - go test -v ./...
         - set GW_TESTS_GENERATE_USERS=true
         - go test -v
-        - ineffassign .
       artifacts:
         - path: public/build/generic-worker-windows-386.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -258,7 +293,7 @@ tasks:
         - 'cd "gopath\src\github.com\taskcluster\generic-worker"'
         - 'git fetch "{{ event.head.repo.url }}" "+refs/*:refs/tasks/%TASK_ID%/*"'
         - git checkout {{ event.head.sha }}
-        - go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+        - go get github.com/taskcluster/livelog
         - cd gw-codegen
         - go get -v
         - cd ..
@@ -279,7 +314,6 @@ tasks:
         - go test -v -race ./...
         - set GW_TESTS_GENERATE_USERS=true
         - go test -v -race
-        - ineffassign .
       artifacts:
         - path: public/build/generic-worker-windows-amd64.exe
           expires: "{{ '2 weeks' | $fromNow }}"
@@ -333,7 +367,7 @@ tasks:
             git fetch '{{ event.head.repo.url }}' "+refs/*:refs/tasks/${TASK_ID}/*"
             git checkout -f '{{ event.head.sha }}'
             git clean -fdx
-            go get -u github.com/taskcluster/livelog github.com/gordonklaus/ineffassign
+            go get -u github.com/taskcluster/livelog
             cd gw-codegen
             go get
             cd ..
@@ -343,7 +377,6 @@ tasks:
             # output of wc command can contain spaces on darwin, so no quotes around expression
             test $(git status --porcelain | wc -l) == 0
             GORACE=history_size=7 go test -race -v ./...
-            ineffassign .
       artifacts:
         - path: public/build/generic-worker-darwin-amd64
           expires: "{{ '2 weeks' | $fromNow }}"
