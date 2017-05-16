@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+
+	"github.com/taskcluster/ntr"
 )
 
 type OSUser struct {
@@ -36,20 +38,34 @@ func (user *OSUser) Create(okIfExists bool) error {
 		return fmt.Errorf("User " + user.Name + " already existed - cannot create")
 	}
 	log.Print("Created new OS user!")
-	err = RunCommands(
+	// needed for CreateFileMappingA syscall used by msys bash...
+	// https://msdn.microsoft.com/en-us/library/windows/desktop/aa366537(v=vs.85).aspx
+	// says "Creating a file mapping object in the global namespace from a
+	// session other than session zero requires the SeCreateGlobalPrivilege
+	// privilege."
+	err1 := ntr.AddPrivilegesToUser(user.Name, ntr.SE_CREATE_GLOBAL_NAME)
+	err2 := RunCommands(
 		userExisted,
 		[]string{"wmic", "useraccount", "where", "name='" + user.Name + "'", "set", "passwordexpires=false"},
 		[]string{"net", "localgroup", "Remote Desktop Users", "/add", user.Name},
 	)
 	// if user existed, the above commands can fail
 	// if it didn't, they can't
-	if !userExisted && err != nil {
-		return err
+	if !userExisted {
+		if err1 != nil {
+			return err1
+		}
+		if err2 != nil {
+			return err2
+		}
 	}
 	if okIfExists {
 		return nil
 	}
-	return err
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }
 
 // Runs command `command` with arguments `args`. If standard error from command
