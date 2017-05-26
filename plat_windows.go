@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/dchest/uniuri"
 	"github.com/taskcluster/generic-worker/process"
@@ -197,6 +198,22 @@ func (task *TaskRun) generateCommand(index int) error {
 			task.Log("Cannot get handle of interactive user")
 			return err
 		}
+		// get session
+		var sessionId uint32
+		var returnLength uint32
+		err = win32.GetTokenInformation(hToken, win32.TokenSessionId, uintptr(unsafe.Pointer(&sessionId)), 4, &returnLength)
+		if err != nil {
+			return err
+		}
+		log.Printf("Session ID in token was: %v", sessionId)
+		log.Printf("Return length was: %v", returnLength)
+		// set session
+		sessionId = uint32(1)
+		err = win32.SetTokenInformation(hToken, win32.TokenSessionId, uintptr(unsafe.Pointer(&sessionId)), 4)
+		if err != nil {
+			return err
+		}
+		log.Printf("Session ID set to %v", sessionId)
 		loginInfo.HUser = hToken
 	}
 	command, err := process.NewCommand(loginInfo, wrapper, &taskContext.TaskDir, nil, task.maxRunTimeDeadline)
