@@ -111,6 +111,8 @@ func (task *TaskRun) EnvVars() []string {
 	for i, j := range taskEnv {
 		taskEnvArray = append(taskEnvArray, i+"="+j)
 	}
+	// PWD environment variable may be used for spawned scripts
+	taskEnv["PWD"] = taskContext.TaskDir
 	log.Printf("Environment: %#v", taskEnvArray)
 	return taskEnvArray
 }
