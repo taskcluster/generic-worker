@@ -1,0 +1,8 @@
+title: Generic-worker
+description: A generic worker for task cluster, written in go
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-cayman
+
+gems:
+  - jekyll-mentions
