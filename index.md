@@ -1,6 +1,9 @@
 # generic-worker
-<img src="https://tools.taskcluster.net/lib/assets/taskcluster-120.png" />
-[![Build Status](https://travis-ci.org/taskcluster/generic-worker.svg?branch=master)](http://travis-ci.org/taskcluster/generic-worker)
+
+[![logo](https://tools.taskcluster.net/lib/assets/taskcluster-120.png)](https://tools.taskcluster.net/lib/assets/taskcluster-120.png)
+
+[![Linux Build Status](https://img.shields.io/travis/taskcluster/generic-worker.svg?style=flat-square&label=linux+build)](https://travis-ci.org/taskcluster/generic-worker)
+[![Windows Build Status](https://img.shields.io/appveyor/ci/petemoore/generic-worker.svg?style=flat-square&label=windows+build)](https://ci.appveyor.com/project/petemoore/generic-worker)
 [![GoDoc](https://godoc.org/github.com/taskcluster/generic-worker?status.svg)](https://godoc.org/github.com/taskcluster/generic-worker)
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
@@ -23,19 +26,35 @@ If you prefer not to use a prepackaged binary, or want to have the latest unrele
 
 All being well, the binaries will be built under `${GOPATH}/bin`.
 
-# Create TaskCluster account
+# Acquire taskcluster credentials
 
-Head over to https://tools.taskcluster.net/auth/clients/ and create yourself a clientId with permanent credentials. Then go to https://tools.taskcluster.net/auth/roles/ and create a role called `client-id:<your-client-id>` and give it the scope `worker-developer`. Keep a note of your clientId and accessToken.
+* Sign up for a [Mozillians account](https://mozillians.org/en-US/)
+* Request membership of the [taskcluster-contributors](https://mozillians.org/en-US/group/taskcluster-contributors/) mozillians group
+* If you are signed into tools.taskcluster.net already, **sign out**
+* Sign into [tools.taskcluster.net](https://tools.taskcluster.net/) using either your new Mozillians account, _or_ your LDAP account **if it uses the same email address as your Mozillians account**
+* Create a permanent client (taskcluster credentials) for yourself in the [Client Manager](https://tools.taskcluster.net/auth/clients/) granting it the single scope `assume:project:taskcluster:generic-worker-tester`
 
 # Set up your env
 
-View the generic worker help, to see what config you need to set up:
+* Generate a GPG key pair with `generic-worker new-openpgp-keypair --file <file>` where `file` is where you want the generated GPG private key to be written to
+* Create a generic worker configuration file somewhere, with the following content:
 
 ```
-generic-worker --help
+{
+    "accessToken":                "<access token of your permanent credentials>",
+    "certificate":                "",
+    "clientId":                   "<client ID of your permanent credentials>",
+    "livelogSecret":              "<anything you like>",
+    "provisionerId":              "test-provisioner",
+    "publicIP":                   "<ideally an IP address of one of your network interfaces>",
+    "signingKeyLocation":         "<file location you wrote gpg private key to>",
+    "workerGroup":                "test-worker-group",
+    "workerId":                   "<a name to uniquely identify the worker instance>",
+    "workerType":                 "<a unique name that only you will use for your test worker(s)>"
+}
 ```
 
-This should display something like this:
+To see a full description of all the config options available to you, run:
 
 ```
 generic-worker
@@ -45,14 +64,15 @@ the taskcluster component that executes tasks. It requests tasks from the taskcl
 and reports back results to the queue.
 
   Usage:
-    generic-worker run                     [--config         CONFIG-FILE]
-                                           [--configure-for-aws]
-    generic-worker install                 [--config         CONFIG-FILE]
-                                           [--nssm           NSSM-EXE]
-                                           [--password       PASSWORD]
-                                           [--service-name   SERVICE-NAME]
-                                           [--username       USERNAME]
+    generic-worker run                      [--config         CONFIG-FILE]
+                                            [--configure-for-aws]
+    generic-worker install service          [--service-name   SERVICE-NAME]
+                                            [--config         CONFIG-FILE]
+    generic-worker install startup          [--username       USERNAME]
+                                            [--password       PASSWORD]
+                                            [--config         CONFIG-FILE]
     generic-worker show-payload-schema
+    generic-worker new-openpgp-keypair      --file PRIVATE-KEY-FILE
     generic-worker --help
     generic-worker --version
 
@@ -64,33 +84,45 @@ and reports back results to the queue.
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
                                             worker.
-    install                                 This will install the generic worker as a
-                                            Windows service. If the Windows user USERNAME
-                                            does not already exist on the system, the user
-                                            will be created. This user will be used to run
-                                            the service.
+    install service                         This will install the generic worker as a
+                                            Windows service running under the Local System
+                                            account. This is the preferred way to run the
+                                            worker under Windows.
+    install startup                         This will install the generic worker as a
+                                            Scheduled Task which runs when the given user
+                                            logs on. This method is no longer recommended
+                                            and is likely to be removed from future
+                                            releases.
+    new-openpgp-keypair                     This will generate a fresh, new OpenPGP
+                                            compliant private/public key pair. The public
+                                            key will be written to stdout and the private
+                                            key will be written to the specified file.
 
   Options:
+    --config CONFIG-FILE                    Json configuration file to use. See
+                                            configuration section below to see what this
+                                            file should contain. When calling the install
+                                            target, this is the config file that the
+                                            installation should use, rather than the
+                                            config to use during install.
+                                            [default: generic-worker.config]
     --configure-for-aws                     This will create the CONFIG-FILE for an AWS
                                             installation by querying the AWS environment
                                             and setting appropriate values.
-    --config CONFIG-FILE                    Json configuration file to use. See
-                                            configuration section below to see what this
-                                            file should contain.
-                                            [default: generic-worker.config]
-    --help                                  Display this help text.
-    --nssm NSSM-EXE                         The full path to nssm.exe to use for
-                                            installing the service.
-                                            [default: C:\nssm-2.24\win64\nssm.exe]
-    --password PASSWORD                     The password for the username specified
-                                            with -u|--username option. If not specified
-                                            a random password will be generated.
     --service-name SERVICE-NAME             The name that the Windows service should be
                                             installed under. [default: Generic Worker]
     --username USERNAME                     The Windows user to run the generic worker
                                             Windows service as. If the user does not
                                             already exist on the system, it will be
                                             created. [default: GenericWorker]
+    --password PASSWORD                     The password for the username specified
+                                            with -u|--username option. If not specified
+                                            a random password will be generated.
+    --file PRIVATE-KEY-FILE                 The path to the file to write the private key
+                                            to. The parent directory must already exist.
+                                            If the file exists it will be overwritten,
+                                            otherwise it will be created.
+    --help                                  Display this help text.
     --version                               The release version of the generic-worker.
 
 
@@ -106,12 +138,6 @@ and reports back results to the queue.
                                             to talk to taskcluster queue.
           clientId                          Taskcluster client id used by generic worker to
                                             talk to taskcluster queue.
-          workerGroup                       Typically this would be an aws region - an
-                                            identifier to uniquely identify which pool of
-                                            workers this worker logically belongs to.
-          workerId                          A name to uniquely identify your worker.
-          workerType                        This should match a worker_type managed by the
-                                            provisioner you have specified.
           livelogSecret                     This should match the secret used by the
                                             stateless dns server; see
                                             https://github.com/taskcluster/stateless-dns-server
@@ -119,50 +145,141 @@ and reports back results to the queue.
                                             for serving live logs; see
                                             https://github.com/taskcluster/livelog and
                                             https://github.com/taskcluster/stateless-dns-server
+          signingKeyLocation                The PGP signing key for signing artifacts with.
+          workerId                          A name to uniquely identify your worker.
+          workerType                        This should match a worker_type managed by the
+                                            provisioner you have specified.
 
         ** OPTIONAL ** properties
         =========================
 
+          cachesDir                         The location where task caches should be stored on
+                                            the worker. [default: C:\generic-worker\caches]
           certificate                       Taskcluster certificate, when using temporary
                                             credentials only.
-          provisioner_id                    The taskcluster provisioner which is taking care
-                                            of provisioning environments with generic-worker
-                                            running on them. [default: aws-provisioner-v1]
-          refreshURLsPrematurelySecs        The number of seconds before azure urls expire,
-                                            that the generic worker should refresh them.
-                                            [default: 310]
-          debug                             Logging filter; see
-                                            https://github.com/tj/go-debug [default: *]
+          checkForNewDeploymentEverySecs    The number of seconds between consecutive calls
+                                            to the provisioner, to check if there has been a
+                                            new deployment of the current worker type. If a
+                                            new deployment is discovered, worker will shut
+                                            down. See deploymentId property. [default: 1800]
+          cleanUpTaskDirs                   Whether to delete the home directories of the task
+                                            users after the task completes. Normally you would
+                                            want to do this to avoid filling up disk space,
+                                            but for one-off troubleshooting, it can be useful
+                                            to (temporarily) leave home directories in place.
+                                            Accepted values: true or false. [default: true]
+          deploymentId                      If running with --configure-for-aws, then between
+                                            tasks, at a chosen maximum frequency (see
+                                            checkForNewDeploymentEverySecs property), the
+                                            worker will query the provisioner to get the
+                                            updated worker type definition. If the deploymentId
+                                            in the config of the worker type definition is
+                                            different to the worker's current deploymentId, the
+                                            worker will shut itself down. See
+                                            https://bugzil.la/1298010
+          disableReboots                    If true, no system reboot will be initiated by
+                                            generic-worker program, but it will still return
+                                            with exit code 67 if the system needs rebooting.
+                                            This allows custom logic to be executed before
+                                            rebooting, by patching run-generic-worker.bat
+                                            script to check for exit code 67, perform steps
+                                            (such as formatting a hard drive) and then
+                                            rebooting in the run-generic-worker.bat script.
+                                            [default: false]
+          downloadsDir                      The location where resources are downloaded for
+                                            populating preloaded caches and readonly mounts.
+                                            [default: C:\generic-worker\downloads]
+          idleTimeoutSecs                   How many seconds to wait without getting a new
+                                            task to perform, before the worker process exits.
+                                            An integer, >= 0. A value of 0 means "never reach
+                                            the idle state" - i.e. continue running
+                                            indefinitely. See also shutdownMachineOnIdle.
+                                            [default: 0]
+          livelogCertificate                SSL certificate to be used by livelog for hosting
+                                            logs over https. If not set, http will be used.
           livelogExecutable                 Filepath of LiveLog executable to use; see
                                             https://github.com/taskcluster/livelog
+                                            [default: livelog]
+          livelogKey                        SSL key to be used by livelog for hosting logs
+                                            over https. If not set, http will be used.
+          livelogPUTPort                    Port number for livelog HTTP PUT requests.
+                                            [default: 60022]
+          livelogGETPort                    Port number for livelog HTTP GET requests.
+                                            [default: 60023]
+          numberOfTasksToRun                If zero, run tasks indefinitely. Otherwise, after
+                                            this many tasks, exit. [default: 0]
+          provisionerId                     The taskcluster provisioner which is taking care
+                                            of provisioning environments with generic-worker
+                                            running on them. [default: test-provisioner]
+          requiredDiskSpaceMegabytes        The garbage collector will ensure at least this
+                                            number of megabytes of disk space are available
+                                            when each task starts. If it cannot free enough
+                                            disk space, the worker will shut itself down.
+                                            [default: 10240]
+          runTasksAsCurrentUser             If true, users will not be created for tasks, but
+                                            the current OS user will be used. Useful if not an
+                                            administrator, e.g. when running tests. Should not
+                                            be used in production! [default: false]
+          shutdownMachineOnInternalError    If true, if the worker encounters an unrecoverable
+                                            error (such as not being able to write to a
+                                            required file) it will shutdown the host
+                                            computer. Note this is generally only desired
+                                            for machines running in production, such as on AWS
+                                            EC2 spot instances. Use with caution!
+                                            [default: false]
+          shutdownMachineOnIdle             If true, when the worker is deemed to have been
+                                            idle for enough time (see idleTimeoutSecs) the
+                                            worker will issue an OS shutdown command. If false,
+                                            the worker process will simply terminate, but the
+                                            machine will not be shut down. [default: false]
           subdomain                         Subdomain to use in stateless dns name for live
                                             logs; see
                                             https://github.com/taskcluster/stateless-dns-server
                                             [default: taskcluster-worker.net]
-          livelogCertificate                SSL certificate to be used by livelog for hosting
-                                            logs over https. If not set, http will be used.
-          livelogKey                        SSL key to be used by livelog for hosting logs
-                                            over https. If not set, http will be used.
-
-    Here is an syntactically valid example configuration file:
-
-            {
-              "accessToken":                "123bn234bjhgdsjhg234",
-              "clientId":                   "hskdjhfasjhdkhdbfoisjd",
-              "workerGroup":                "dev-test",
-              "workerId":                   "IP_10-134-54-89",
-              "workerType":                 "win2008-worker",
-              "provisionerId":              "my-provisioner",
-              "livelogSecret":              "baNaNa-SouP4tEa",
-              "publicIP":                   "12.24.35.46"
-            }
-
+          tasksDir                          The location where task directories should be
+                                            created on the worker. [default: /Users]
+          workerGroup                       Typically this would be an aws region - an
+                                            identifier to uniquely identify which pool of
+                                            workers this worker logically belongs to.
+                                            [default: test-worker-group]
+          workerTypeMetaData                This arbitrary json blob will be uploaded as an
+                                            artifact called worker_type_metadata.json with each
+                                            task. Providing information here, such as a URL to
+                                            the code/config used to set up the worker type will
+                                            mean that people running tasks on the worker type
+                                            will have more information about how it was set up
+                                            (for example what has been installed on the
+                                            machine).
+          runAfterUserCreation              A string, that if non-empty, will be treated as a
+                                            command to be executed as the newly generated task
+                                            user, each time a task user is created. This is a
+                                            way to provide generic user initialisation logic
+                                            that should apply to all generated users (and thus
+                                            all tasks).
 
     If an optional config setting is not provided in the json configuration file, the
     default will be taken (defaults documented above).
 
     If no value can be determined for a required config setting, the generic-worker will
     exit with a failure message.
+
+  Exit Codes:
+
+    0      Tasks completed successfully; no more tasks to run (see config setting
+           numberOfTasksToRun).
+    67     A task user has been created, and the generic-worker needs to reboot in order
+           to log on as the new task user. Note, the reboot happens automatically unless
+           config setting disableReboots is set to true - in either code this exit code will
+           be issued.
+    68     The generic-worker hit its idle timeout limit (see config settings idleTimeoutSecs
+           and shutdownMachineOnIdle).
+    69     Worker panic - either a worker bug, or the environment is not suitable for running
+           a task, e.g. a file cannot be written to the file system, or something else did
+           not work that was required in order to execute a task. See config setting
+           shutdownMachineOnInternalError.
+    70     A new deploymentId has been issued in the AWS worker type configuration, meaning
+           this worker environment is no longer up-to-date. Typcially workers should
+           terminate.
 ```
 
 # Start the generic worker
@@ -170,41 +287,16 @@ and reports back results to the queue.
 Simply run:
 
 ```
-generic-worker --config CONFIG-FILE
+generic-worker run --config <config file>
 ```
 
-and watch logs for a successful startup. If you can see it is polling the Queue, and the process does not exit, then you can continue. If it reports a problem, follow any instructions it provides. If you are really stuck, join #taskcluster channel on irc.mozilla.org, and ask for help.
-
-It should look something like this:
-
-```
-22:29:40.326 2ms    2ms    generic-worker - Detected darwin platform
-22:29:40.327 3ms    3ms    queue - Making http request: &{GET https://queue.taskcluster.net/v1/poll-task-url/aws-provisioner-v1/win2012r2 HTTP/1.1 1 1 map[Content-Type:[application/json] Authorization:[Hawk id="aws-provisioner", mac="MVfkV6dfr36FFDR3434GoOxPRV+Bsdpqnyso9mtejHY=", ts="1449354580", nonce="pKTcnRfr", ext="eyJjZXJgFGHsdfVFTSI6eyJ2ZXJzaW9uFDf9gu3hjdkrh3khykfkj45zdW1lOndvcmtlci10eXBlOmF3cy1wcm92aXNpb25lci12MS93aW4yMDEycjIiLCJhc3N1bWU6d29ya2VyLWlkOioiXSwic3RhcnQiOjE0NDkzMjg0MTc1MDYsImV4cGlyeSI6MTQ0OTY3NDMxNzUwNiwic2VlZCI6ImR2eGdReXVFVFltUzZzeTE3ZFY2TUFmYjdLVWd0WVNTeUs3V2FWajZLR2dBIiwic2lnbmF0dXJlIjoiUjVPL3Jtdk5OR2RPNXNxcEZibWppcitGM3FKZ2RYNS90QU1DQ3ltK2ZIdz0ifX0="]] <nil> 0 [] false queue.taskcluster.net map[] map[] <nil> map[]   <nil> <nil>}
-22:29:41.455 1s     1s     generic-worker - Refreshing signed urls in 24m49.928485914s
-22:29:41.455 20us   20us   generic-worker -   Priority (1) Delete URL: https://taskclusterqueuev1.queue.core.windows.net/queue-b7s5ezzeusysb327h2qdcv4y-sergv56zmysxaedc7n2h5t5a-5/messages/{{messageId}}?popreceipt={{popReceipt}}&sv=2015-04-05&se=2015-12-05T22%3A59%3A41Z&sp=p&spr=https&sig=wPRqqdRtqnIK3n6Qss4rkMiAO0KSE12P8Y3E3S0cLmU%3D&st=2015-12-05T22%3A14%3A41Z
-22:29:41.455 1us    1us    generic-worker -   Priority (1) Poll URL:   https://taskclusterqueuev1.queue.core.windows.net/queue-b7s5ezzeusysb327h2qdcv4y-sergv56zmysxaedc7n2h5t5a-5/messages?visibilitytimeout=300&sv=2015-04-05&se=2015-12-05T22%3A59%3A41Z&sp=p&spr=https&sig=wPRqqdRtqnIK3n6Qss4rkMiAO0KSE12P8Y3E3S0cLmU%3D&st=2015-12-05T22%3A14%3A41Z
-22:29:41.455 1us    1us    generic-worker -   Priority (2) Delete URL: https://taskclusterqueuev1.queue.core.windows.net/queue-b7s5ezzeusysb327h2qdcv4y-sergv56zmysxaedc7n2h5t5a-1/messages/{{messageId}}?popreceipt={{popReceipt}}&sv=2015-04-05&se=2015-12-05T22%3A59%3A41Z&sp=p&spr=https&sig=H%2B5fkdbb8A3FMODzY94k7bmVXur18mbRQA%2FJDxNgUoc%3D&st=2015-12-05T22%3A14%3A41Z
-22:29:41.455 1us    1us    generic-worker -   Priority (2) Poll URL:   https://taskclusterqueuev1.queue.core.windows.net/queue-b7s5ezzeusysb327h2qdcv4y-sergv56zmysxaedc7n2h5t5a-1/messages?visibilitytimeout=300&sv=2015-04-05&se=2015-12-05T22%3A59%3A41Z&sp=p&spr=https&sig=H%2B5fkdbb8A3FMODzY94k7bmVXur18mbRQA%2FJDxNgUoc%3D&st=2015-12-05T22%3A14%3A41Z
-22:29:42.337 881ms  881ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:42.564 226ms  226ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:42.564 994ns  978ns  generic-worker - No task claimed from any Azure queue...
-22:29:42.767 203ms  203ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:42.970 202ms  202ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:42.970 1us    1us    generic-worker - No task claimed from any Azure queue...
-22:29:43.767 797ms  797ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:43.968 201ms  201ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:43.968 928ns  918ns  generic-worker - No task claimed from any Azure queue...
-22:29:44.767 798ms  798ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-22:29:44.959 192ms  192ms  generic-worker - Zero tasks returned in Azure XML QueueMessagesList
-```
+where `<config file>` is the generic worker config file you created above.
 
 # Create a test job
 
 Go to https://tools.taskcluster.net/task-creator/ and create a task to run on your generic worker.
 
-Use [this example](task-definition-example.json) as a template, but make sure to edit `provisionerId` and `workerType` values so that they match what you set in your config file.
-
-Please note you should *NOT* use the default value of `aws-provisioner` for the `provisionerId` since then the production aws provisioner may start spawning ec2 instances, and the docker-worker may try to run the job. By specifying something unique for your local environment, the aws provisioner and docker workers will leave this task alone, and only your machine will claim the task.
+Use [this example](worker_types/win2012r2/task-definition.json) as a template, but make sure to edit `provisionerId` and `workerType` values so that they match what you set in your config file.
 
 Don't forget to submit the task by clicking the *Create Task* icon.
 
@@ -220,11 +312,25 @@ Then cd into the source directory, and run:
 go test -v ./...
 ```
 
+# Making a new generic worker release
+
+Run the `release.sh` script like so:
+
+```
+$ ./release.sh 9.3.2
+```
+
+This will perform some checks, tag the repo, push the tag to github, which will then trigger travis-ci to run tests, and publish the new release.
+
+# Creating and updating worker types
+
+See [worker_types README.md](https://github.com/taskcluster/generic-worker/blob/master/worker_types/README.md).
+
 # Further information
 
 Please see:
 
-* [TaskCluster Documentation](http://docs.taskcluster.net/)
-* [Generic Worker presentations](http://docs.taskcluster.net/presentations/) (focus on Windows platform)
-* [TaskCluster Web Tools] (http://tools.taskcluster.net/)
-* [Generic Worker Open Bugs] (https://bugzilla.mozilla.org/buglist.cgi?f1=product&list_id=12722874&o1=equals&query_based_on=Taskcluster%20last%202%20days&o2=equals&query_format=advanced&f2=component&v1=Taskcluster&v2=Generic-Worker&known_name=Taskcluster%20last%202%20days)
+* [TaskCluster Documentation](https://docs.taskcluster.net/)
+* [Generic Worker presentations](https://docs.taskcluster.net/presentations) (focus on Windows platform)
+* [TaskCluster Web Tools](https://tools.taskcluster.net/)
+* [Generic Worker Open Bugs](https://bugzilla.mozilla.org/buglist.cgi?f1=product&resolution=---&o1=equals&o2=equals&query_format=advanced&f2=component&v1=Taskcluster&v2=Generic-Worker)
