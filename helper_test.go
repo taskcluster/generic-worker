@@ -64,7 +64,6 @@ func setup(t *testing.T, testName string) {
 		RefreshUrlsPrematurelySecs:     310,
 		Region: "outer-space",
 		RequiredDiskSpaceMegabytes:     1024,
-		RunTasksAsCurrentUser:          true,
 		ShutdownMachineOnIdle:          false,
 		ShutdownMachineOnInternalError: false,
 		SigningKeyLocation:             filepath.Join("testdata", "private-opengpg-key"),
@@ -94,10 +93,6 @@ func setup(t *testing.T, testName string) {
 				"script":     "test-script-url",
 			},
 		},
-	}
-
-	if os.Getenv("GW_TESTS_GENERATE_USERS") != "" {
-		config.RunTasksAsCurrentUser = false
 	}
 
 	// Needed for tests that don't call RunWorker()

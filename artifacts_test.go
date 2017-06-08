@@ -388,9 +388,11 @@ func TestUpload(t *testing.T) {
 			},
 		},
 		Features: struct {
-			ChainOfTrust bool `json:"chainOfTrust,omitempty"`
+			ChainOfTrust    bool `json:"chainOfTrust,omitempty"`
+			RunAsWorkerUser bool `json:"runAsWorkerUser,omitempty"`
 		}{
-			ChainOfTrust: true,
+			ChainOfTrust:    true,
+			RunAsWorkerUser: false,
 		},
 	}
 	td := testTask(t)

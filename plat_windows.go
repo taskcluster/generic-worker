@@ -207,7 +207,7 @@ func (task *TaskRun) generateCommand(index int) error {
 	wrapper := filepath.Join(taskContext.TaskDir, commandName+"_wrapper.bat")
 	log.Printf("Creating wrapper script: %v", wrapper)
 	loginInfo := &subprocess.LoginInfo{}
-	if !config.RunTasksAsCurrentUser {
+	if !task.Payload.Features.RunAsWorkerUser {
 		hToken, err := win32.InteractiveUserToken(time.Minute)
 		if err != nil {
 			task.Log("Cannot get handle of interactive user")
@@ -349,9 +349,7 @@ func taskCleanup() error {
 		deleteTaskDirs()
 	}
 	// note if this fails, we carry on without throwing an error
-	if !config.RunTasksAsCurrentUser {
-		deleteExistingOSUsers()
-	}
+	deleteExistingOSUsers()
 	return nil
 }
 
@@ -494,7 +492,7 @@ func (task *TaskRun) formatCommand(index int) string {
 
 // see http://ss64.com/nt/icacls.html
 func makeDirReadableForTaskUser(dir string) error {
-	if config.RunTasksAsCurrentUser {
+	if taskContext.LogonSession == nil {
 		return nil
 	}
 	return runtime.RunCommands(

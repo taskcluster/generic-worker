@@ -46,6 +46,7 @@ var (
 		&OSGroupsFeature{},
 		&ChainOfTrustFeature{},
 		&MountsFeature{},
+		&RunAsWorkerUser{},
 	}
 
 	version = "10.0.4"
@@ -203,10 +204,6 @@ and reports back results to the queue.
                                             when each task starts. If it cannot free enough
                                             disk space, the worker will shut itself down.
                                             [default: 10240]
-          runTasksAsCurrentUser             If true, users will not be created for tasks, but
-                                            the current OS user will be used. Useful if not an
-                                            administrator, e.g. when running tests. Should not
-                                            be used in production! [default: false]
           shutdownMachineOnInternalError    If true, if the worker encounters an unrecoverable
                                             error (such as not being able to write to a
                                             required file) it will shutdown the host
@@ -391,7 +388,6 @@ func loadConfig(filename string, queryUserData bool) (*Config, error) {
 		RefreshUrlsPrematurelySecs:     310,
 		RequiredDiskSpaceMegabytes:     10240,
 		RunAfterUserCreation:           "",
-		RunTasksAsCurrentUser:          false,
 		ShutdownMachineOnInternalError: false,
 		ShutdownMachineOnIdle:          false,
 		Subdomain:                      "taskcluster-worker.net",
@@ -417,8 +413,7 @@ func loadConfig(filename string, queryUserData bool) (*Config, error) {
 
 	// Add any useful worker config to worker metadata
 	c.WorkerTypeMetadata["config"] = map[string]interface{}{
-		"runTasksAsCurrentUser": c.RunTasksAsCurrentUser,
-		"deploymentId":          c.DeploymentID,
+		"deploymentId": c.DeploymentID,
 	}
 	c.WorkerTypeMetadata["generic-worker"] = map[string]interface{}{
 		"go-arch":    runtime.GOARCH,
@@ -1159,11 +1154,8 @@ func PrepareTaskEnvironment() (reboot bool) {
 	taskContext = &TaskContext{
 		TaskDir: filepath.Join(config.TasksDir, taskDirName),
 	}
-	// Regardless of whether we run tasks as current user or not, we should
-	// make sure there is a task user created - since runTasksAsCurrentUser is
-	// now only something for CI so on Windows a generic-worker test can
-	// execute in the context of a Windows Service running under LocalSystem
-	// account. Username can only be 20 chars, uuids are too long, therefore
+	// Make sure there is a task user created.
+	// Username can only be 20 chars, uuids are too long, therefore
 	// use prefix (5 chars) plus seconds since epoch (10 chars).
 	userName := taskDirName
 	reboot = prepareTaskUser(userName)

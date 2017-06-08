@@ -39,7 +39,6 @@ type (
 		Region                         string                 `json:"region"`
 		RequiredDiskSpaceMegabytes     uint                   `json:"requiredDiskSpaceMegabytes"`
 		RunAfterUserCreation           string                 `json:"runAfterUserCreation"`
-		RunTasksAsCurrentUser          bool                   `json:"runTasksAsCurrentUser"`
 		ShutdownMachineOnInternalError bool                   `json:"shutdownMachineOnInternalError"`
 		ShutdownMachineOnIdle          bool                   `json:"shutdownMachineOnIdle"`
 		SigningKeyLocation             string                 `json:"signingKeyLocation"`

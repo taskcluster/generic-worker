@@ -220,10 +220,6 @@ and reports back results to the queue.
                                             when each task starts. If it cannot free enough
                                             disk space, the worker will shut itself down.
                                             [default: 10240]
-          runTasksAsCurrentUser             If true, users will not be created for tasks, but
-                                            the current OS user will be used. Useful if not an
-                                            administrator, e.g. when running tests. Should not
-                                            be used in production! [default: false]
           shutdownMachineOnInternalError    If true, if the worker encounters an unrecoverable
                                             error (such as not being able to write to a
                                             required file) it will shutdown the host
