@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/fileutil"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 )
@@ -62,18 +62,24 @@ func (l *SupersedeTask) Start() *CommandExecutionError {
 	}
 	resp, _, err := httpbackoff.Get(supersederURL)
 	if err != nil {
-		return MalformedPayloadError(err)
+		// if problem with superseder service, let's run all tasks, and not resolve them all as exception
+		l.task.Logf("WARNING: problem accessing supersederUrl: %v", err)
+		l.task.Log("Not able to see if this task has been superseded!")
+		return nil
 	}
 	decoder := json.NewDecoder(resp.Body)
 	var supersedes SupersedesServiceResponse
 	err = decoder.Decode(&supersedes)
 	if err != nil {
-		return MalformedPayloadError(err)
+		// if problem with superseder service, let's run all tasks, and not resolve them all as exception
+		l.task.Logf("WARNING: not able to interpret response from supersederUrl %v as json list of task IDs: %v", supersederURL, err)
+		l.task.Logf("Not able to see if this task has been superseded!")
+		return nil
 	}
 	taskIDs := supersedes.TaskIDs
 	if l.task.TaskID != taskIDs[0] {
 		supersededByFile := filepath.Join(taskContext.TaskDir, supersededByPath)
-		err = gwconfig.WriteToFileAsJSON(
+		err = fileutil.WriteToFileAsJSON(
 			map[string]string{
 				"taskId": taskIDs[0],
 			},
