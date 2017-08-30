@@ -223,6 +223,9 @@ func (artifact *S3Artifact) ProcessResponse(resp interface{}, task *TaskRun) (er
 			log.Print(string(requestHeaders))
 		}
 		putResp, tempError = httpClient.Do(httpRequest)
+		if tempError != nil {
+			return
+		}
 		// bug 1394557: s3 incorrectly returns HTTP 400 for connection inactivity,
 		// which can/should be retried, so explicitly handle...
 		if putResp.StatusCode == 400 {
