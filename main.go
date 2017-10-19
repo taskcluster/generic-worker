@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,6 +28,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/taskcluster-client-go/awsprovisioner"
 	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/webhooktunnel/whclient"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -40,14 +42,17 @@ var (
 	// https://docs.taskcluster.net/reference/platform/queue/api-docs
 	Queue       *queue.Queue
 	Provisioner *awsprovisioner.AwsProvisioner
-	config      *gwconfig.Config
-	configFile  string
-	Features    []Feature = []Feature{
-		&LiveLogFeature{},
+	// This is for enabling webhooktunnel features
+	TunnelServer *WebhookServer
+	config       *gwconfig.Config
+	configFile   string
+	Features     []Feature = []Feature{
+		// &LiveLogFeature{},
 		&OSGroupsFeature{},
 		&ChainOfTrustFeature{},
 		&MountsFeature{},
 		&SupersedeFeature{},
+		&WebhookLogFeature{},
 	}
 
 	version = "10.2.1"
@@ -304,6 +309,27 @@ func initialiseFeatures() (err error) {
 	return nil
 }
 
+func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
+	configurer := func() (whclient.Config, error) {
+		authClient := auth.New(creds)
+		whresp, err := authClient.WebhooktunnelToken()
+		if err != nil {
+			return whclient.Config{}, errors.New("webhookclient could not get token from auth")
+		}
+		return whclient.Config{
+			ID:        whresp.TunnelID,
+			ProxyAddr: whresp.ProxyURL,
+			Token:     whresp.Token,
+		}, nil
+	}
+	client, err := whclient.New(configurer)
+	if err != nil {
+		log.Printf("could not initialize webhookclient")
+		return nil
+	}
+	return NewWebhookServer(client)
+}
+
 // Entry point into the generic worker...
 func main() {
 	arguments, err := docopt.Parse(usage, nil, true, "generic-worker "+version, false, true)
@@ -532,6 +558,11 @@ func RunWorker() (exitCode ExitCode) {
 	// Queue is the object we will use for accessing queue api
 	Queue = queue.New(creds)
 	Provisioner = awsprovisioner.New(creds)
+	// Create a webhookserver instance
+	TunnelServer = getWebhookServer(creds)
+	if TunnelServer != nil {
+		TunnelServer.Initialise()
+	}
 
 	err = initialiseFeatures()
 	if err != nil {
@@ -837,6 +868,10 @@ func Failure(err error) *CommandExecutionError {
 	return executionError("", failed, err)
 }
 
+func SetupFailed(err error) *CommandExecutionError {
+	return executionError("setup-failed", errored, err)
+}
+
 func (task *TaskRun) Logf(format string, v ...interface{}) {
 	task.Log(fmt.Sprintf(format, v...))
 }
@@ -1062,6 +1097,7 @@ func (task *TaskRun) Run() (err *executionErrors) {
 	for _, taskFeature := range taskFeatures {
 		err.add(taskFeature.Start())
 		if err.Occurred() {
+			log.Printf("Error occured while starting features")
 			return
 		}
 		defer func(taskFeature TaskFeature) {
