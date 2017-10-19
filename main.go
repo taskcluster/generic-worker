@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,6 +29,7 @@ import (
 	"github.com/taskcluster/taskcluster-client-go/auth"
 	"github.com/taskcluster/taskcluster-client-go/awsprovisioner"
 	"github.com/taskcluster/taskcluster-client-go/queue"
+	"github.com/taskcluster/webhooktunnel/whclient"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -46,6 +48,8 @@ var (
 	config      *gwconfig.Config
 	configFile  string
 	Features    []Feature
+	// This is for enabling webhooktunnel features
+	TunnelServer *WebhookServer
 
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
@@ -311,6 +315,7 @@ func initialiseFeatures() (err error) {
 		// of signing key file, and a feature could change them, so we want these
 		// checks as late as possible
 		&ChainOfTrustFeature{},
+		&WebhookLogFeature{},
 	}
 	Features = append(Features, platformFeatures()...)
 	for _, feature := range Features {
@@ -320,6 +325,30 @@ func initialiseFeatures() (err error) {
 		}
 	}
 	return nil
+}
+
+func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
+	configurer := func() (whclient.Config, error) {
+		authClient, err := auth.New(creds)
+		if err != nil {
+			return whclient.Config{}, err
+		}
+		whresp, err := authClient.WebhooktunnelToken()
+		if err != nil {
+			return whclient.Config{}, errors.New("webhookclient could not get token from auth")
+		}
+		return whclient.Config{
+			ID:        whresp.TunnelID,
+			ProxyAddr: whresp.ProxyURL,
+			Token:     whresp.Token,
+		}, nil
+	}
+	client, err := whclient.New(configurer)
+	if err != nil {
+		log.Printf("could not initialize webhookclient")
+		return nil
+	}
+	return NewWebhookServer(client)
 }
 
 // Entry point into the generic worker...
@@ -572,6 +601,11 @@ func RunWorker() (exitCode ExitCode) {
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
+	}
+	// Create a webhookserver instance
+	TunnelServer = getWebhookServer(creds)
+	if TunnelServer != nil {
+		TunnelServer.Initialise()
 	}
 
 	err = initialiseFeatures()
@@ -1167,6 +1201,7 @@ func (task *TaskRun) Run() (err *executionErrors) {
 		log.Printf("Starting task feature %v...", taskFeature.f.Name())
 		err.add(taskFeature.t.Start())
 		if err.Occurred() {
+			log.Printf("Error occured while starting features")
 			return
 		}
 		defer func(taskFeature TaskFeature) {
