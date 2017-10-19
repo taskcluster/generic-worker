@@ -606,11 +606,6 @@ func RunWorker() (exitCode ExitCode) {
 	TunnelServer = getWebhookServer(creds)
 	if TunnelServer != nil {
 		TunnelServer.Initialise()
-		Features = append(Features, &WebhookLogFeature{})
-	} else {
-		// fallback to using the livelog binary in case the
-		// the TunnelServer cannot be instantiated.
-		Features = append(Features, &LiveLogFeature{})
 	}
 
 	err = initialiseFeatures()
