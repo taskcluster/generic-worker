@@ -55,7 +55,7 @@ var (
 		&WebhookLogFeature{},
 	}
 
-	version = "10.2.1"
+	version = "10.2.3"
 	usage   = `
 generic-worker
 generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
