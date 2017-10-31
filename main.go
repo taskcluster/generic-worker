@@ -52,7 +52,7 @@ var (
 		&ChainOfTrustFeature{},
 		&MountsFeature{},
 		&SupersedeFeature{},
-		// &WebhookLogFeature{},
+		&WebhookLogFeature{},
 	}
 
 	version = "10.2.3"
