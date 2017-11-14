@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/secrets"
 )
 
@@ -78,37 +77,55 @@ func RelOpsPassword(region string, instance *ec2.Instance, s RelOpsWorkerTypeSec
 }
 
 func main() {
-	tcCreds := &tcclient.Credentials{
-		ClientID:    os.Getenv("TASKCLUSTER_CLIENT_ID"),
-		AccessToken: os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
-		Certificate: os.Getenv("TASKCLUSTER_CERTIFICATE"),
+	var err error
+	mySecrets, err = secrets.New(nil)
+	if err != nil {
+		log.Fatalf("Invalid credentials in environment variables: '%v'", err)
 	}
-	mySecrets = secrets.New(tcCreds)
 	s, err := mySecrets.List("", "")
 	if err != nil {
 		log.Fatalf("Could not read secrets: '%v'", err)
 	}
 	if len(s.Secrets) == 0 {
-		log.Fatalf("Taskcluster secrets service returned zero secrets, but auth did not fail, so it seems your client (%v) does not have scopes\nfor getting existing secrets (recommended: \"%v*\")", tcCreds.ClientID, secretsPrefix)
+		log.Fatalf("Taskcluster secrets service returned zero secrets, but auth did not fail, so it seems your client (%v) does not have scopes\nfor getting existing secrets (recommended: \"%v*\")", mySecrets.Credentials.ClientID, secretsPrefix)
 	}
 	var wg sync.WaitGroup
 	workerTypeBuffers := []*bytes.Buffer{}
 	for _, name := range s.Secrets {
 		if strings.HasPrefix(name, secretsPrefix) {
-			wg.Add(1)
-			b := &bytes.Buffer{}
-			workerTypeBuffers = append(workerTypeBuffers, b)
 			workerType := name[len(secretsPrefix):]
-			go func(workerType, name string, b *bytes.Buffer) {
-				defer wg.Done()
-				fetchWorkerType(workerType, name, b)
-			}(workerType, name, b)
+			if shouldInclude(workerType) {
+				wg.Add(1)
+				b := &bytes.Buffer{}
+				workerTypeBuffers = append(workerTypeBuffers, b)
+				go func(workerType, name string, b *bytes.Buffer) {
+					defer wg.Done()
+					fetchWorkerType(workerType, name, b)
+				}(workerType, name, b)
+			}
 		}
 	}
 	wg.Wait()
 	for _, b := range workerTypeBuffers {
 		fmt.Print(b.String())
 	}
+}
+
+func shouldInclude(workerType string) bool {
+	// os.Args[0] is program name ("occ-workers"). No other args means run
+	// against all worker types.
+	if len(os.Args) <= 1 {
+		return true
+	}
+	// Worker types have been specified on command line, therefore only allow
+	// workerType if it is included in program args. Avoid `for range`
+	// construct as we are skipping first element os.Args[0].
+	for i := 1; i < len(os.Args); i++ {
+		if os.Args[i] == workerType {
+			return true
+		}
+	}
+	return false
 }
 
 func fetchWorkerType(workerType, name string, out *bytes.Buffer) {
