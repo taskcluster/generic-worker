@@ -335,7 +335,7 @@ func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
 		}
 		whresp, err := authClient.WebhooktunnelToken()
 		if err != nil {
-			return whclient.Config{}, errors.New("webhookclient could not get token from auth")
+			return whclient.Config{}, err
 		}
 		return whclient.Config{
 			ID:        whresp.TunnelID,
