@@ -311,7 +311,10 @@ func initialiseFeatures() (err error) {
 
 func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
 	configurer := func() (whclient.Config, error) {
-		authClient := auth.New(creds)
+		authClient, err := auth.New(creds)
+		if err != nil {
+			return whclient.Config{}, errors.New("webhookclient passed malformed credentials")
+		}
 		whresp, err := authClient.WebhooktunnelToken()
 		if err != nil {
 			return whclient.Config{}, errors.New("webhookclient could not get token from auth")
