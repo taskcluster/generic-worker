@@ -155,7 +155,6 @@ properties:
       watched during its execution. The worker will sleep for 12 hours after
       the task completes, before deleting the task account and running
       subsequent tasks.
-    format: uri
 definitions:
   mount:
     title: Mount

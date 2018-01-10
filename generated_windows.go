@@ -498,7 +498,6 @@ func taskPayloadSchema() string {
     },
     "rdpInfo": {
       "description": "Specifies an artifact name for publishing RDP connection information.\nSince this is potentially sensitive data, care should be taken to publish\nto a suitably locked down path, such as ` + "`" + `project/\u003cproject\u003e/rdpinfo.json` + "`" + `.\nUse of this feature requires scope\n` + "`" + `generic-worker:allow-rdp:\u003cprovisionerId\u003e/\u003cworkerType\u003e` + "`" + `. The RDP\nconnection data is published during task startup, so that a task can be\nwatched during its execution. The worker will sleep for 12 hours after\nthe task completes, before deleting the task account and running\nsubsequent tasks.",
-      "format": "uri",
       "title": "RDP Info",
       "type": "string"
     },
