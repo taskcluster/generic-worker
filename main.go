@@ -47,7 +47,7 @@ var (
 
 	logName = "public/logs/live_backing.log"
 
-	version  = "10.4.1"
+	version  = "10.5.0alpha1"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 	usage    = `
 generic-worker
