@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 	"strconv"
 
 	raven "github.com/getsentry/raven-go"
@@ -47,6 +48,10 @@ func ReportCrashToSentry(r interface{}) {
 			"workerGroup":           config.WorkerGroup,
 			"workerId":              config.WorkerID,
 			"workerType":            config.WorkerType,
+			"gwVersion":             version,
+			"gwRevision":            revision,
+			"GOOS":                  runtime.GOOS,
+			"GOARCH":                runtime.GOARCH,
 		},
 	)
 }

@@ -18,6 +18,10 @@ import (
 	"github.com/taskcluster/shell"
 )
 
+func platformFeatures() []Feature {
+	return []Feature{}
+}
+
 type OSUser struct {
 	HomeDir  string
 	Name     string
@@ -171,8 +175,8 @@ func defaultTasksDir() string {
 }
 
 // N/A for unix - just a windows thing
-func AutoLogonUser() string {
-	return ""
+func AutoLogonCredentials() (string, string) {
+	return "", ""
 }
 
 func chooseTaskDirName() string {

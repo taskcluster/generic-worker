@@ -35,7 +35,7 @@ func (feature *SupersedeFeature) PersistState() error {
 }
 
 // Supersede is always enabled
-func (feature *SupersedeFeature) IsEnabled(fl EnabledFeatures) bool {
+func (feature *SupersedeFeature) IsEnabled(task *TaskRun) bool {
 	return true
 }
 
@@ -43,8 +43,13 @@ type SupersedeTask struct {
 	task *TaskRun
 }
 
+func (feature *SupersedeTask) ReservedArtifacts() []string {
+	return []string{
+		supersededByName,
+	}
+}
+
 func (feature *SupersedeFeature) NewTaskFeature(task *TaskRun) TaskFeature {
-	task.featureArtifacts[supersededByName] = "superseded feature"
 	return &SupersedeTask{
 		task: task,
 	}
@@ -94,12 +99,12 @@ func (l *SupersedeTask) Start() *CommandExecutionError {
 		e := l.task.uploadArtifact(
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:    supersededByName,
-					Expires: l.task.Definition.Expires,
+					Name:        supersededByName,
+					Expires:     l.task.Definition.Expires,
+					ContentType: "application/json",
 				},
 				Path:            supersededByPath,
 				ContentEncoding: "gzip",
-				MimeType:        "application/json",
 			},
 		)
 		if e != nil {
@@ -108,7 +113,7 @@ func (l *SupersedeTask) Start() *CommandExecutionError {
 		return &CommandExecutionError{
 			TaskStatus: aborted,
 			Cause:      fmt.Errorf("Task %v has been superseded by task %v", l.task.TaskID, taskIDs[0]),
-			Reason:     Superseded,
+			Reason:     superseded,
 		}
 	}
 	return nil

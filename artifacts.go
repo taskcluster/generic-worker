@@ -40,27 +40,25 @@ type (
 	}
 
 	BaseArtifact struct {
-		Name    string
-		Expires tcclient.Time
+		Name        string
+		Expires     tcclient.Time
+		ContentType string
 	}
 
 	S3Artifact struct {
 		*BaseArtifact
 		Path            string
 		ContentEncoding string
-		MimeType        string
 	}
 
 	AzureArtifact struct {
 		*BaseArtifact
-		Path     string
-		MimeType string
+		Path string
 	}
 
 	RedirectArtifact struct {
 		*BaseArtifact
-		MimeType string
-		URL      string
+		URL string
 	}
 
 	ErrorArtifact struct {
@@ -76,14 +74,14 @@ func (base *BaseArtifact) Base() *BaseArtifact {
 }
 
 func (artifact *RedirectArtifact) ProcessResponse(response interface{}, task *TaskRun) error {
-	task.Logf("Uploading redirect artifact %v to URL %v with mime type %q and expiry %v", artifact.Name, artifact.URL, artifact.MimeType, artifact.Expires)
+	task.Logf("Uploading redirect artifact %v to URL %v with mime type %q and expiry %v", artifact.Name, artifact.URL, artifact.ContentType, artifact.Expires)
 	// nothing to do
 	return nil
 }
 
 func (redirectArtifact *RedirectArtifact) RequestObject() interface{} {
 	return &queue.RedirectArtifactRequest{
-		ContentType: redirectArtifact.MimeType,
+		ContentType: redirectArtifact.ContentType,
 		Expires:     redirectArtifact.Expires,
 		StorageType: "reference",
 		URL:         redirectArtifact.URL,
@@ -185,7 +183,7 @@ func (artifact *S3Artifact) ProcessResponse(resp interface{}, task *TaskRun) (er
 	response := resp.(*queue.S3ArtifactResponse)
 
 	artifact.ChooseContentEncoding()
-	task.Logf("Uploading artifact %v from file %v with content encoding %q, mime type %q and expiry %v", artifact.Name, artifact.Path, artifact.ContentEncoding, artifact.MimeType, artifact.Expires)
+	task.Logf("Uploading artifact %v from file %v with content encoding %q, mime type %q and expiry %v", artifact.Name, artifact.Path, artifact.ContentEncoding, artifact.ContentType, artifact.Expires)
 	transferContentFile := artifact.CreateTempFileForPUTBody()
 	defer os.Remove(transferContentFile)
 
@@ -210,7 +208,7 @@ func (artifact *S3Artifact) ProcessResponse(resp interface{}, task *TaskRun) (er
 		if permError != nil {
 			return
 		}
-		httpRequest.Header.Set("Content-Type", artifact.MimeType)
+		httpRequest.Header.Set("Content-Type", artifact.ContentType)
 		httpRequest.ContentLength = transferContentLength
 		if enc := artifact.ContentEncoding; enc != "" {
 			httpRequest.Header.Set("Content-Encoding", enc)
@@ -250,7 +248,7 @@ func (artifact *S3Artifact) ProcessResponse(resp interface{}, task *TaskRun) (er
 
 func (s3Artifact *S3Artifact) RequestObject() interface{} {
 	return &queue.S3ArtifactRequest{
-		ContentType: s3Artifact.MimeType,
+		ContentType: s3Artifact.ContentType,
 		Expires:     s3Artifact.Expires,
 		StorageType: "s3",
 	}
@@ -261,7 +259,7 @@ func (s3Artifact *S3Artifact) ResponseObject() interface{} {
 }
 
 func (s3Artifact *S3Artifact) String() string {
-	return fmt.Sprintf("S3 Artifact - Name: '%v', Path: '%v', Expires: %v, Content Encoding: '%v', MIME Type: '%v'", s3Artifact.Name, s3Artifact.Path, s3Artifact.Expires, s3Artifact.ContentEncoding, s3Artifact.MimeType)
+	return fmt.Sprintf("S3 Artifact - Name: '%v', Path: '%v', Expires: %v, Content Encoding: '%v', MIME Type: '%v'", s3Artifact.Name, s3Artifact.Path, s3Artifact.Expires, s3Artifact.ContentEncoding, s3Artifact.ContentType)
 }
 
 // Returns the artifacts as listed in the payload of the task (note this does
@@ -271,8 +269,9 @@ func (task *TaskRun) PayloadArtifacts() []Artifact {
 	for _, artifact := range task.Payload.Artifacts {
 		basePath := artifact.Path
 		base := &BaseArtifact{
-			Name:    artifact.Name,
-			Expires: artifact.Expires,
+			Name:        artifact.Name,
+			Expires:     artifact.Expires,
+			ContentType: artifact.ContentType,
 		}
 		// if no name given, use canonical path
 		if base.Name == "" {
@@ -306,8 +305,9 @@ func (task *TaskRun) PayloadArtifacts() []Artifact {
 				}
 				subName := filepath.Join(base.Name, relativePath)
 				b := &BaseArtifact{
-					Name:    canonicalPath(subName),
-					Expires: base.Expires,
+					Name:        canonicalPath(subName),
+					Expires:     base.Expires,
+					ContentType: base.ContentType,
 				}
 				switch {
 				case info.IsDir():
@@ -376,21 +376,22 @@ func resolve(base *BaseArtifact, artifactType string, path string) Artifact {
 	if artifactType == "directory" {
 		return nil
 	}
-	extension := filepath.Ext(path)
-	// first look up our own custom mime type mappings
-	mimeType := customMimeMappings[strings.ToLower(extension)]
-	// then fall back to system mime type mappings
-	if mimeType == "" {
-		mimeType = mime.TypeByExtension(extension)
-	}
-	// lastly, fall back to application/octet-stream in the absense of any other value
-	if mimeType == "" {
-		// application/octet-stream is the mime type for "unknown"
-		mimeType = "application/octet-stream"
+	if base.ContentType == "" {
+		extension := filepath.Ext(path)
+		// first look up our own custom mime type mappings
+		base.ContentType = customMimeMappings[strings.ToLower(extension)]
+		// then fall back to system mime type mappings
+		if base.ContentType == "" {
+			base.ContentType = mime.TypeByExtension(extension)
+		}
+		// lastly, fall back to application/octet-stream in the absense of any other value
+		if base.ContentType == "" {
+			// application/octet-stream is the mime type for "unknown"
+			base.ContentType = "application/octet-stream"
+		}
 	}
 	return &S3Artifact{
 		BaseArtifact: base,
-		MimeType:     mimeType,
 		Path:         path,
 	}
 }
@@ -410,10 +411,10 @@ func (task *TaskRun) uploadLog(name, path string) *CommandExecutionError {
 			BaseArtifact: &BaseArtifact{
 				Name: name,
 				// logs expire when task expires
-				Expires: task.Definition.Expires,
+				Expires:     task.Definition.Expires,
+				ContentType: "text/plain; charset=utf-8",
 			},
 			Path:            path,
-			MimeType:        "text/plain; charset=utf-8",
 			ContentEncoding: "gzip",
 		},
 	)

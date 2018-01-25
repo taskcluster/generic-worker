@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -54,6 +55,9 @@ func TestAbortAfterMaxRunTime(t *testing.T) {
 	if !strings.Contains(logtext, "max run time exceeded") {
 		t.Fatalf("Was expecting log file to mention task abortion, but it doesn't")
 	}
+	// TODO: this is a hack to make sure sleep process has died before we call teardown
+	// We need to make sure processes are properly killed when a task is aborted
+	time.Sleep(1500 * time.Millisecond)
 }
 
 func TestIdleWithoutCrash(t *testing.T) {
@@ -69,7 +73,17 @@ func TestIdleWithoutCrash(t *testing.T) {
 	if exitCode != IDLE_TIMEOUT {
 		t.Fatalf("Was expecting exit code %v, but got exit code %v", IDLE_TIMEOUT, exitCode)
 	}
-	if secsAlive := end.Sub(start).Seconds(); secsAlive < 7 {
+	// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+	if secsAlive := end.Round(0).Sub(start).Seconds(); secsAlive < 7 {
 		t.Fatalf("Worker died early - lasted for %v seconds", secsAlive)
 	}
+}
+
+func TestRevisionNumberStored(t *testing.T) {
+	if !regexp.MustCompile("^[0-9a-f]{40}$").MatchString(revision) {
+		t.Fatalf("Git revision could not be determined - got '%v' but expected to match regular expression '^[0-9a-f](40)$'\n"+
+			"Did you specify `-ldflags \"-X github.com/taskcluster/generic-worker.revision=<GIT REVISION>\"` in your go test command?\n"+
+			"Try using build.sh / build.cmd in root directory of generic-worker source code repository.", revision)
+	}
+	t.Logf("Git revision successfully retrieved: %v", revision)
 }

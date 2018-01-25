@@ -12,6 +12,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -42,21 +43,24 @@ var (
 	// https://docs.taskcluster.net/reference/platform/queue/api-docs
 	Queue       *queue.Queue
 	Provisioner *awsprovisioner.AwsProvisioner
+
 	// This is for enabling webhooktunnel features
 	TunnelServer *WebhookServer
 	config       *gwconfig.Config
 	configFile   string
 	Features     []Feature = []Feature{
-		// &LiveLogFeature{},
 		&OSGroupsFeature{},
 		&ChainOfTrustFeature{},
 		&MountsFeature{},
 		&SupersedeFeature{},
-		&WebhookLogFeature{},
 	}
 
-	version = "10.2.3"
-	usage   = `
+	logName = "public/logs/live_backing.log"
+	logPath = filepath.Join("generic-worker", "live_backing.log")
+
+	version  = "10.4.1"
+	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
+	usage    = `
 generic-worker
 generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
 See http://taskcluster.github.io/generic-worker/ for more details. Essentially, the worker is
@@ -276,6 +280,7 @@ and reports back results to the queue.
     70     A new deploymentId has been issued in the AWS worker type configuration, meaning
            this worker environment is no longer up-to-date. Typcially workers should
            terminate.
+    71     The worker was terminated via an interrupt signal (e.g. Ctrl-C pressed).
 `
 )
 
@@ -287,6 +292,7 @@ const (
 	IDLE_TIMEOUT             ExitCode = 68
 	INTERNAL_ERROR           ExitCode = 69
 	NONCURRENT_DEPLOYMENT_ID ExitCode = 70
+	WORKER_STOPPED           ExitCode = 71
 )
 
 func persistFeaturesState() (err error) {
@@ -300,6 +306,7 @@ func persistFeaturesState() (err error) {
 }
 
 func initialiseFeatures() (err error) {
+	Features = append(Features, platformFeatures()...)
 	for _, feature := range Features {
 		err := feature.Initialise()
 		if err != nil {
@@ -315,6 +322,7 @@ func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
 		if err != nil {
 			return whclient.Config{}, errors.New("webhookclient passed malformed credentials")
 		}
+		log.Print("attempting to authenticate with webhooktunnel")
 		whresp, err := authClient.WebhooktunnelToken()
 		if err != nil {
 			return whclient.Config{}, errors.New("webhookclient could not get token from auth")
@@ -335,7 +343,11 @@ func getWebhookServer(creds *tcclient.Credentials) *WebhookServer {
 
 // Entry point into the generic worker...
 func main() {
-	arguments, err := docopt.Parse(usage, nil, true, "generic-worker "+version, false, true)
+	versionName := "generic-worker " + version
+	if revision != "" {
+		versionName += " [ revision: https://github.com/taskcluster/generic-worker/commits/" + revision + " ]"
+	}
+	arguments, err := docopt.Parse(usage, nil, true, versionName, false, true)
 	if err != nil {
 		log.Println("Error parsing command line arguments!")
 		panic(err)
@@ -454,13 +466,18 @@ func loadConfig(filename string, queryUserData bool) (*gwconfig.Config, error) {
 		"runTasksAsCurrentUser": c.RunTasksAsCurrentUser,
 		"deploymentId":          c.DeploymentID,
 	}
-	c.WorkerTypeMetadata["generic-worker"] = map[string]interface{}{
+	gwMetadata := map[string]interface{}{
 		"go-arch":    runtime.GOARCH,
 		"go-os":      runtime.GOOS,
 		"go-version": runtime.Version(),
 		"release":    "https://github.com/taskcluster/generic-worker/releases/tag/v" + version,
 		"version":    version,
 	}
+	if revision != "" {
+		gwMetadata["revision"] = revision
+		gwMetadata["source"] = "https://github.com/taskcluster/generic-worker/commits/" + revision
+	}
+	c.WorkerTypeMetadata["generic-worker"] = gwMetadata
 
 	// now check all required values are set
 	// TODO: could probably do this with reflection to avoid explicitly listing
@@ -559,24 +576,29 @@ func RunWorker() (exitCode ExitCode) {
 		Certificate: config.Certificate,
 	}
 	// Queue is the object we will use for accessing queue api
+	log.Print("created Queue instance")
 	Queue, err = queue.New(creds)
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
+	log.Print("created Provisioner instance")
 	Provisioner, err = awsprovisioner.New(creds)
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
 	// Create a webhookserver instance
+	log.Print("creating TunnelServer instance")
 	TunnelServer = getWebhookServer(creds)
 	if TunnelServer != nil {
+		log.Print("created TunnelServer instance")
 		TunnelServer.Initialise()
 		Features = append(Features, &WebhookLogFeature{})
 	} else {
 		// fallback to using the livelog binary in case the
 		// the TunnelServer cannot be instantiated.
+		log.Print("TunnelServer failed. Fallback to LiveLog")
 		Features = append(Features, &LiveLogFeature{})
 	}
 
@@ -601,11 +623,14 @@ func RunWorker() (exitCode ExitCode) {
 	if reboot {
 		return REBOOT_REQUIRED
 	}
+	sigInterrupt := make(chan os.Signal, 1)
+	signal.Notify(sigInterrupt, os.Interrupt)
 	for {
 
 		// See https://bugzil.la/1298010 - routinely check if this worker type is
 		// outdated, and shut down if a new deployment is required.
-		if configureForAws && time.Now().Sub(lastQueriedProvisioner) > time.Duration(config.CheckForNewDeploymentEverySecs)*time.Second {
+		// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+		if configureForAws && time.Now().Round(0).Sub(lastQueriedProvisioner) > time.Duration(config.CheckForNewDeploymentEverySecs)*time.Second {
 			lastQueriedProvisioner = time.Now()
 			if deploymentIDUpdated() {
 				return NONCURRENT_DEPLOYMENT_ID
@@ -614,6 +639,7 @@ func RunWorker() (exitCode ExitCode) {
 		// make sure at least 5 seconds passes between iterations
 		wait5Seconds := time.NewTimer(time.Second * 5)
 		taskFound := FindAndRunTask()
+
 		if taskFound {
 			err := taskCleanup()
 			if err != nil {
@@ -641,7 +667,8 @@ func RunWorker() (exitCode ExitCode) {
 				return REBOOT_REQUIRED
 			}
 		} else {
-			idleTime := time.Now().Sub(lastActive)
+			// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+			idleTime := time.Now().Round(0).Sub(lastActive)
 			remainingIdleTimeText := ""
 			if config.IdleTimeoutSecs > 0 {
 				remainingIdleTimeText = fmt.Sprintf(" (will exit if no task claimed in %v)", time.Second*time.Duration(config.IdleTimeoutSecs)-idleTime)
@@ -651,9 +678,10 @@ func RunWorker() (exitCode ExitCode) {
 					return IDLE_TIMEOUT
 				}
 			}
-			// let's not be over-verbose in logs - has cost implications
-			// so report only once per minute that no task was claimed, not every second
-			if time.Now().Sub(lastReportedNoTasks) > 1*time.Minute {
+			// Let's not be over-verbose in logs - has cost implications,
+			// so report only once per minute that no task was claimed, not every second.
+			// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+			if time.Now().Round(0).Sub(lastReportedNoTasks) > 1*time.Minute {
 				lastReportedNoTasks = time.Now()
 				// remainingTasks will be -ve, if config.NumberOfTasksToRun is not set (=0)
 				remainingTaskCountText := ""
@@ -668,7 +696,11 @@ func RunWorker() (exitCode ExitCode) {
 		// To avoid hammering queue, make sure there is at least 5 seconds
 		// between consecutive requests. Note we do this even if a task ran,
 		// since a task could complete in less than that amount of time.
-		<-wait5Seconds.C
+		select {
+		case <-wait5Seconds.C:
+		case <-sigInterrupt:
+			return WORKER_STOPPED
+		}
 	}
 }
 
@@ -711,7 +743,7 @@ func FindAndRunTask() bool {
 			TaskClaimResponse: queue.TaskClaimResponse(taskResponse),
 			Artifacts:         map[string]Artifact{},
 			featureArtifacts: map[string]string{
-				livelogBackingName: "log feature",
+				logName: "Native Log",
 			},
 		}
 
@@ -760,15 +792,18 @@ func (task *TaskRun) setReclaimTimer() {
 	// Attempt to reclaim 3 mins earlier...
 	reclaimTime := takenUntil.Add(time.Minute * -3)
 	log.Printf("Reclaiming 3 mins earlier, at %v", reclaimTime)
-	waitTimeUntilReclaim := reclaimTime.Sub(time.Now())
+	// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+	waitTimeUntilReclaim := reclaimTime.Round(0).Sub(time.Now())
 	log.Printf("Time to wait until then is %v", waitTimeUntilReclaim)
 	// sanity check - only set an alarm, if wait time > 30s, so we can't hammer queue
 	if waitTimeUntilReclaim.Seconds() > 30 {
 		log.Print("This is more than 30 seconds away - so setting a timer")
 		task.reclaimTimer = time.AfterFunc(
 			waitTimeUntilReclaim, func() {
+				log.Printf("About to reclaim task %v...", task.TaskID)
 				err := task.StatusManager.Reclaim()
 				if err == nil {
+					log.Printf("Successfully reclaimed task %v", task.TaskID)
 					// only set another reclaim timer if the previous reclaim succeeded
 					task.setReclaimTimer()
 				} else {
@@ -876,11 +911,11 @@ func executionError(reason TaskUpdateReason, status TaskStatus, err error) *Comm
 }
 
 func ResourceUnavailable(err error) *CommandExecutionError {
-	return executionError("resource-unavailable", errored, err)
+	return executionError(resourceUnavailable, errored, err)
 }
 
 func MalformedPayloadError(err error) *CommandExecutionError {
-	return executionError("malformed-payload", errored, err)
+	return executionError(malformedPayload, errored, err)
 }
 
 func Failure(err error) *CommandExecutionError {
@@ -981,7 +1016,8 @@ func (task *TaskRun) setMaxRunTimer() *time.Timer {
 	// resolve the run as exception and create a new run, if the task has
 	// additional retries left.
 	return time.AfterFunc(
-		task.maxRunTimeDeadline.Sub(time.Now()),
+		// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+		task.maxRunTimeDeadline.Round(0).Sub(time.Now()),
 		func() {
 			// ignore any error - in the wrong go routine to properly handle it
 			task.StatusManager.Abort()
@@ -996,7 +1032,7 @@ func (task *TaskRun) kill() {
 }
 
 func (task *TaskRun) createLogFile() *os.File {
-	absLogFile := filepath.Join(taskContext.TaskDir, livelogPath)
+	absLogFile := filepath.Join(taskContext.TaskDir, logPath)
 	logFileHandle, err := os.Create(absLogFile)
 	if err != nil {
 		panic(err)
@@ -1031,7 +1067,7 @@ func (task *TaskRun) Run() (err *executionErrors) {
 
 	defer func() {
 		if r := recover(); r != nil {
-			err.add(executionError("worker-shutdown", errored, fmt.Errorf("%#v", r)))
+			err.add(executionError(internalError, errored, fmt.Errorf("%#v", r)))
 			defer panic(r)
 		}
 		err.add(task.resolve(err))
@@ -1067,7 +1103,7 @@ func (task *TaskRun) Run() (err *executionErrors) {
 			defer panic(r)
 		}
 		task.closeLog(logHandle)
-		err.add(task.uploadLog(livelogBackingName, livelogPath))
+		err.add(task.uploadLog(logName, logPath))
 	}()
 
 	task.logHeader()
@@ -1093,7 +1129,7 @@ func (task *TaskRun) Run() (err *executionErrors) {
 
 	// create task features
 	for _, feature := range Features {
-		if feature.IsEnabled(task.Payload.Features) {
+		if feature.IsEnabled(task) {
 			taskFeature := feature.NewTaskFeature(task)
 			requiredScopes := taskFeature.RequiredScopes()
 			scopesSatisfied, scopeValidationErr := scopes.Given(task.Definition.Scopes).Satisfies(requiredScopes, auth.NewNoAuth())
@@ -1106,6 +1142,14 @@ func (task *TaskRun) Run() (err *executionErrors) {
 			if !scopesSatisfied {
 				err.add(MalformedPayloadError(fmt.Errorf("Feature %q requires scopes:\n\n%v\n\nbut task only has scopes:\n\n%v\n\nYou probably should add some scopes to your task definition.", feature.Name(), requiredScopes, scopes.Given(task.Definition.Scopes))))
 				continue
+			}
+			reservedArtifacts := taskFeature.ReservedArtifacts()
+			for _, a := range reservedArtifacts {
+				if f := task.featureArtifacts[a]; f != "" {
+					err.add(MalformedPayloadError(fmt.Errorf("Feature %q wishes to publish artifact %v but feature %v has already reserved this artifact name.", feature.Name(), a, f)))
+				} else {
+					task.featureArtifacts[a] = feature.Name()
+				}
 			}
 			taskFeatures = append(taskFeatures, taskFeature)
 		}
@@ -1170,7 +1214,8 @@ func (task *TaskRun) Run() (err *executionErrors) {
 	defer func() {
 		finished := time.Now()
 		task.Log("=== Task Finished ===")
-		task.Log("Task Duration: " + finished.Sub(started).String())
+		// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+		task.Log("Task Duration: " + finished.Round(0).Sub(started).String())
 	}()
 
 	for i := range task.Payload.Command {
@@ -1235,7 +1280,7 @@ func PrepareTaskEnvironment() (reboot bool) {
 	if reboot {
 		return
 	}
-	logDir := filepath.Join(taskContext.TaskDir, filepath.Dir(livelogPath))
+	logDir := filepath.Join(taskContext.TaskDir, filepath.Dir(logPath))
 	err := os.MkdirAll(logDir, 0777)
 	if err != nil {
 		panic(err)
@@ -1245,7 +1290,7 @@ func PrepareTaskEnvironment() (reboot bool) {
 }
 
 func removeTaskDirs(parentDir string) {
-	activeTaskUser := AutoLogonUser()
+	activeTaskUser, _ := AutoLogonCredentials()
 	taskDirsParent, err := os.Open(parentDir)
 	if err != nil {
 		log.Print("WARNING: Could not open " + config.TasksDir + " directory to find old home directories to delete")

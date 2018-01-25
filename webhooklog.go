@@ -27,6 +27,7 @@ func (feature *WebhookLogFeature) Name() string {
 }
 
 func (feature *WebhookLogFeature) Initialise() error {
+	log.Print("initializing WebhookLogFeature")
 	return nil
 }
 
@@ -34,13 +35,19 @@ func (feature *WebhookLogFeature) PersistState() error {
 	return nil
 }
 
-func (feature *WebhookLogFeature) IsEnabled(fl EnabledFeatures) bool {
+func (feature *WebhookLogFeature) IsEnabled(task *TaskRun) bool {
 	return (TunnelServer != nil)
 }
 
 func (feature *WebhookLogFeature) NewTaskFeature(task *TaskRun) TaskFeature {
 	return &WebhookLogTask{
 		task: task,
+	}
+}
+
+func (taskFeature *WebhookLogTask) ReservedArtifacts() []string {
+	return []string{
+		livelogName,
 	}
 }
 
@@ -107,8 +114,8 @@ func (taskFeature *WebhookLogTask) Start() *CommandExecutionError {
 			BaseArtifact: &BaseArtifact{
 				Name:    livelogName,
 				Expires: tcclient.Time(logExpirationDeadline),
+				ContentType: "text/plain; charset=utf-8",
 			},
-			MimeType: "text/plain; charset=utf-8",
 			URL:      uri,
 		},
 	)
@@ -131,14 +138,14 @@ func (taskFeature *WebhookLogTask) Stop() *CommandExecutionError {
 
 	// redirect livelog to backing log. s3 artifact will be uploaded by taskRun
 	uri := fmt.Sprintf("%v/task/%v/runs/%v/artifacts/%v", Queue.BaseURL, taskFeature.task.TaskID,
-		taskFeature.task.RunID, livelogBackingName)
+		taskFeature.task.RunID, logName)
 	err := taskFeature.task.uploadArtifact(
 		&RedirectArtifact{
 			BaseArtifact: &BaseArtifact{
 				Name:    livelogName,
 				Expires: taskFeature.task.Definition.Expires,
+				ContentType: "text/plain; charset=utf-8",
 			},
-			MimeType: "text/plain; charset=utf-8",
 			URL:      uri,
 		},
 	)

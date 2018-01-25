@@ -101,6 +101,10 @@ func (feature *MountsFeature) Name() string {
 	return "Mounts/Caches"
 }
 
+func (feature *TaskMount) ReservedArtifacts() []string {
+	return []string{}
+}
+
 func (feature *MountsFeature) PersistState() (err error) {
 	err = fileutil.WriteToFileAsJSON(&fileCaches, "file-caches.json")
 	if err != nil {
@@ -217,7 +221,7 @@ func (ac *ArtifactContent) RequiredScopes() []string {
 
 // Since mounts are protected by scopes per mount, no reason to have
 // a feature flag to enable. Having mounts in the payload is enough.
-func (feature *MountsFeature) IsEnabled(fl EnabledFeatures) bool {
+func (feature *MountsFeature) IsEnabled(task *TaskRun) bool {
 	return true
 }
 
@@ -674,7 +678,8 @@ func (taskMount *TaskMount) purgeCaches() error {
 			writableCaches = append(writableCaches, t)
 		}
 	}
-	if len(writableCaches) == 0 && time.Now().Sub(lastQueriedPurgeCacheService) < 6*time.Hour {
+	// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
+	if len(writableCaches) == 0 && time.Now().Round(0).Sub(lastQueriedPurgeCacheService) < 6*time.Hour {
 		return nil
 	}
 	// In case of clock drift, let's query all purge cache requests created

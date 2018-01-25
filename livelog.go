@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -18,9 +17,7 @@ import (
 )
 
 var (
-	livelogName        = "public/logs/live.log"
-	livelogBackingName = "public/logs/live_backing.log"
-	livelogPath        = filepath.Join("generic-worker", "live_backing.log")
+	livelogName = "public/logs/live.log"
 )
 
 type LiveLogFeature struct {
@@ -39,7 +36,7 @@ func (feature *LiveLogFeature) PersistState() error {
 }
 
 // livelog is always enabled
-func (feature *LiveLogFeature) IsEnabled(fl EnabledFeatures) bool {
+func (feature *LiveLogFeature) IsEnabled(task *TaskRun) bool {
 	return true
 }
 
@@ -52,9 +49,13 @@ type LiveLogTask struct {
 	backingLogFile *os.File
 }
 
+func (feature *LiveLogTask) ReservedArtifacts() []string {
+	return []string{
+		livelogName,
+	}
+}
+
 func (feature *LiveLogFeature) NewTaskFeature(task *TaskRun) TaskFeature {
-	task.featureArtifacts[livelogName] = "livelog feature"
-	task.featureArtifacts[livelogBackingName] = "livelog feature"
 	return &LiveLogTask{
 		task: task,
 	}
@@ -120,17 +121,17 @@ func (l *LiveLogTask) Stop() *CommandExecutionError {
 		// no need to raise an exception
 		log.Printf("WARN: could not terminate livelog writer: %s", errTerminate)
 	}
-	log.Print("Redirecting live.log to live_backing.log")
-	logURL := fmt.Sprintf("%v/task/%v/runs/%v/artifacts/%v", Queue.BaseURL, l.task.TaskID, l.task.RunID, livelogBackingName)
+	log.Printf("Redirecting %v to %v", livelogName, logName)
+	logURL := fmt.Sprintf("%v/task/%v/runs/%v/artifacts/%v", Queue.BaseURL, l.task.TaskID, l.task.RunID, logName)
 	err := l.task.uploadArtifact(
 		&RedirectArtifact{
 			BaseArtifact: &BaseArtifact{
 				Name: livelogName,
 				// same expiry as underlying log it points to
-				Expires: l.task.Definition.Expires,
+				Expires:     l.task.Definition.Expires,
+				ContentType: "text/plain; charset=utf-8",
 			},
-			MimeType: "text/plain; charset=utf-8",
-			URL:      logURL,
+			URL: logURL,
 		},
 	)
 	if err != nil {
@@ -158,10 +159,10 @@ func (l *LiveLogTask) uploadLiveLog() error {
 			BaseArtifact: &BaseArtifact{
 				Name: livelogName,
 				// livelog expires when task must have completed
-				Expires: tcclient.Time(maxRunTimeDeadline),
+				Expires:     tcclient.Time(maxRunTimeDeadline),
+				ContentType: "text/plain; charset=utf-8",
 			},
-			MimeType: "text/plain; charset=utf-8",
-			URL:      getURL.String(),
+			URL: getURL.String(),
 		},
 	)
 	if uploadErr != nil {
