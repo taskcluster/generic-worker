@@ -1,0 +1,134 @@
+=== RUN   TestFileArtifactWithNames
+--- PASS: TestFileArtifactWithNames (0.01s)
+=== RUN   TestFileArtifactWithContentType
+--- PASS: TestFileArtifactWithContentType (0.00s)
+=== RUN   TestDirectoryArtifactWithNames
+--- PASS: TestDirectoryArtifactWithNames (0.00s)
+=== RUN   TestDirectoryArtifactWithContentType
+--- PASS: TestDirectoryArtifactWithContentType (0.00s)
+=== RUN   TestDirectoryArtifacts
+--- PASS: TestDirectoryArtifacts (0.00s)
+=== RUN   TestMissingFileArtifact
+--- PASS: TestMissingFileArtifact (0.00s)
+=== RUN   TestMissingDirectoryArtifact
+--- PASS: TestMissingDirectoryArtifact (0.00s)
+=== RUN   TestFileArtifactIsDirectory
+--- PASS: TestFileArtifactIsDirectory (0.00s)
+=== RUN   TestDefaultArtifactExpiry
+--- PASS: TestDefaultArtifactExpiry (0.00s)
+=== RUN   TestDirectoryArtifactIsFile
+--- PASS: TestDirectoryArtifactIsFile (0.00s)
+=== RUN   TestMissingArtifactFailsTest
+--- PASS: TestMissingArtifactFailsTest (19.75s)
+=== RUN   TestProtectedArtifactsReplaced
+--- PASS: TestProtectedArtifactsReplaced (50.07s)
+=== RUN   TestPublicDirectoryArtifact
+--- PASS: TestPublicDirectoryArtifact (11.87s)
+=== RUN   TestConflictingFileArtifactsInPayload
+--- PASS: TestConflictingFileArtifactsInPayload (11.62s)
+=== RUN   TestFileArtifactTwiceInPayload
+--- PASS: TestFileArtifactTwiceInPayload (12.50s)
+=== RUN   TestArtifactIncludedAsFileAndDirectoryInPayload
+--- PASS: TestArtifactIncludedAsFileAndDirectoryInPayload (12.07s)
+=== RUN   TestUpload
+--- PASS: TestUpload (47.10s)
+=== RUN   TestFileArtifactHasNoExpiry
+--- PASS: TestFileArtifactHasNoExpiry (13.39s)
+	artifacts_test.go:1069: Task expires: 2018-01-26T14:31:20.000Z
+	artifacts_test.go:1071: Artifact name: 'public/build/firefox.exe', content type: 'text/plain; charset=utf-8', expires: 2018-01-26T14:31:20.000Z, storage type: 's3'
+=== RUN   TestDirectoryArtifactHasNoExpiry
+--- PASS: TestDirectoryArtifactHasNoExpiry (14.10s)
+	artifacts_test.go:1114: Task expires: 2018-01-26T14:31:34.000Z
+	artifacts_test.go:1116: Artifact name: 'public/build/X.txt', content type: 'text/plain; charset=utf-8', expires: 2018-01-26T14:31:34.000Z, storage type: 's3'
+=== RUN   TestMissingIPConfig
+--- PASS: TestMissingIPConfig (0.00s)
+=== RUN   TestValidConfig
+--- PASS: TestValidConfig (0.00s)
+=== RUN   TestInvalidIPConfig
+--- PASS: TestInvalidIPConfig (0.00s)
+=== RUN   TestInvalidJsonConfig
+--- PASS: TestInvalidJsonConfig (0.00s)
+=== RUN   TestMissingConfigFile
+--- PASS: TestMissingConfigFile (0.00s)
+=== RUN   TestWorkerTypeMetadata
+--- PASS: TestWorkerTypeMetadata (0.00s)
+=== RUN   TestBoolAsString
+--- PASS: TestBoolAsString (0.00s)
+=== RUN   TestFailureResolvesAsFailure
+--- PASS: TestFailureResolvesAsFailure (9.35s)
+=== RUN   TestAbortAfterMaxRunTime
+--- PASS: TestAbortAfterMaxRunTime (15.01s)
+=== RUN   TestIdleWithoutCrash
+--- PASS: TestIdleWithoutCrash (22.84s)
+=== RUN   TestRevisionNumberStored
+--- FAIL: TestRevisionNumberStored (0.00s)
+	main_test.go:84: Git revision could not be determined - got '' but expected to match regular expression '^[0-9a-f](40)$'
+		Did you specify `-ldflags "-X github.com/taskcluster/generic-worker.revision=<GIT REVISION>"` in your go test command?
+		Try using build.sh / build.cmd in root directory of generic-worker source code repository.
+=== RUN   TestMounts
+--- PASS: TestMounts (15.88s)
+=== RUN   TestMissingScopes
+--- PASS: TestMissingScopes (14.88s)
+=== RUN   TestCachesCanBeModified
+--- PASS: TestCachesCanBeModified (32.82s)
+=== RUN   Test32BitOverflow
+--- PASS: Test32BitOverflow (0.00s)
+=== RUN   TestCorruptZipDoesntCrashWorker
+--- PASS: TestCorruptZipDoesntCrashWorker (7.88s)
+=== RUN   TestMissingScopesOSGroups
+--- PASS: TestMissingScopesOSGroups (12.61s)
+=== RUN   TestOSGroupsRespected
+--- PASS: TestOSGroupsRespected (8.97s)
+=== RUN   TestPayloadSchemaValid
+--- PASS: TestPayloadSchemaValid (0.04s)
+=== RUN   TestTotallyMalformedPayload
+--- PASS: TestTotallyMalformedPayload (0.03s)
+	payload_test.go:40: Task log:
+	payload_test.go:41: invalid character 'b' looking for beginning of value
+=== RUN   TestEnvVarsMustBeStrings
+--- PASS: TestEnvVarsMustBeStrings (0.03s)
+	payload_test.go:40: Task log:
+		[taskcluster 2018-01-25T14:34:08.793Z] TASK FAIL since the task payload is invalid. See errors:
+		[taskcluster 2018-01-25T14:34:08.793Z] - env: Invalid type. Expected: string, given: integer
+	payload_test.go:41: Validation of payload failed for task YNHCdOKWTkqwxGPWrRjRzg
+=== RUN   TestExtraFieldsNotAllowed
+--- PASS: TestExtraFieldsNotAllowed (0.03s)
+	payload_test.go:40: Task log:
+		[taskcluster 2018-01-25T14:34:08.824Z] TASK FAIL since the task payload is invalid. See errors:
+		[taskcluster 2018-01-25T14:34:08.824Z] - extraField: Additional property extraField is not allowed
+	payload_test.go:41: Validation of payload failed for task Iyh2D07RTV2dt2tkocstCw
+=== RUN   TestNoCommandsSpecified
+--- PASS: TestNoCommandsSpecified (0.03s)
+	payload_test.go:40: Task log:
+		[taskcluster 2018-01-25T14:34:08.854Z] TASK FAIL since the task payload is invalid. See errors:
+		[taskcluster 2018-01-25T14:34:08.854Z] - command: Array must have at least 1 items
+	payload_test.go:41: Validation of payload failed for task I2htZu0dQxWHVCMY8H4OIQ
+=== RUN   TestValidPayload
+--- PASS: TestValidPayload (0.02s)
+=== RUN   TestArtifactExpiresBeforeDeadline
+--- PASS: TestArtifactExpiresBeforeDeadline (0.07s)
+	payload_test.go:40: Task log:
+	payload_test.go:41: Malformed payload: artifact 'public/some/artifact' expires before task deadline (2018-01-25T14:39:08.878Z is before 2018-01-25T14:44:08.878Z)
+=== RUN   TestArtifactExpiresWithDeadline
+--- PASS: TestArtifactExpiresWithDeadline (0.26s)
+=== RUN   TestArtifactExpiresBetweenDeadlineAndTaskExpiry
+--- PASS: TestArtifactExpiresBetweenDeadlineAndTaskExpiry (0.04s)
+=== RUN   TestArtifactExpiresWithTask
+--- PASS: TestArtifactExpiresWithTask (0.04s)
+=== RUN   TestArtifactExpiresAfterTaskExpiry
+--- PASS: TestArtifactExpiresAfterTaskExpiry (0.05s)
+	payload_test.go:40: Task log:
+	payload_test.go:41: Malformed payload: artifact 'public/some/artifact' expires after task expiry (2018-01-25T14:59:09.294Z is after 2018-01-25T14:54:09.294Z)
+=== RUN   TestSupersede
+--- PASS: TestSupersede (41.31s)
+	supersede_test.go:52: Executing task OSRpa-AKRVibzgkRjLTxNw
+	supersede_test.go:52: Executing task d0nYh8kRR2uSF5CFc00AzA
+	supersede_test.go:52: Executing task Gh593PR5R-uo7t2sUWNoFw
+=== RUN   TestEmptySupersedeList
+--- PASS: TestEmptySupersedeList (10.30s)
+	supersede_test.go:106: Executing task FL5pc8YfTgiVOGwlRrQ40w
+=== RUN   TestResolveResolvedTask
+--- PASS: TestResolveResolvedTask (10.77s)
+FAIL
+exit status 1
+FAIL	github.com/ckousik/generic-worker	395.885s

@@ -307,7 +307,6 @@ func persistFeaturesState() (err error) {
 
 func initialiseFeatures() (err error) {
 	Features = []Feature{
-		&LiveLogFeature{},
 		&OSGroupsFeature{},
 		&MountsFeature{},
 		&SupersedeFeature{},
@@ -317,6 +316,12 @@ func initialiseFeatures() (err error) {
 		&ChainOfTrustFeature{},
 		&WebhookLogFeature{},
 	}
+	if TunnelServer != nil {
+		Features = append(Features, &WebhookLogFeature{})
+	} else {
+		Features = append(Features, &LiveLogFeature{})
+	}
+
 	Features = append(Features, platformFeatures()...)
 	for _, feature := range Features {
 		err := feature.Initialise()
@@ -597,6 +602,7 @@ func RunWorker() (exitCode ExitCode) {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
+
 	Provisioner, err = awsprovisioner.New(creds)
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
