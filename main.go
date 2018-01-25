@@ -306,6 +306,18 @@ func persistFeaturesState() (err error) {
 }
 
 func initialiseFeatures() (err error) {
+	Features = []Feature{
+		&OSGroupsFeature{},
+		&ChainOfTrustFeature{},
+		&MountsFeature{},
+		&SupersedeFeature{},
+	}
+	if TunnelServer != nil {
+		Features = append(Features, &WebhookLogFeature{})
+	}else{
+		Features = append(Features, &LiveLogFeature{})
+	}
+
 	Features = append(Features, platformFeatures()...)
 	for _, feature := range Features {
 		err := feature.Initialise()
@@ -576,30 +588,26 @@ func RunWorker() (exitCode ExitCode) {
 		Certificate: config.Certificate,
 	}
 	// Queue is the object we will use for accessing queue api
-	log.Print("created Queue instance")
 	Queue, err = queue.New(creds)
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
-	log.Print("created Provisioner instance")
+
 	Provisioner, err = awsprovisioner.New(creds)
 	if err != nil {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
 	// Create a webhookserver instance
-	log.Print("creating TunnelServer instance")
+	log.Print("Instantiating WebhookServer instance (TunnelServer).")
 	TunnelServer = getWebhookServer(creds)
 	if TunnelServer != nil {
-		log.Print("created TunnelServer instance")
 		TunnelServer.Initialise()
-		Features = append(Features, &WebhookLogFeature{})
 	} else {
 		// fallback to using the livelog binary in case the
 		// the TunnelServer cannot be instantiated.
 		log.Print("TunnelServer failed. Fallback to LiveLog")
-		Features = append(Features, &LiveLogFeature{})
 	}
 
 	err = initialiseFeatures()
