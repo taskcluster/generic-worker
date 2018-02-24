@@ -44,6 +44,12 @@ func (feature *WebhookLogFeature) NewTaskFeature(task *TaskRun) TaskFeature {
 	}
 }
 
+func (taskFeature *WebhookLogTask) ReservedArtifacts() []string {
+	return []string{
+		livelogName,
+	}
+}
+
 func (taskFeature *WebhookLogTask) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -156,8 +162,4 @@ func (taskFeature *WebhookLogTask) Stop() *CommandExecutionError {
 
 func (taskFeature *WebhookLogTask) RequiredScopes() scopes.Required {
 	return scopes.Required{}
-}
-
-func (taskFeature *WebhookLogTask) ReservedArtifacts() []string {
-	return []string{}
 }

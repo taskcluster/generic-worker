@@ -44,9 +44,10 @@ var (
 	// https://docs.taskcluster.net/reference/platform/queue/api-docs
 	Queue       *queue.Queue
 	Provisioner *awsprovisioner.AwsProvisioner
-	config      *gwconfig.Config
-	configFile  string
-	Features    []Feature
+
+	config     *gwconfig.Config
+	configFile string
+	Features   []Feature
 	// This is for enabling webhooktunnel features
 	TunnelServer *WebhookServer
 
@@ -607,6 +608,7 @@ func RunWorker() (exitCode ExitCode) {
 		log.Print("Invalid taskcluster credentials!!!")
 		panic(err)
 	}
+
 	// Create a webhookserver instance
 	TunnelServer = getWebhookServer(creds)
 	if TunnelServer != nil {
@@ -617,6 +619,7 @@ func RunWorker() (exitCode ExitCode) {
 	if err != nil {
 		panic(err)
 	}
+
 	defer func() {
 		err := persistFeaturesState()
 		if err != nil {
