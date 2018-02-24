@@ -89,7 +89,7 @@ func (taskFeature *WebhookLogTask) Start() *CommandExecutionError {
 
 	_, copyErr := io.Copy(taskFeature.logStream, taskFeature.backingLogFile)
 	if copyErr != nil {
-		log.Println("could not copy from backing log file: %v\n", copyErr)
+		log.Printf("could not copy from backing log file: %v\n", copyErr)
 		// return SetupFailed(copyErr)
 		return nil
 	}
