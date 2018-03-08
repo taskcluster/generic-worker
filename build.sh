@@ -2,9 +2,11 @@
 
 cd "$(dirname "${0}")"
 
-# Support go 1 release 1.10 or higher
+# Support go 1 release 1.9 or higher. Let's not move this to 1.10 until
+# https://bugzil.la/1441889 is resolved, and travis-ci.org works correctly with
+# go 1.10 (currently, if you specify go 1.10, you get go 1.1).
 GO_MAJOR_VERSION=1
-MIN_GO_MINOR_VERSION=10
+MIN_GO_MINOR_VERSION=9
 
 unset CGO_ENABLED
 unset GOOS
@@ -45,17 +47,17 @@ go generate ./...
 
 function install {
   if [ "${1}" != 'native' ]; then
-    GOOS="${1}" GOARCH="${2}" go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
+    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
     GOOS="${1}" GOARCH="${2}" go vet ./...
     # note, this just builds tests, it doesn't run them!
-    GOOS="${1}" GOARCH="${2}" go test -c github.com/taskcluster/generic-worker
-    GOOS="${1}" GOARCH="${2}" go test -c github.com/taskcluster/generic-worker/livelog
+    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker
+    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/livelog
   else
-    go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
+    CGO_ENABLED=0 go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
     go vet ./...
     # note, this just builds tests, it doesn't run them!
-    go test -c github.com/taskcluster/generic-worker
-    go test -c github.com/taskcluster/generic-worker/livelog
+    CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker
+    CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/livelog
   fi
 }
 
@@ -69,6 +71,8 @@ if ${ALL_PLATFORMS}; then
   # linux
   install linux      386
   install linux      amd64
+  install linux      arm
+  install linux      arm64
 else
   install native
 fi
@@ -99,7 +103,7 @@ fi
 
 find "${GOPATH}/bin" -name 'generic-worker*'
 
-go get github.com/taskcluster/livelog
+CGO_ENABLED=0 go get github.com/taskcluster/livelog
 # capital X here ... we only want to delete things that are ignored!
 git clean -fdX
 
