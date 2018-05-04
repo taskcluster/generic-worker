@@ -21,6 +21,8 @@ import (
 	"github.com/taskcluster/runlib/win32"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
 type TaskContext struct {
@@ -371,43 +373,18 @@ func taskCleanup() error {
 }
 
 func install(arguments map[string]interface{}) (err error) {
-	exePath, err := ExePath()
+	exePath, err := os.Executable()
 	if err != nil {
 		return err
 	}
 	configFile := convertNilToEmptyString(arguments["--config"])
 	switch {
 	case arguments["service"]:
-		nssm := convertNilToEmptyString(arguments["--nssm"])
 		serviceName := convertNilToEmptyString(arguments["--service-name"])
 		dir := filepath.Dir(exePath)
-		return deployService(configFile, nssm, serviceName, exePath, dir)
+		return deployService(configFile, serviceName, exePath, dir)
 	}
 	log.Fatal("Unknown install target - only 'service' is allowed")
-	return nil
-}
-
-func CreateRunGenericWorkerBatScript(batScriptFilePath string) error {
-	batScriptContents := []byte(strings.Join([]string{
-		`:: Run generic-worker`,
-		``,
-		`:: step inside folder containing this script`,
-		`pushd %~dp0`,
-		``,
-		`.\generic-worker.exe run --configure-for-aws > .\generic-worker.log 2>&1`,
-		``,
-		`:: Possible exit codes:`,
-		`::    0: all tasks completed   - only occurs when numberOfTasksToRun > 0`,
-		`::   67: rebooting             - system reboot has been triggered`,
-		`::   68: idle timeout          - system shutdown has been triggered if shutdownMachineOnIdle=true`,
-		`::   69: internal error        - system shutdown has been triggered if shutdownMachineOnInternalError=true`,
-		`::   70: deployment ID changed - system shutdown has been triggered`,
-		``,
-	}, "\r\n"))
-	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755)
-	if err != nil {
-		return fmt.Errorf("Was not able to create file %q with access permissions 0755 due to %s", batScriptFilePath, err)
-	}
 	return nil
 }
 
@@ -432,75 +409,41 @@ func SetAutoLogin(user *runtime.OSUser) error {
 	return nil
 }
 
-// deploys the generic worker as a windows service, running under the windows
-// user specified with username/password, such that the generic worker runs
-// with the given configuration file configFile. the http://nssm.cc/ executable
-// is required to install the service, specified as a file system path. The
-// serviceName is the service name given to the newly created service. if the
-// service already exists, it is simply updated.
-func deployService(configFile, nssm, serviceName, exePath, dir string) error {
-	targetScript := filepath.Join(filepath.Dir(exePath), "run-generic-worker.bat")
-	err := CreateRunGenericWorkerBatScript(targetScript)
+// deployService deploys the generic worker as a windows service such that the
+// generic-worker runs with configuration file configFile. The name is the
+// service name given to the newly created service. If the service already
+// exists, an error is returned.
+func deployService(configFile, name, exePath, dir string) error {
+	m, err := mgr.Connect()
 	if err != nil {
 		return err
 	}
-	return runtime.RunCommands(
-		false,
-		[]string{nssm, "install", serviceName, targetScript},
-		[]string{nssm, "set", serviceName, "AppDirectory", dir},
-		[]string{nssm, "set", serviceName, "DisplayName", serviceName},
-		[]string{nssm, "set", serviceName, "Description", "A taskcluster worker that runs on all mainstream platforms"},
-		[]string{nssm, "set", serviceName, "Start", "SERVICE_AUTO_START"},
-		// By default, NSSM installs as LocalSystem, which we need since we call WTSQueryUserToken.
-		// So let's not set it.
-		// []string{nssm, "set", serviceName, "ObjectName", ".\\" + user.Name, user.Password},
-		[]string{nssm, "set", serviceName, "Type", "SERVICE_WIN32_OWN_PROCESS"},
-		[]string{nssm, "set", serviceName, "AppPriority", "NORMAL_PRIORITY_CLASS"},
-		[]string{nssm, "set", serviceName, "AppNoConsole", "1"},
-		[]string{nssm, "set", serviceName, "AppAffinity", "All"},
-		[]string{nssm, "set", serviceName, "AppStopMethodSkip", "0"},
-		[]string{nssm, "set", serviceName, "AppStopMethodConsole", "1500"},
-		[]string{nssm, "set", serviceName, "AppStopMethodWindow", "1500"},
-		[]string{nssm, "set", serviceName, "AppStopMethodThreads", "1500"},
-		[]string{nssm, "set", serviceName, "AppThrottle", "1500"},
-		[]string{nssm, "set", serviceName, "AppExit", "Default", "Exit"},
-		[]string{nssm, "set", serviceName, "AppRestartDelay", "0"},
-		[]string{nssm, "set", serviceName, "AppStdout", filepath.Join(dir, "generic-worker-service.log")},
-		[]string{nssm, "set", serviceName, "AppStderr", filepath.Join(dir, "generic-worker-service.log")},
-		[]string{nssm, "set", serviceName, "AppStdoutCreationDisposition", "4"},
-		[]string{nssm, "set", serviceName, "AppStderrCreationDisposition", "4"},
-		[]string{nssm, "set", serviceName, "AppRotateFiles", "1"},
-		[]string{nssm, "set", serviceName, "AppRotateOnline", "1"},
-		[]string{nssm, "set", serviceName, "AppRotateSeconds", "3600"},
-		[]string{nssm, "set", serviceName, "AppRotateBytes", "0"},
-	)
-}
-
-func ExePath() (string, error) {
-	log.Printf("Command args: %#v", os.Args)
-	prog := os.Args[0]
-	p, err := filepath.Abs(prog)
-	if err != nil {
-		return "", err
-	}
-	fi, err := os.Stat(p)
+	defer m.Disconnect()
+	s, err := m.OpenService(name)
 	if err == nil {
-		if !fi.Mode().IsDir() {
-			return p, nil
-		}
-		err = fmt.Errorf("%s is directory", p)
+		s.Close()
+		return fmt.Errorf("service %s already exists", name)
 	}
-	if filepath.Ext(p) == "" {
-		p += ".exe"
-		fi, err = os.Stat(p)
-		if err == nil {
-			if !fi.Mode().IsDir() {
-				return p, nil
-			}
-			err = fmt.Errorf("%s is directory", p)
-		}
+	s, err = m.CreateService(
+		name,
+		exePath,
+		mgr.Config{
+			DisplayName: "Generic Worker",
+			Description: "Taskcluster generic-worker - see https://github.com/taskcluster/generic-worker/",
+			StartType:   mgr.StartAutomatic,
+		},
+		"run", "--configure-for-aws",
+	)
+	if err != nil {
+		return err
 	}
-	return "", err
+	defer s.Close()
+	err = eventlog.InstallAsEventCreate(name, eventlog.Error|eventlog.Warning|eventlog.Info)
+	if err != nil {
+		s.Delete()
+		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+	return nil
 }
 
 func (task *TaskRun) formatCommand(index int) string {
