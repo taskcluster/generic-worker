@@ -106,12 +106,39 @@ func (c *Command) Execute() (r *Result) {
 		r.SystemError = err
 		return
 	}
-	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1458873
-	// If we call c.Wait() here, we'll end up waiting for subprocesses
-	// that aren't killed. By calling c.Process.Wait() we only wait for
-	// the parent process to terminate, and not for the stdout/stderr
-	// handles to get closed, which only happens when all subprocesses
-	// have terminated.
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1462293
+	//
+	// When a command is killed, only the parent process will be killed, and
+	// subprocesses may continue running.
+	//
+	// If any subprocess inherited console handles from the parent process, the
+	// kernel will take care to ensure that those file handles will remain open
+	// until no processes are still using them.
+	//
+	// In the case that the command has io.Reader/io.Writer interfaces attached
+	// to any of the console handles (e.g. a io.multiWriter, as used by livelog
+	// feature) then internally the go standard library will launch go routines
+	// to copy data from the console handles into the io interfaces, when the
+	// process is created.  Those go routines will only complete once EOF has
+	// been reached, which will only happen when all subprocesses that
+	// inherited console handles have completed.
+	//
+	// c.Wait() waits for those internal go routines to complete, which means
+	// that even if the command is aborted, calling c.Wait() may never return,
+	// since if the process that was killed had launched a subprocess which
+	// continues to run (e.g.  waiting on user input), EOF will never be
+	// reached on the file handles, and the go routines will never terminate,
+	// and c.Wait() will never return.
+	//
+	// Therefore we call c.Process.Wait() here rather than c.Wait(), which is
+	// guaranteed to return, since it does not wait for the i/o copying to
+	// complete which is handled by the internal go routines.
+	//
+	// IMPORTANT: In the case the command is not aborted, the caller should
+	// call c.Wait() after calling c.Execute(), in order to ensure that
+	// stderr/stdout buffers are flushed to logs. This has to be the
+	// responsibility of the caller, since only it knows if the command was
+	// aborted or not.
 	state, err := c.Process.Wait()
 	finished := time.Now()
 	// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
