@@ -1001,6 +1001,10 @@ func (task *TaskRun) ExecuteCommand(index int) *CommandExecutionError {
 	if ae := task.StatusManager.AbortException(); ae != nil {
 		return ae
 	}
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1462293
+	// Since we didn't abort, we should wait for console buffers to be flushed
+	// Don't care about error, since we've already handled exit code of process etc
+	_ = task.Commands[index].Wait()
 	task.Infof("%v", result)
 
 	switch {
