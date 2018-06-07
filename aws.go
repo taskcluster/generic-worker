@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -149,6 +150,11 @@ func Unzip(b []byte, dest string) error {
 		}()
 
 		path := filepath.Join(dest, f.Name)
+
+		// Fix for https://snyk.io/research/zip-slip-vulnerability
+		if !strings.HasPrefix(path, dest) {
+			return fmt.Errorf("%s: illegal path", f.Name)
+		}
 
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(path, f.Mode())
