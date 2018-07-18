@@ -55,10 +55,11 @@ func (osGroups *OSGroups) RequiredScopes() scopes.Required {
 
 func (osGroups *OSGroups) Start() *CommandExecutionError {
 	groups := osGroups.Task.Payload.OSGroups
+	if len(groups) == 0 {
+		return nil
+	}
 	if config.RunTasksAsCurrentUser {
-		if len(groups) > 0 {
-			osGroups.Task.Infof("Not adding task user to group(s) %v since we are running as current user.", groups)
-		}
+		osGroups.Task.Infof("Not adding task user to group(s) %v since we are running as current user.", groups)
 		return nil
 	}
 	updatedGroups, notUpdatedGroups := osGroups.Task.addUserToGroups(groups)
