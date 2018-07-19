@@ -1352,20 +1352,3 @@ func removeTaskDirs(parentDir string) {
 		}
 	}
 }
-
-func (task *TaskRun) RefreshLoginSession() {
-	// On Windows we need to call LogonUser to get new access token with the group changes
-	if task.LoginInfo != nil {
-		logoutError := task.LoginInfo.Logout()
-		if logoutError != nil {
-			panic(logoutError)
-		}
-	}
-	user, pass := AutoLogonCredentials()
-	loginInfo, logonError := process.NewLoginInfo(user, pass)
-	if logonError != nil {
-		// implies a serious bug
-		panic(logonError)
-	}
-	task.LoginInfo = loginInfo
-}

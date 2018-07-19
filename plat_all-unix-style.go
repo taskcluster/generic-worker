@@ -194,3 +194,6 @@ func deleteTaskDirs() {
 func (task *TaskRun) SetLoginInfo() error {
 	return nil
 }
+
+func (task *TaskRun) RefreshLoginSession() {
+}

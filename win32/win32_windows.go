@@ -38,6 +38,7 @@ var (
 	procVerifyVersionInfoW           = kernel32.NewProc("VerifyVersionInfoW")
 	procVerSetConditionMask          = kernel32.NewProc("VerSetConditionMask")
 	procGetTokenInformation          = advapi32.NewProc("GetTokenInformation")
+	procSetTokenInformation          = advapi32.NewProc("SetTokenInformation")
 	procLoadUserProfileW             = userenv.NewProc("LoadUserProfileW")
 	procUnloadUserProfile            = userenv.NewProc("UnloadUserProfile")
 	procCloseHandle                  = kernel32.NewProc("CloseHandle")
@@ -68,8 +69,50 @@ const (
 
 	ERROR_OLD_WIN_VERSION syscall.Errno = 1150
 
-	// See https://msdn.microsoft.com/en-us/library/windows/desktop/aa379626(v=vs.85).aspx
-	TokenLinkedToken = 19
+	// https://msdn.microsoft.com/en-us/library/windows/hardware/ff556838(v=vs.85).aspx
+	// TOKEN_INFORMATION_CLASS enumeration
+	TokenUser                            TOKEN_INFORMATION_CLASS = 1
+	TokenGroupsX                         TOKEN_INFORMATION_CLASS = 2
+	TokenPrivileges                      TOKEN_INFORMATION_CLASS = 3
+	TokenOwner                           TOKEN_INFORMATION_CLASS = 4
+	TokenPrimaryGroup                    TOKEN_INFORMATION_CLASS = 5
+	TokenDefaultDacl                     TOKEN_INFORMATION_CLASS = 6
+	TokenSourceX                         TOKEN_INFORMATION_CLASS = 7
+	TokenType                            TOKEN_INFORMATION_CLASS = 8
+	TokenImpersonationLevel              TOKEN_INFORMATION_CLASS = 9
+	TokenStatistics                      TOKEN_INFORMATION_CLASS = 10
+	TokenRestrictedSids                  TOKEN_INFORMATION_CLASS = 11
+	TokenSessionId                       TOKEN_INFORMATION_CLASS = 12
+	TokenGroupsAndPrivileges             TOKEN_INFORMATION_CLASS = 13
+	TokenSessionReference                TOKEN_INFORMATION_CLASS = 14
+	TokenSandBoxInert                    TOKEN_INFORMATION_CLASS = 15
+	TokenAuditPolicy                     TOKEN_INFORMATION_CLASS = 16
+	TokenOrigin                          TOKEN_INFORMATION_CLASS = 17
+	TokenElevationType                   TOKEN_INFORMATION_CLASS = 18
+	TokenLinkedToken                     TOKEN_INFORMATION_CLASS = 19
+	TokenElevation                       TOKEN_INFORMATION_CLASS = 20
+	TokenHasRestrictions                 TOKEN_INFORMATION_CLASS = 21
+	TokenAccessInformation               TOKEN_INFORMATION_CLASS = 22
+	TokenVirtualizationAllowed           TOKEN_INFORMATION_CLASS = 23
+	TokenVirtualizationEnabled           TOKEN_INFORMATION_CLASS = 24
+	TokenIntegrityLevel                  TOKEN_INFORMATION_CLASS = 25
+	TokenUIAccess                        TOKEN_INFORMATION_CLASS = 26
+	TokenMandatoryPolicy                 TOKEN_INFORMATION_CLASS = 27
+	TokenLogonSid                        TOKEN_INFORMATION_CLASS = 28
+	TokenIsAppContainer                  TOKEN_INFORMATION_CLASS = 29
+	TokenCapabilities                    TOKEN_INFORMATION_CLASS = 30
+	TokenAppContainerSid                 TOKEN_INFORMATION_CLASS = 31
+	TokenAppContainerNumber              TOKEN_INFORMATION_CLASS = 32
+	TokenUserClaimAttributes             TOKEN_INFORMATION_CLASS = 33
+	TokenDeviceClaimAttributes           TOKEN_INFORMATION_CLASS = 34
+	TokenRestrictedUserClaimAttributes   TOKEN_INFORMATION_CLASS = 35
+	TokenRestrictedDeviceClaimAttributes TOKEN_INFORMATION_CLASS = 36
+	TokenDeviceGroups                    TOKEN_INFORMATION_CLASS = 37
+	TokenRestrictedDeviceGroups          TOKEN_INFORMATION_CLASS = 38
+	TokenSecurityAttributes              TOKEN_INFORMATION_CLASS = 39
+	TokenIsRestricted                    TOKEN_INFORMATION_CLASS = 40
+	TokenProcessTrustLevel               TOKEN_INFORMATION_CLASS = 41
+	MaxTokenInfoClass                    TOKEN_INFORMATION_CLASS = 42
 )
 
 type TOKEN_INFORMATION_CLASS uint32
@@ -534,6 +577,31 @@ func GetTokenInformation(
 	)
 	if r1 == 0 {
 		err = os.NewSyscallError("GetTokenInformation", e1)
+	}
+	return
+}
+
+// https://msdn.microsoft.com/en-us/library/windows/desktop/aa379591(v=vs.85).aspx
+// BOOL WINAPI SetTokenInformation(
+//   _In_ HANDLE                  TokenHandle,
+//   _In_ TOKEN_INFORMATION_CLASS TokenInformationClass,
+//   _In_ LPVOID                  TokenInformation,
+//   _In_ DWORD                   TokenInformationLength
+// );
+func SetTokenInformation(
+	tokenHandle syscall.Handle,
+	tokenInformationClass TOKEN_INFORMATION_CLASS,
+	tokenInformation uintptr,
+	tokenInformationLength uintptr,
+) (err error) {
+	r1, _, e1 := procSetTokenInformation.Call(
+		uintptr(tokenHandle),
+		uintptr(tokenInformationClass),
+		tokenInformation,
+		tokenInformationLength,
+	)
+	if r1 == 0 {
+		err = os.NewSyscallError("SetTokenInformation", e1)
 	}
 	return
 }

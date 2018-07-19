@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/taskcluster/generic-worker/runtime"
 	"github.com/taskcluster/generic-worker/win32"
@@ -28,6 +29,21 @@ func NewLoginInfo(username, password string) (loginInfo *LoginInfo, err error) {
 	if err != nil {
 		return nil, err
 	}
+	return
+}
+
+func (loginInfo *LoginInfo) SetActiveConsoleSessionId() (err error) {
+	var sessionId uint32
+	sessionId, err = win32.WTSGetActiveConsoleSessionId()
+	if err != nil {
+		return
+	}
+	err = win32.SetTokenInformation(
+		loginInfo.HUser,
+		win32.TokenSessionId,
+		uintptr(unsafe.Pointer(&sessionId)),
+		uintptr(unsafe.Sizeof(sessionId)),
+	)
 	return
 }
 

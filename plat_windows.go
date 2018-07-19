@@ -225,19 +225,6 @@ func (task *TaskRun) generateCommand(index int) error {
 	return nil
 }
 
-func (task *TaskRun) SetLoginInfo() (err error) {
-	task.LoginInfo = &process.LoginInfo{}
-	if !config.RunTasksAsCurrentUser {
-		var hToken syscall.Handle
-		hToken, err = win32.InteractiveUserToken(time.Minute)
-		if err != nil {
-			return
-		}
-		task.LoginInfo.HUser = hToken
-	}
-	return
-}
-
 func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	// In order that capturing of log files works, create a custom .bat file
 	// for the task which redirects output to a log file...
@@ -695,4 +682,40 @@ func unsetAutoLogon() {
 func deleteTaskDirs() {
 	removeTaskDirs(win32.ProfilesDirectory())
 	removeTaskDirs(config.TasksDir)
+}
+
+func (task *TaskRun) SetLoginInfo() (err error) {
+	task.LoginInfo = &process.LoginInfo{}
+	if !config.RunTasksAsCurrentUser {
+		var hToken syscall.Handle
+		hToken, err = win32.InteractiveUserToken(time.Minute)
+		if err != nil {
+			return
+		}
+		task.LoginInfo.HUser = hToken
+	}
+	return
+}
+
+func (task *TaskRun) RefreshLoginSession() {
+	// On Windows we need to call LogonUser to get new access token with the group changes
+	if task.LoginInfo != nil {
+		logoutError := task.LoginInfo.Logout()
+		if logoutError != nil {
+			panic(logoutError)
+		}
+	}
+	user, pass := AutoLogonCredentials()
+	loginInfo, logonError := process.NewLoginInfo(user, pass)
+	if logonError != nil {
+		// implies a serious bug
+		panic(logonError)
+	}
+	err := loginInfo.SetActiveConsoleSessionId()
+	if err != nil {
+		// implies a serious bug
+		panic(fmt.Sprintf("Could not set token session information: %v", err))
+	}
+
+	task.LoginInfo = loginInfo
 }
