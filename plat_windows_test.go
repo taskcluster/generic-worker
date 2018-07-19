@@ -104,5 +104,5 @@ func TestDesktopResizeAndMovePointer(t *testing.T) {
 	}
 	td := testTask(t)
 
-	_ = submitAndAssert(t, td, payload, "succeeded", "succeeded")
+	_ = submitAndAssert(t, td, payload, "completed", "completed")
 }
