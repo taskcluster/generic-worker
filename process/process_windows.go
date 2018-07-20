@@ -33,11 +33,13 @@ func NewLoginInfo(username, password string) (loginInfo *LoginInfo, err error) {
 }
 
 func (loginInfo *LoginInfo) SetActiveConsoleSessionId() (err error) {
-	var sessionId uint32
-	sessionId, err = win32.WTSGetActiveConsoleSessionId()
-	if err != nil {
-		return
-	}
+	// var sessionId uint32
+	// sessionId, err = win32.WTSGetActiveConsoleSessionId()
+	// if err != nil {
+	// 	return
+	// }
+	// TODO: remove this test - it is a RANDOM BAD VALUE
+	var sessionId uint32 = 75
 	log.Printf("Setting active console session ID to %#X", sessionId)
 	err = win32.SetTokenInformation(
 		loginInfo.HUser,
