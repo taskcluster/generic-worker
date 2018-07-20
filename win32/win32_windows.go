@@ -634,6 +634,20 @@ func GetTokenUser(hToken syscall.Token) (SID_AND_ATTRIBUTES, error) {
 	return tokenUser.User, nil
 }
 
+func GetTokenUIAccess(hToken syscall.Token) (uint32, error) {
+	var tokenUIAccess uint32
+	tokenInformationLength := unsafe.Sizeof(tokenUIAccess)
+	returnLength := uintptr(0)
+	err := GetTokenInformation(hToken, TokenUIAccess, uintptr(unsafe.Pointer(&tokenUIAccess)), tokenInformationLength, &returnLength)
+	if returnLength != tokenInformationLength {
+		return 0, fmt.Errorf("Was expecting %v bytes of data from GetTokenInformation, but got %v bytes", returnLength, tokenInformationLength)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return tokenUIAccess, nil
+}
+
 // https://msdn.microsoft.com/en-us/library/windows/desktop/bb530719(v=vs.85).aspx
 // typedef struct _TOKEN_LINKED_TOKEN {
 //   HANDLE LinkedToken;
