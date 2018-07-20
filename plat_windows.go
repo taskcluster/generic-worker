@@ -775,7 +775,7 @@ func DumpTokenInfo(handle syscall.Handle) {
 		if err != nil {
 			panic(err)
 		}
-		log.Printf("Token Group (%v): %v/%v (%#X) - with attributes: %#X", groups[i].Sid, account, domain, accType, groups[i].Attributes)
+		log.Printf("Token Group (%v): %v/%v (%#X) - with attributes: %#X", *groups[i].Sid, account, domain, accType, groups[i].Attributes)
 	}
 
 	log.Print("==================================================")
