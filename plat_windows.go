@@ -773,11 +773,11 @@ func DumpTokenInfo(handle syscall.Handle) {
 		groups[i] = *(*windows.SIDAndAttributes)(unsafe.Pointer(uintptr(unsafe.Pointer(&tokenGroups.Groups[0])) + uintptr(i)*unsafe.Sizeof(tokenGroups.Groups[0])))
 		account, domain, accType, err := groups[i].Sid.LookupAccount("")
 		if err != nil {
-			panic(err)
+			log.Printf("WEIRD: got error: %v", err)
 		}
 		groupSid, err := groups[i].Sid.String()
 		if err != nil {
-			panic(err)
+			log.Printf("DOUBLY WEIRD: got error: %v", err)
 		}
 		log.Printf("Token Group (%v): %v/%v (%#X) - with attributes: %#X", groupSid, account, domain, accType, groups[i].Attributes)
 	}
