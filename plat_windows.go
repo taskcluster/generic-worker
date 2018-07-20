@@ -700,6 +700,7 @@ func (task *TaskRun) SetLoginInfo() (err error) {
 func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil {
+		DumpTokenInfo(task.LoginInfo.HUser)
 		logoutError := task.LoginInfo.Logout()
 		if logoutError != nil {
 			panic(logoutError)
@@ -711,11 +712,45 @@ func (task *TaskRun) RefreshLoginSession() {
 		// implies a serious bug
 		panic(logonError)
 	}
+	DumpTokenInfo(task.LoginInfo.HUser)
 	err := loginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
+	DumpTokenInfo(task.LoginInfo.HUser)
 
 	task.LoginInfo = loginInfo
+}
+
+func DumpTokenInfo(handle syscall.Handle) {
+	log.Print("==================================================")
+	token := syscall.Token(handle)
+	primaryGroup, err := token.GetTokenPrimaryGroup()
+	if err != nil {
+		panic(err)
+	}
+	account, domain, accType, err := primaryGroup.PrimaryGroup.LookupAccount("")
+	if err != nil {
+		panic(err)
+	}
+	primaryGroupSid, err := primaryGroup.PrimaryGroup.String()
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Token Primary Group (%v): %v/%v (%#X)", primaryGroupSid, account, domain, accType)
+	tokenUser, err := token.GetTokenUser()
+	if err != nil {
+		panic(err)
+	}
+	tokenUserSid, err := tokenUser.User.Sid.String()
+	if err != nil {
+		panic(err)
+	}
+	account, domain, accType, err = tokenUser.User.Sid.LookupAccount("")
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Token User (%v): %v/%v (%#X) - with attributes: %#X", tokenUserSid, account, domain, accType, tokenUser.User.Attributes)
+	log.Print("==================================================")
 }
