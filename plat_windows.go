@@ -712,13 +712,13 @@ func (task *TaskRun) RefreshLoginSession() {
 		// implies a serious bug
 		panic(logonError)
 	}
-	DumpTokenInfo(task.LoginInfo.HUser)
+	DumpTokenInfo(loginInfo.HUser)
 	err := loginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
-	DumpTokenInfo(task.LoginInfo.HUser)
+	DumpTokenInfo(loginInfo.HUser)
 
 	task.LoginInfo = loginInfo
 }
