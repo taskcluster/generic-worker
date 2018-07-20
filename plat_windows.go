@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/dchest/uniuri"
 	"github.com/taskcluster/generic-worker/process"
@@ -756,11 +757,26 @@ func DumpTokenInfo(handle syscall.Handle) {
 	if err != nil {
 		panic(err)
 	}
-	log.Printf("Token Session ID: %#X", tokenUIAccess)
+	log.Printf("Token Session ID: %#X", tokenSessionID)
 	tokenUIAccess, err := win32.GetTokenUIAccess(token)
 	if err != nil {
 		panic(err)
 	}
 	log.Printf("Token UI Access: %#X", tokenUIAccess)
+	wt := windows.Token(token)
+	tokenGroups, err := wt.GetTokenGroups()
+	if err != nil {
+		panic(err)
+	}
+	groups := make([]windows.SIDAndAttributes, tokenGroups.GroupCount, tokenGroups.GroupCount)
+	for i := uint32(0); i < tokenGroups.GroupCount; i++ {
+		groups[i] = *(*windows.SIDAndAttributes)(unsafe.Pointer(uintptr(unsafe.Pointer(&tokenGroups.Groups[0])) + uintptr(i)*unsafe.Sizeof(tokenGroups.Groups[0])))
+		account, domain, accType, err := groups[i].Sid.LookupAccount("")
+		if err != nil {
+			panic(err)
+		}
+		log.Printf("Token Group (%v): %v/%v (%#X) - with attributes: %#X", groups[i].Sid, account, domain, accType, groups[i].Attributes)
+	}
+
 	log.Print("==================================================")
 }

@@ -708,10 +708,10 @@ type SID_AND_ATTRIBUTES struct {
 //   ULONG              GroupCount;
 //   SID_AND_ATTRIBUTES Groups[ANYSIZE_ARRAY];
 // } TOKEN_GROUPS, *PTOKEN_GROUPS;
-// type TokenGroups struct {
-// 	GroupCount uint32             // DWORD
-// 	Groups     SID_AND_ATTRIBUTES // SID_AND_ATTRIBUTES[ANYSIZE_ARRAY]
-// }
+type TokenGroups struct {
+	GroupCount uint32             // DWORD
+	Groups     SID_AND_ATTRIBUTES // SID_AND_ATTRIBUTES[ANYSIZE_ARRAY]
+}
 
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/ns-ntifs-_token_privileges
 // typedef struct _TOKEN_PRIVILEGES {
