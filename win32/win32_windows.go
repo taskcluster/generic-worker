@@ -575,6 +575,8 @@ func GetTokenInformation(
 		tokenInformationLength,
 		uintptr(unsafe.Pointer(returnLength)),
 	)
+	runtime.KeepAlive(tokenInformation)
+	runtime.KeepAlive(tokenInformationLength)
 	if r1 == 0 {
 		err = os.NewSyscallError("GetTokenInformation", e1)
 	}
@@ -600,6 +602,8 @@ func SetTokenInformation(
 		tokenInformation,
 		tokenInformationLength,
 	)
+	runtime.KeepAlive(tokenInformation)
+	runtime.KeepAlive(tokenInformationLength)
 	if r1 == 0 {
 		err = os.NewSyscallError("SetTokenInformation", e1)
 	}
