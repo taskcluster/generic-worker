@@ -634,6 +634,20 @@ func GetTokenUser(hToken syscall.Token) (SID_AND_ATTRIBUTES, error) {
 	return tokenUser.User, nil
 }
 
+func GetTokenSessionID(hToken syscall.Token) (uint32, error) {
+	var tokenSessionID uint32
+	tokenInformationLength := unsafe.Sizeof(tokenSessionID)
+	returnLength := uintptr(0)
+	err := GetTokenInformation(hToken, TokenUIAccess, uintptr(unsafe.Pointer(&tokenSessionID)), tokenInformationLength, &returnLength)
+	if returnLength != tokenInformationLength {
+		return 0, fmt.Errorf("Was expecting %v bytes of data from GetTokenInformation, but got %v bytes", returnLength, tokenInformationLength)
+	}
+	if err != nil {
+		return 0, err
+	}
+	return tokenSessionID, nil
+}
+
 func GetTokenUIAccess(hToken syscall.Token) (uint32, error) {
 	var tokenUIAccess uint32
 	tokenInformationLength := unsafe.Sizeof(tokenUIAccess)

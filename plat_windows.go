@@ -752,6 +752,11 @@ func DumpTokenInfo(handle syscall.Handle) {
 		panic(err)
 	}
 	log.Printf("Token User (%v): %v/%v (%#X) - with attributes: %#X", tokenUserSid, account, domain, accType, tokenUser.User.Attributes)
+	tokenSessionID, err := win32.GetTokenSessionID(token)
+	if err != nil {
+		panic(err)
+	}
+	log.Printf("Token Session ID: %#X", tokenUIAccess)
 	tokenUIAccess, err := win32.GetTokenUIAccess(token)
 	if err != nil {
 		panic(err)
