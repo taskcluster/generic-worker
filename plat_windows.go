@@ -702,10 +702,10 @@ func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
-		logoutError := task.LoginInfo.Logout()
-		if logoutError != nil {
-			panic(logoutError)
-		}
+		// logoutError := task.LoginInfo.Logout()
+		// if logoutError != nil {
+		// 	panic(logoutError)
+		// }
 	}
 	user, pass := AutoLogonCredentials()
 	loginInfo, logonError := process.NewLoginInfo(user, pass)
