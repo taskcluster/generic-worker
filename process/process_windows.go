@@ -38,7 +38,7 @@ func (loginInfo *LoginInfo) SetActiveConsoleSessionId() (err error) {
 	if err != nil {
 		return
 	}
-	log.Printf("Setting active console session ID to %#X", sessionId)
+	log.Printf("Setting active console session ID to %#x", sessionId)
 	err = win32.SetTokenInformation(
 		loginInfo.HUser,
 		win32.TokenSessionId,

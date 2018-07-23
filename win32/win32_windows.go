@@ -79,7 +79,7 @@ const (
 	// https://msdn.microsoft.com/en-us/library/windows/hardware/ff556838(v=vs.85).aspx
 	// TOKEN_INFORMATION_CLASS enumeration
 	TokenUser                            TOKEN_INFORMATION_CLASS = 1
-	TokenGroupsX                         TOKEN_INFORMATION_CLASS = 2
+	TokenGroups                          TOKEN_INFORMATION_CLASS = 2
 	TokenPrivileges                      TOKEN_INFORMATION_CLASS = 3
 	TokenOwner                           TOKEN_INFORMATION_CLASS = 4
 	TokenPrimaryGroup                    TOKEN_INFORMATION_CLASS = 5
@@ -642,19 +642,19 @@ func GetLinkedToken(hToken syscall.Token) (syscall.Token, error) {
 	return linkedToken.LinkedToken, nil
 }
 
-func GetTokenUser(hToken syscall.Token) (SID_AND_ATTRIBUTES, error) {
-	tokenUser := TOKEN_USER{}
-	tokenInformationLength := unsafe.Sizeof(tokenUser)
-	returnLength := uintptr(0)
-	err := GetTokenInformation(hToken, TokenUser, uintptr(unsafe.Pointer(&tokenUser)), tokenInformationLength, &returnLength)
-	if returnLength != tokenInformationLength {
-		return tokenUser.User, fmt.Errorf("Was expecting %v bytes of data from GetTokenInformation, but got %v bytes", returnLength, tokenInformationLength)
-	}
-	if err != nil {
-		return tokenUser.User, err
-	}
-	return tokenUser.User, nil
-}
+// func GetTokenUser(hToken syscall.Token) (SID_AND_ATTRIBUTES, error) {
+// 	tokenUser := TOKEN_USER{}
+// 	tokenInformationLength := unsafe.Sizeof(tokenUser)
+// 	returnLength := uintptr(0)
+// 	err := GetTokenInformation(hToken, TokenUser, uintptr(unsafe.Pointer(&tokenUser)), tokenInformationLength, &returnLength)
+// 	if returnLength != tokenInformationLength {
+// 		return tokenUser.User, fmt.Errorf("Was expecting %v bytes of data from GetTokenInformation, but got %v bytes", returnLength, tokenInformationLength)
+// 	}
+// 	if err != nil {
+// 		return tokenUser.User, err
+// 	}
+// 	return tokenUser.User, nil
+// }
 
 func GetTokenSessionID(hToken syscall.Token) (uint32, error) {
 	var tokenSessionID uint32
@@ -696,13 +696,13 @@ type TOKEN_LINKED_TOKEN struct {
 // typedef struct _TOKEN_USER {
 //   SID_AND_ATTRIBUTES User;
 // } TOKEN_USER, *PTOKEN_USER;
-type TOKEN_USER struct {
-	User SID_AND_ATTRIBUTES
-}
+// type TOKEN_USER struct {
+// 	User SID_AND_ATTRIBUTES
+// }
 
-func (saa *SID_AND_ATTRIBUTES) String() string {
-	return ""
-}
+// func (saa *SID_AND_ATTRIBUTES) String() string {
+// 	return ""
+// }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379631(v=vs.85).aspx
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/ns-ntifs-_token_source
@@ -710,19 +710,19 @@ func (saa *SID_AND_ATTRIBUTES) String() string {
 //   CHAR SourceName[TOKEN_SOURCE_LENGTH];
 //   LUID SourceIdentifier;
 // } TOKEN_SOURCE, *PTOKEN_SOURCE;
-type TOKEN_SOURCE struct {
-	SourceName       [8]byte // CHAR[TOKEN_SOURCE_LENGTH]
-	SourceIdentifier LUID    // LUID
-}
+// type TOKEN_SOURCE struct {
+// 	SourceName       [8]byte // CHAR[TOKEN_SOURCE_LENGTH]
+// 	SourceIdentifier LUID    // LUID
+// }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379594(v=vs.85).aspx
-type PSID uintptr
+// type PSID uintptr
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379595(v=vs.85).aspx
-type SID_AND_ATTRIBUTES struct {
-	Sid        PSID   // PSID
-	Attributes uint32 // DWORD
-}
+// type SID_AND_ATTRIBUTES struct {
+// 	Sid        PSID   // PSID
+// 	Attributes uint32 // DWORD
+// }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379624(v=vs.85).aspx
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/ns-ntifs-_token_groups
@@ -730,10 +730,10 @@ type SID_AND_ATTRIBUTES struct {
 //   ULONG              GroupCount;
 //   SID_AND_ATTRIBUTES Groups[ANYSIZE_ARRAY];
 // } TOKEN_GROUPS, *PTOKEN_GROUPS;
-type TokenGroups struct {
-	GroupCount uint32             // DWORD
-	Groups     SID_AND_ATTRIBUTES // SID_AND_ATTRIBUTES[ANYSIZE_ARRAY]
-}
+// type TokenGroups struct {
+// 	GroupCount uint32             // DWORD
+// 	Groups     SID_AND_ATTRIBUTES // SID_AND_ATTRIBUTES[ANYSIZE_ARRAY]
+// }
 
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/ns-ntifs-_token_privileges
 // typedef struct _TOKEN_PRIVILEGES {
@@ -749,9 +749,9 @@ type TokenGroups struct {
 // typedef struct _TOKEN_OWNER {
 //   PSID Owner;
 // } TOKEN_OWNER, *PTOKEN_OWNER;
-type TOKEN_OWNER struct {
-	Owner PSID
-}
+// type TOKEN_OWNER struct {
+// 	Owner PSID
+// }
 
 // https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/ns-ntifs-_token_primary_group
 // typedef struct _TOKEN_PRIMARY_GROUP {
@@ -768,9 +768,9 @@ type TOKEN_OWNER struct {
 //   PSID   Sid,
 //   LPWSTR *StringSid
 // );
-func (sid PSID) String() string {
-	return ""
-}
+// func (sid PSID) String() string {
+// 	return ""
+// }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/aa379261(v=vs.85).aspx
 type LUID struct {
