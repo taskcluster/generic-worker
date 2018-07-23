@@ -704,6 +704,7 @@ func (task *TaskRun) RefreshLoginSession() {
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
 		cmd, err := process.NewCommand([]string{os.Args[0], "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
+		cmd.DirectOutput(os.Stdout)
 		if err != nil {
 			panic(err)
 		}
