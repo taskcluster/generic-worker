@@ -10,7 +10,7 @@ import (
 )
 
 // Loads user profile, using handle and username.
-func loadProfile(user syscall.Handle, username string) (syscall.Handle, error) {
+func loadProfile(user syscall.Token, username string) (syscall.Handle, error) {
 	var pinfo win32.ProfileInfo
 	var err error
 	pinfo.Size = uint32(unsafe.Sizeof(pinfo))
@@ -40,12 +40,12 @@ func (s *LoginInfo) Logout() error {
 		s.HProfile = syscall.InvalidHandle
 	}
 
-	if s.HUser != syscall.Handle(0) && s.HUser != syscall.InvalidHandle {
-		err := win32.CloseHandle(s.HUser)
+	if s.HUser != syscall.Token(0) && s.HUser != syscall.Token(syscall.InvalidHandle) {
+		err := win32.CloseHandle(syscall.Handle(s.HUser))
 		if err != nil {
 			return err
 		}
-		s.HUser = syscall.InvalidHandle
+		s.HUser = syscall.Token(syscall.InvalidHandle)
 	}
 	return nil
 }
@@ -71,8 +71,8 @@ func (s *LoginInfo) Prepare() error {
 	s.HProfile, err = loadProfile(s.HUser, s.Username)
 
 	if err != nil {
-		win32.CloseHandle(s.HUser)
-		s.HUser = syscall.InvalidHandle
+		win32.CloseHandle(syscall.Handle(s.HUser))
+		s.HUser = syscall.Token(syscall.InvalidHandle)
 		return err
 	}
 

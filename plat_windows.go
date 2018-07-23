@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	stdlibruntime "runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -617,7 +618,7 @@ func (task *TaskRun) removeUserFromGroups(groups []string) (updatedGroups []stri
 	return
 }
 
-func RedirectAppData(hUser syscall.Handle, folder string) (err error) {
+func RedirectAppData(hUser syscall.Token, folder string) (err error) {
 	err = win32.SetAndCreateFolder(hUser, &win32.FOLDERID_RoamingAppData, filepath.Join(folder, "Roaming"))
 	if err != nil {
 		return
@@ -688,7 +689,7 @@ func deleteTaskDirs() {
 func (task *TaskRun) SetLoginInfo() (err error) {
 	task.LoginInfo = &process.LoginInfo{}
 	if !config.RunTasksAsCurrentUser {
-		var hToken syscall.Handle
+		var hToken syscall.Token
 		hToken, err = win32.InteractiveUserToken(time.Minute)
 		if err != nil {
 			return
@@ -714,6 +715,7 @@ func (task *TaskRun) RefreshLoginSession() {
 		panic(logonError)
 	}
 	DumpTokenInfo(loginInfo.HUser)
+
 	err := loginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
@@ -724,9 +726,8 @@ func (task *TaskRun) RefreshLoginSession() {
 	task.LoginInfo = loginInfo
 }
 
-func DumpTokenInfo(handle syscall.Handle) {
+func DumpTokenInfo(token syscall.Token) {
 	log.Print("==================================================")
-	token := syscall.Token(handle)
 	primaryGroup, err := token.GetTokenPrimaryGroup()
 	if err != nil {
 		panic(err)
@@ -783,4 +784,37 @@ func DumpTokenInfo(handle syscall.Handle) {
 	}
 
 	log.Print("==================================================")
+}
+
+func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
+
+	stdlibruntime.LockOSThread()
+	defer stdlibruntime.UnlockOSThread()
+
+	var winsta win32.Hwinsta
+	if winsta, err = win32.GetProcessWindowStation(); err != nil {
+		return
+	}
+
+	var winstaName string
+	winstaName, err = win32.GetUserObjectName(syscall.Handle(winsta))
+	if err != nil {
+		return
+	}
+	fmt.Printf("Windows Station:   %v\n", winstaName)
+
+	var desktop win32.Hdesk
+	desktop, err = win32.GetThreadDesktop(win32.GetCurrentThreadId())
+	if err != nil {
+		return
+	}
+
+	var desktopName string
+	desktopName, err = win32.GetUserObjectName(syscall.Handle(desktop))
+	if err != nil {
+		return
+	}
+
+	fmt.Printf("Desktop:           %v\n", desktopName)
+	return
 }

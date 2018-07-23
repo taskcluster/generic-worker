@@ -25,6 +25,7 @@ var (
 	shell32  = NewLazyDLL("shell32.dll")
 	userenv  = NewLazyDLL("userenv.dll")
 	wtsapi32 = NewLazyDLL("wtsapi32.dll")
+	user32   = NewLazyDLL("user32.dll")
 
 	procCreateEnvironmentBlock       = userenv.NewProc("CreateEnvironmentBlock")
 	procDestroyEnvironmentBlock      = userenv.NewProc("DestroyEnvironmentBlock")
@@ -43,6 +44,12 @@ var (
 	procUnloadUserProfile            = userenv.NewProc("UnloadUserProfile")
 	procCloseHandle                  = kernel32.NewProc("CloseHandle")
 	procLogonUserW                   = advapi32.NewProc("LogonUserW")
+	procImpersonateLoggedOnUser      = advapi32.NewProc("ImpersonateLoggedOnUser")
+	procRevertToSelf                 = advapi32.NewProc("RevertToSelf")
+	procGetProcessWindowStation      = user32.NewProc("GetProcessWindowStation")
+	procGetCurrentThreadId           = kernel32.NewProc("GetCurrentThreadId")
+	procGetThreadDesktop             = user32.NewProc("GetThreadDesktop")
+	procGetUserObjectInformationW    = user32.NewProc("GetUserObjectInformationW")
 
 	FOLDERID_LocalAppData   = syscall.GUID{Data1: 0xF1B32785, Data2: 0x6FBA, Data3: 0x4FCF, Data4: [8]byte{0x9D, 0x55, 0x7B, 0x8E, 0x7F, 0x15, 0x70, 0x91}}
 	FOLDERID_RoamingAppData = syscall.GUID{Data1: 0x3EB685DB, Data2: 0x65F9, Data3: 0x4CF6, Data4: [8]byte{0xA0, 0x3A, 0xE3, 0xEF, 0x65, 0x72, 0x9F, 0x3D}}
@@ -117,6 +124,9 @@ const (
 
 type TOKEN_INFORMATION_CLASS uint32
 
+type Hwinsta uintptr
+type Hdesk uintptr
+
 type OSVersionInfoEx struct {
 	OSVersionInfoSize uint32
 	MajorVersion      uint32
@@ -179,7 +189,7 @@ func IsWindows8OrGreater() bool {
 	return r
 }
 
-func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uint32, logonProvider uint32) (token syscall.Handle, err error) {
+func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uint32, logonProvider uint32) (token syscall.Token, err error) {
 	r1, _, e1 := procLogonUserW.Call(
 		uintptr(unsafe.Pointer(username)),
 		uintptr(unsafe.Pointer(domain)),
@@ -191,12 +201,12 @@ func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uin
 	runtime.KeepAlive(domain)
 	runtime.KeepAlive(password)
 	if int(r1) == 0 {
-		return syscall.InvalidHandle, os.NewSyscallError("LogonUser", e1)
+		return syscall.Token(syscall.InvalidHandle), os.NewSyscallError("LogonUser", e1)
 	}
 	return
 }
 
-func LoadUserProfile(token syscall.Handle, pinfo *ProfileInfo) error {
+func LoadUserProfile(token syscall.Token, pinfo *ProfileInfo) error {
 	r1, _, e1 := procLoadUserProfileW.Call(
 		uintptr(token),
 		uintptr(unsafe.Pointer(pinfo)))
@@ -207,7 +217,8 @@ func LoadUserProfile(token syscall.Handle, pinfo *ProfileInfo) error {
 	return nil
 }
 
-func UnloadUserProfile(token, profile syscall.Handle) error {
+// https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile
+func UnloadUserProfile(token syscall.Token, profile syscall.Handle) error {
 	if r1, _, e1 := procUnloadUserProfile.Call(
 		uintptr(token),
 		uintptr(profile)); int(r1) == 0 {
@@ -219,7 +230,7 @@ func UnloadUserProfile(token, profile syscall.Handle) error {
 // https://msdn.microsoft.com/en-us/library/windows/desktop/bb762270(v=vs.85).aspx
 func CreateEnvironmentBlock(
 	lpEnvironment *uintptr, // LPVOID*
-	hToken syscall.Handle, // HANDLE
+	hToken syscall.Token, // HANDLE
 	bInherit bool, // BOOL
 ) (err error) {
 	inherit := uint32(0)
@@ -253,7 +264,7 @@ func DestroyEnvironmentBlock(
 // CreateEnvironment returns an environment block, suitable for use with the
 // CreateProcessAsUser system call. The default environment variables of hUser
 // are overlayed with values in env.
-func CreateEnvironment(env *[]string, hUser syscall.Handle) (mergedEnv *[]string, err error) {
+func CreateEnvironment(env *[]string, hUser syscall.Token) (mergedEnv *[]string, err error) {
 	var logonEnv uintptr
 	err = CreateEnvironmentBlock(&logonEnv, hUser, false)
 	if err != nil {
@@ -336,7 +347,7 @@ func MergeEnvLists(envLists ...*[]string) (*[]string, error) {
 }
 
 // https://msdn.microsoft.com/en-us/library/windows/desktop/bb762188(v=vs.85).aspx
-func SHGetKnownFolderPath(rfid *syscall.GUID, dwFlags uint32, hToken syscall.Handle, pszPath *uintptr) (err error) {
+func SHGetKnownFolderPath(rfid *syscall.GUID, dwFlags uint32, hToken syscall.Token, pszPath *uintptr) (err error) {
 	r0, _, _ := procSHGetKnownFolderPath.Call(
 		uintptr(unsafe.Pointer(rfid)),
 		uintptr(dwFlags),
@@ -353,7 +364,7 @@ func SHGetKnownFolderPath(rfid *syscall.GUID, dwFlags uint32, hToken syscall.Han
 func SHSetKnownFolderPath(
 	rfid *syscall.GUID, // REFKNOWNFOLDERID
 	dwFlags uint32, // DWORD
-	hToken syscall.Handle, // HANDLE
+	hToken syscall.Token, // HANDLE
 	pszPath *uint16, // PCWSTR
 ) (err error) {
 	r1, _, _ := procSHSetKnownFolderPath.Call(
@@ -374,7 +385,7 @@ func CoTaskMemFree(pv uintptr) {
 	procCoTaskMemFree.Call(uintptr(pv))
 }
 
-func GetFolder(hUser syscall.Handle, folder *syscall.GUID, dwFlags uint32) (value string, err error) {
+func GetFolder(hUser syscall.Token, folder *syscall.GUID, dwFlags uint32) (value string, err error) {
 	var path uintptr
 	err = SHGetKnownFolderPath(folder, dwFlags, hUser, &path)
 	if err != nil {
@@ -386,7 +397,7 @@ func GetFolder(hUser syscall.Handle, folder *syscall.GUID, dwFlags uint32) (valu
 	return
 }
 
-func SetFolder(hUser syscall.Handle, folder *syscall.GUID, value string) (err error) {
+func SetFolder(hUser syscall.Token, folder *syscall.GUID, value string) (err error) {
 	var s *uint16
 	s, err = syscall.UTF16PtrFromString(value)
 	if err != nil {
@@ -395,7 +406,7 @@ func SetFolder(hUser syscall.Handle, folder *syscall.GUID, value string) (err er
 	return SHSetKnownFolderPath(folder, 0, hUser, s)
 }
 
-func SetAndCreateFolder(hUser syscall.Handle, folder *syscall.GUID, value string) (err error) {
+func SetAndCreateFolder(hUser syscall.Token, folder *syscall.GUID, value string) (err error) {
 	err = SetFolder(hUser, folder, value)
 	if err != nil {
 		return
@@ -411,7 +422,7 @@ func SetAndCreateFolder(hUser syscall.Handle, folder *syscall.GUID, value string
 // );
 func WTSQueryUserToken(
 	sessionId uint32,
-	phToken *syscall.Handle,
+	phToken *syscall.Token,
 ) (err error) {
 	r1, _, e1 := procWTSQueryUserToken.Call(
 		uintptr(sessionId),
@@ -447,7 +458,7 @@ func WTSGetActiveConsoleSessionId() (sessionId uint32, err error) {
 // a process in the interactive desktop session, as if the logged in user had
 // executed the process directly. The function additionally waits for the user
 // profile directory to exist, before returning.
-func InteractiveUserToken(timeout time.Duration) (hToken syscall.Handle, err error) {
+func InteractiveUserToken(timeout time.Duration) (hToken syscall.Token, err error) {
 	deadline := time.Now().Add(timeout)
 	var sessionId uint32
 	sessionId, err = WTSGetActiveConsoleSessionId()
@@ -505,7 +516,7 @@ func GetProfilesDirectory(
 
 // ProfileDirectory returns the profile directory of the user represented by
 // the given user handle
-func ProfileDirectory(hToken syscall.Handle) (string, error) {
+func ProfileDirectory(hToken syscall.Token) (string, error) {
 	lpcchSize := uint32(0)
 	GetUserProfileDirectory(hToken, nil, &lpcchSize)
 	u16 := make([]uint16, lpcchSize)
@@ -538,7 +549,7 @@ func ProfilesDirectory() string {
 //   _Inout_   LPDWORD lpcchSize
 // );
 func GetUserProfileDirectory(
-	hToken syscall.Handle,
+	hToken syscall.Token,
 	lpProfileDir *uint16,
 	lpcchSize *uint32,
 ) (err error) {
@@ -591,7 +602,7 @@ func GetTokenInformation(
 //   _In_ DWORD                   TokenInformationLength
 // );
 func SetTokenInformation(
-	tokenHandle syscall.Handle,
+	tokenHandle syscall.Token,
 	tokenInformationClass TOKEN_INFORMATION_CLASS,
 	tokenInformation uintptr,
 	tokenInformationLength uintptr,
@@ -758,4 +769,78 @@ func (sid PSID) String() string {
 type LUID struct {
 	LowPart  uint32 // DWORD
 	HighPart int32  // LONG
+}
+
+// https://msdn.microsoft.com/en-us/library/Aa378612(v=VS.85).aspx
+// BOOL WINAPI ImpersonateLoggedOnUser(
+//   _In_ HANDLE hToken
+// );
+func ImpersonateLoggedOnUser(hToken syscall.Token) (err error) {
+	r1, _, e1 := procImpersonateLoggedOnUser.Call(
+		uintptr(hToken),
+	)
+	if r1 == 0 {
+		err = os.NewSyscallError("ImpersonateLoggedOnUser", e1)
+	}
+	return
+}
+
+// https://msdn.microsoft.com/en-us/library/aa379317(v=vs.85).aspx
+// BOOL WINAPI RevertToSelf(void);
+func RevertToSelf() (err error) {
+	r1, _, e1 := procRevertToSelf.Call()
+	if r1 == 0 {
+		err = os.NewSyscallError("RevertToSelf", e1)
+	}
+	return
+}
+
+func GetProcessWindowStation() (Hwinsta, error) {
+	r1, _, e1 := procGetProcessWindowStation.Call()
+	if int(r1) == 0 {
+		return Hwinsta(r1), os.NewSyscallError("GetProcessWindowStation", e1)
+	}
+	return Hwinsta(r1), nil
+}
+
+func GetCurrentThreadId() uint32 {
+	r1, _, _ := procGetCurrentThreadId.Call()
+	return uint32(r1)
+}
+
+func GetThreadDesktop(threadId uint32) (Hdesk, error) {
+	r1, _, e1 := procGetThreadDesktop.Call(
+		uintptr(threadId))
+	if int(r1) == 0 {
+		return Hdesk(r1), os.NewSyscallError("GetThreadDesktop", e1)
+	}
+	return Hdesk(r1), nil
+}
+
+func GetUserObjectInformation(obj syscall.Handle, index int, info unsafe.Pointer, length uint32) (uint32, error) {
+	var nLength uint32
+	r1, _, e1 := procGetUserObjectInformationW.Call(
+		uintptr(obj),
+		uintptr(index),
+		uintptr(info),
+		uintptr(length),
+		uintptr(unsafe.Pointer(&nLength)))
+	runtime.KeepAlive(&nLength)
+	if int(r1) == 0 {
+		return nLength, os.NewSyscallError("GetUserObjectInformation", e1)
+	}
+	return 0, nil
+}
+
+const (
+	UOI_NAME = 2
+)
+
+func GetUserObjectName(obj syscall.Handle) (string, error) {
+	namebuf := make([]uint16, 256)
+	_, err := GetUserObjectInformation(obj, UOI_NAME, unsafe.Pointer(&namebuf[0]), 256*2)
+	if err != nil {
+		return "", err
+	}
+	return syscall.UTF16ToString(namebuf), nil
 }

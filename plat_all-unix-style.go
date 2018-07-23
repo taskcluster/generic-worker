@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -196,4 +197,8 @@ func (task *TaskRun) SetLoginInfo() error {
 }
 
 func (task *TaskRun) RefreshLoginSession() {
+}
+
+func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
+	return fmt.Errorf("Cannot grant %v full control of interactive windows station and desktop; platform %v does not have such entities", sid, runtime.GOOS)
 }

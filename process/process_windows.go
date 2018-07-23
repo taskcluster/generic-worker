@@ -18,7 +18,7 @@ import (
 type LoginInfo struct {
 	Username string
 	Password string
-	HUser    syscall.Handle
+	HUser    syscall.Token
 	HProfile syscall.Handle
 }
 
@@ -67,7 +67,7 @@ type Result struct {
 }
 
 func (c *Command) SetLoginInfo(loginInfo *LoginInfo) {
-	c.SysProcAttr.Token = syscall.Token(loginInfo.HUser)
+	c.SysProcAttr.Token = loginInfo.HUser
 }
 
 func (r *Result) Succeeded() bool {
@@ -108,7 +108,7 @@ func NewCommand(commandLine []string, workingDirectory string, env []string, log
 	}
 	if loginInfo != nil && loginInfo.HUser != 0 {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
-			Token:         syscall.Token(loginInfo.HUser),
+			Token:         loginInfo.HUser,
 			CreationFlags: creationFlags,
 		}
 	}
