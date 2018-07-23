@@ -703,6 +703,15 @@ func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
+		cmd, err := process.NewCommand([]string{os.Args[0], "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
+		if err != nil {
+			panic(err)
+		}
+		result := cmd.Execute()
+		if !result.Succeeded() {
+			panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
+		}
+		log.Print("Granted Everyone (S-1-1-0) full control of interactive windows station and desktop")
 		// logoutError := task.LoginInfo.Logout()
 		// if logoutError != nil {
 		// 	panic(logoutError)
