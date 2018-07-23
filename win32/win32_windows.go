@@ -156,6 +156,13 @@ var (
 	isWindows8OrGreater *bool
 )
 
+func boolToUint32(src bool) uint32 {
+	if src {
+		return 1
+	}
+	return 0
+}
+
 func CloseHandle(handle syscall.Handle) (err error) {
 	// syscall.CloseHandle(handle)
 	r1, _, e1 := procCloseHandle.Call(

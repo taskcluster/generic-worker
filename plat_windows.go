@@ -801,7 +801,6 @@ func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err e
 	if err != nil {
 		return
 	}
-	fmt.Printf("Windows Station:   %v\n", winstaName)
 
 	var desktop win32.Hdesk
 	desktop, err = win32.GetThreadDesktop(win32.GetCurrentThreadId())
@@ -815,6 +814,23 @@ func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err e
 		return
 	}
 
+	fmt.Printf("Windows Station:   %v\n", winstaName)
 	fmt.Printf("Desktop:           %v\n", desktopName)
+
+	var everyone *syscall.SID
+	everyone, err = syscall.StringToSid(sid)
+	if err != nil {
+		return
+	}
+
+	err = win32.AddAceToWindowStation(winsta, everyone)
+	if err != nil {
+		return
+	}
+
+	err = win32.AddAceToDesktop(desktop, everyone)
+	if err != nil {
+		return
+	}
 	return
 }
