@@ -6,8 +6,6 @@ import (
 	"unsafe"
 
 	"runtime"
-
-	"github.com/taskcluster/runlib/tools"
 )
 
 var (
@@ -132,8 +130,15 @@ func CopyAllAce(dest, source *Acl) error {
 	return nil
 }
 
+// Return byte slice of given size, aligned at given offset.
+func AlignedBuffer(size, offset int) []byte {
+	buf := make([]byte, size+offset)
+	ofs := int((uintptr(offset) - uintptr(unsafe.Pointer(&buf[0]))%uintptr(offset)) % uintptr(offset))
+	return buf[ofs : ofs+size]
+}
+
 func CreateSecurityDescriptor(length int) ([]byte, error) {
-	result := tools.AlignedBuffer(length, 4)
+	result := AlignedBuffer(length, 4)
 	if err := InitializeSecurityDescriptor(result); err != nil {
 		return nil, err
 	}
@@ -141,7 +146,7 @@ func CreateSecurityDescriptor(length int) ([]byte, error) {
 }
 
 func CreateNewAcl(length int) (*Acl, error) {
-	result := (*Acl)(unsafe.Pointer(&tools.AlignedBuffer(length, 4)[0]))
+	result := (*Acl)(unsafe.Pointer(&AlignedBuffer(length, 4)[0]))
 	if err := InitializeAcl(result, uint32(length), ACL_REVISION); err != nil {
 		return nil, err
 	}
