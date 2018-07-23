@@ -703,7 +703,7 @@ func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
-		cmd, err := process.NewCommand([]string{os.Args[0], "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
+		cmd, err := process.NewCommand([]string{`..\..\..\..\bin\generic-worker.exe`, "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
 		cmd.DirectOutput(os.Stdout)
 		log.Printf("About to run command: %#v", *(cmd.Cmd))
 		if err != nil {
