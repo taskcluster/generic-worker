@@ -813,8 +813,11 @@ func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err e
 
 	// no need to grant if already granted
 	if sidsThatCanControlDesktopAndWindowsStation[sid] {
+		log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
 		return nil
 	}
+
+	log.Printf("SID %v NOT found in %#v", sid, sidsThatCanControlDesktopAndWindowsStation)
 
 	stdlibruntime.LockOSThread()
 	defer stdlibruntime.UnlockOSThread()
