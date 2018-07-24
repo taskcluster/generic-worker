@@ -238,7 +238,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	wrapper := filepath.Join(taskContext.TaskDir, commandName+"_wrapper.bat")
 	script := filepath.Join(taskContext.TaskDir, commandName+".bat")
 	contents := ":: This script runs command " + strconv.Itoa(index) + " defined in TaskId " + task.TaskID + "..." + "\r\n"
-	contents += "@echo off\r\n"
+	// contents += "@echo off\r\n"
 
 	// At the end of each command we export all the env vars, and import them
 	// at the start of the next command. Otherwise env variable changes would
@@ -295,7 +295,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	//      contents += "call " + script + " > " + absLogFile + " 2>&1" + "\r\n"
 	// ******************************
 	contents += "call " + script + " 2>&1" + "\r\n"
-	contents += "@echo off" + "\r\n"
+	// contents += "@echo off" + "\r\n"
 
 	// store exit code
 	contents += "set tcexitcode=%errorlevel%\r\n"
