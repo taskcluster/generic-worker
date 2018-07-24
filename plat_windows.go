@@ -23,6 +23,8 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+var sidsThatCanControlDesktopAndWindowsStation map[string]bool = map[string]bool{}
+
 type TaskContext struct {
 	TaskDir      string
 	LogonSession *process.LogonSession
@@ -703,7 +705,16 @@ func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
-		cmd, err := process.NewCommand([]string{`..\..\..\..\bin\generic-worker.exe`, "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
+		// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
+		// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
+		// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
+		var exe string
+		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
+			exe = os.Args[0]
+		} else {
+			exe = `..\..\..\..\bin\generic-worker.exe`
+		}
+		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
 		cmd.DirectOutput(os.Stdout)
 		log.Printf("About to run command: %#v", *(cmd.Cmd))
 		if err != nil {
@@ -800,6 +811,11 @@ func DumpTokenInfo(token syscall.Token) {
 
 func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
 
+	// no need to grant if already granted
+	if sidsThatCanControlDesktopAndWindowsStation[sid] {
+		return nil
+	}
+
 	stdlibruntime.LockOSThread()
 	defer stdlibruntime.UnlockOSThread()
 
@@ -844,5 +860,6 @@ func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err e
 	if err != nil {
 		return
 	}
+	sidsThatCanControlDesktopAndWindowsStation[sid] = true
 	return
 }
