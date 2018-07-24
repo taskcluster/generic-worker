@@ -343,6 +343,11 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	if err != nil {
 		panic(err)
 	}
+	ccc := exec.Command("icacls", wrapper)
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	log.Printf("icacls error: %v", err)
 	return nil
 }
 
