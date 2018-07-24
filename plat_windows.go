@@ -705,26 +705,36 @@ func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
 		DumpTokenInfo(task.LoginInfo.HUser)
-		// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
-		// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
-		// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
-		var exe string
-		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
-			exe = os.Args[0]
+
+		sid := "S-1-1-0"
+		// no need to grant if already granted
+		if sidsThatCanControlDesktopAndWindowsStation[sid] {
+			log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
 		} else {
-			exe = `..\..\..\..\bin\generic-worker.exe`
+			log.Printf("SID %v NOT found in %#v - granting access...", sid, sidsThatCanControlDesktopAndWindowsStation)
+
+			// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
+			// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
+			// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
+			var exe string
+			if filepath.Base(os.Args[0]) == "generic-worker.exe" {
+				exe = os.Args[0]
+			} else {
+				exe = `..\..\..\..\bin\generic-worker.exe`
+			}
+			cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.LoginInfo)
+			cmd.DirectOutput(os.Stdout)
+			log.Printf("About to run command: %#v", *(cmd.Cmd))
+			if err != nil {
+				panic(err)
+			}
+			result := cmd.Execute()
+			if !result.Succeeded() {
+				panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
+			}
+			log.Printf("Granted %v full control of interactive windows station and desktop", sid)
+			sidsThatCanControlDesktopAndWindowsStation[sid] = true
 		}
-		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", "S-1-1-0"}, cwd, []string{}, task.LoginInfo)
-		cmd.DirectOutput(os.Stdout)
-		log.Printf("About to run command: %#v", *(cmd.Cmd))
-		if err != nil {
-			panic(err)
-		}
-		result := cmd.Execute()
-		if !result.Succeeded() {
-			panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
-		}
-		log.Print("Granted Everyone (S-1-1-0) full control of interactive windows station and desktop")
 		// logoutError := task.LoginInfo.Logout()
 		// if logoutError != nil {
 		// 	panic(logoutError)
@@ -811,14 +821,6 @@ func DumpTokenInfo(token syscall.Token) {
 
 func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
 
-	// no need to grant if already granted
-	if sidsThatCanControlDesktopAndWindowsStation[sid] {
-		log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
-		return nil
-	}
-
-	log.Printf("SID %v NOT found in %#v", sid, sidsThatCanControlDesktopAndWindowsStation)
-
 	stdlibruntime.LockOSThread()
 	defer stdlibruntime.UnlockOSThread()
 
@@ -863,6 +865,5 @@ func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err e
 	if err != nil {
 		return
 	}
-	sidsThatCanControlDesktopAndWindowsStation[sid] = true
 	return
 }
