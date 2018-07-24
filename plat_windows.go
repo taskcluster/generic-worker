@@ -348,6 +348,11 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	ccc.Stderr = os.Stderr
 	err = ccc.Run()
 	log.Printf("icacls error: %v", err)
+	ccc = exec.Command("wmic", "useraccount", "get", "name,sid")
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	log.Printf("wmic error: %v", err)
 	return nil
 }
 
