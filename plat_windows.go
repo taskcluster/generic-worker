@@ -310,7 +310,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	contents += "exit /b %tcexitcode%\r\n"
 
 	log.Print("Dir before creating wrapper script...")
-	ccc := exec.Command("dir", filepath.Dir(wrapper))
+	ccc := exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
 	ccc.Stdout = os.Stdout
 	ccc.Stderr = os.Stderr
 	err := ccc.Run()
@@ -339,7 +339,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	}
 
 	log.Print("Dir after creating wrapper script...")
-	ccc = exec.Command("dir", filepath.Dir(wrapper))
+	ccc = exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
 	ccc.Stdout = os.Stdout
 	ccc.Stderr = os.Stderr
 	err = ccc.Run()
