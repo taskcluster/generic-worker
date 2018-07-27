@@ -365,6 +365,15 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		log.Printf("icacls wrapper script error: %v", err)
 	}
 
+	log.Print("wmic useraccount get name,sid...")
+	ccc = exec.Command("wmic", "useraccount", "get", "name,sid")
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("wmic error: %v", err)
+	}
+
 	// Now make the actual task a .bat script
 	fileContents := []byte(strings.Join([]string{
 		"@echo on",
@@ -388,6 +397,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	if err != nil {
 		panic(err)
 	}
+
 	return nil
 }
 
