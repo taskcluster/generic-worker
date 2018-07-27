@@ -342,7 +342,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	ccc = exec.Command("dir", filepath.Dir(wrapper))
 	ccc.Stdout = os.Stdout
 	ccc.Stderr = os.Stderr
-	err := ccc.Run()
+	err = ccc.Run()
 	if err != nil {
 		log.Printf("dir after error: %v", err)
 	}
