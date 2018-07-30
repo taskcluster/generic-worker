@@ -394,6 +394,9 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		fileContents,
 		0755,
 	)
+	if err != nil {
+		panic(err)
+	}
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
 	log.Print("icacls to make script executable...")
@@ -412,10 +415,6 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	// log.Printf("Wrapper script %q:", wrapper)
 	// log.Print("Contents:")
 	// log.Print(contents)
-
-	if err != nil {
-		panic(err)
-	}
 
 	return nil
 }
