@@ -338,7 +338,11 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	}
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
-	err = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":x").Run()
+	log.Print("icacls to make wrapper executable...")
+	ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":x")
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
 	if err != nil {
 		panic(err)
 	}
@@ -392,7 +396,11 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	)
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
-	err = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":x").Run()
+	log.Print("icacls to make script executable...")
+	ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":x")
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
 	if err != nil {
 		panic(err)
 	}
