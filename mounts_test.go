@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -703,46 +702,29 @@ func TestMountFileAndDirSameLocation(t *testing.T) {
 
 func TestWritableDirectoryCacheNoSHA256(t *testing.T) {
 
-	// whether permission is granted to task user depends if running task as current user...
-	granting, denying := []string{}, []string{}
-	if os.Getenv("GW_TESTS_GENERATE_USERS") != "" {
-		granting = []string{
-			`Granting task_.* full control of '.*TestWritableDirectoryCacheNoSHA256'`,
-		}
-		denying = []string{
-			`Denying task_.* access to '.*'`,
-		}
-	}
-
 	// No cache on first pass
-	pass1 := append([]string{
+	pass1 := []string{
 		`No existing writable directory cache 'banana-cache' - creating .*`,
 		`Downloading task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip to .*`,
 		`Downloaded 4220 bytes with SHA256 625554ec8ce731e486a5fb904f3331d18cf84a944dd9e40c19550686d4e8492e from task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip to .*`,
 		`Download .* of task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip has SHA256 625554ec8ce731e486a5fb904f3331d18cf84a944dd9e40c19550686d4e8492e but task payload does not declare a required value, so content authenticity cannot be verified`,
 		`Creating directory .*TestWritableDirectoryCacheNoSHA256 with permissions 0700`,
 		`Extracting zip file .* to '.*TestWritableDirectoryCacheNoSHA256'`,
-	},
-		granting...,
-	)
-	pass1 = append(pass1,
+		`Granting task_.* full control of '.*TestWritableDirectoryCacheNoSHA256'`,
 		`Successfully mounted writable directory cache '.*TestWritableDirectoryCacheNoSHA256'`,
 		`Preserving cache: Moving ".*TestWritableDirectoryCacheNoSHA256" to ".*"`,
-	)
-	pass1 = append(pass1, denying...)
+		`Denying task_.* access to '.*'`,
+	}
 
 	// On second pass, cache already exists
-	pass2 := append([]string{
+	pass2 := []string{
 		`Moving existing writable directory cache banana-cache from .* to .*TestWritableDirectoryCacheNoSHA256`,
 		`Creating directory .* with permissions 0700`,
-	},
-		granting...,
-	)
-	pass2 = append(pass2,
+		`Granting task_.* full control of '.*TestWritableDirectoryCacheNoSHA256'`,
 		`Successfully mounted writable directory cache '.*TestWritableDirectoryCacheNoSHA256'`,
 		`Preserving cache: Moving ".*TestWritableDirectoryCacheNoSHA256" to ".*"`,
-	)
-	pass2 = append(pass2, denying...)
+		`Denying task_.* access to '.*'`,
+	}
 
 	LogTest(
 		&MountsLoggingTestCase{
@@ -779,49 +761,35 @@ func TestWritableDirectoryCacheNoSHA256(t *testing.T) {
 // different location, that the test fails, and the worker doesn't crash.
 func TestCacheMoved(t *testing.T) {
 
-	// whether permission is granted to task user depends if running task as current user...
-	granting := []string{}
-	if os.Getenv("GW_TESTS_GENERATE_USERS") != "" {
-		granting = []string{
-			`Granting task_.* full control of '.*TestCacheMoved'`,
-		}
-	}
-
 	// No cache on first pass
-	pass1 := append([]string{
+	pass1 := []string{
 		`No existing writable directory cache 'banana-cache' - creating .*`,
 		`Downloading task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip to .*`,
 		`Downloaded 4220 bytes with SHA256 625554ec8ce731e486a5fb904f3331d18cf84a944dd9e40c19550686d4e8492e from task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip to .*`,
 		`Content from task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip \(.*\) matches required SHA256 625554ec8ce731e486a5fb904f3331d18cf84a944dd9e40c19550686d4e8492e`,
 		`Creating directory .*TestCacheMoved with permissions 0700`,
 		`Extracting zip file .* to '.*TestCacheMoved'`,
-	},
-		granting...,
-	)
-	pass1 = append(pass1,
+		`Granting task_.* full control of '.*TestCacheMoved'`,
 		`Successfully mounted writable directory cache '.*TestCacheMoved'`,
 		`Preserving cache: Moving ".*TestCacheMoved" to ".*"`,
 		`Removing cache banana-cache from cache table`,
 		`Deleting cache banana-cache file\(s\) at .*`,
 		`Could not unmount task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip due to: 'Could not persist cache "banana-cache" due to .*'`,
-	)
+	}
 
 	// On second pass, cache already exists
-	pass2 := append([]string{
+	pass2 := []string{
 		`No existing writable directory cache 'banana-cache' - creating .*`,
 		`Found existing download for artifact:LK1Rz2UtT16d-HBSqyCtuA:public/build/unknown_issuer_app_1.zip \(.*\) with correct SHA256 625554ec8ce731e486a5fb904f3331d18cf84a944dd9e40c19550686d4e8492e`,
 		`Creating directory .*TestCacheMoved with permissions 0700`,
 		`Extracting zip file .* to '.*TestCacheMoved'`,
-	},
-		granting...,
-	)
-	pass2 = append(pass2,
+		`Granting task_.* full control of '.*TestCacheMoved'`,
 		`Successfully mounted writable directory cache '.*TestCacheMoved'`,
 		`Preserving cache: Moving ".*TestCacheMoved" to ".*"`,
 		`Removing cache banana-cache from cache table`,
 		`Deleting cache banana-cache file\(s\) at .*`,
 		`Could not unmount task LK1Rz2UtT16d-HBSqyCtuA artifact public/build/unknown_issuer_app_1.zip due to: 'Could not persist cache "banana-cache" due to .*'`,
-	)
+	}
 
 	LogTest(
 		&MountsLoggingTestCase{
