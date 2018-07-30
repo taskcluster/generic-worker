@@ -84,6 +84,9 @@ tasks:
         - 'git reset --hard "{{ event.head.sha }}"'
         - 'git clean -fdx'
         - 'git checkout -B tmp -t "X%TASK_ID%"'
+        - |
+          :: tests copy files from testdata directory as task user...
+          icacls testdata /grant:r *S-1-1-0:(OI)(CI)R
         - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
         - cd gw-codegen
         - go get -v -u
