@@ -128,6 +128,13 @@ func prepareTaskUser(userName string) (reboot bool) {
 		if err != nil {
 			panic(err)
 		}
+		// Make sure task user has full control of task directory. Due to
+		// https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38 we can't
+		// assume previous MkdirAll has granted this permission.
+		err = exec.Command("icacls", taskContext.TaskDir, "/grant", taskContext.LogonSession.User.Name+":(OI)(CI)F").Run()
+		if err != nil {
+			panic(err)
+		}
 		if script := config.RunAfterUserCreation; script != "" {
 			command, err := process.NewCommand([]string{script}, taskContext.TaskDir, nil, loginInfo)
 			if err != nil {
@@ -337,16 +344,16 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		panic(err)
 	}
 
-	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
-	log.Print("icacls to make wrapper executable...")
-	// Need brackets around 'x' as it is a specific right, not a simple right
-	ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":f")
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		panic(err)
-	}
+	// // See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	// log.Print("icacls to make wrapper executable...")
+	// // Need brackets around 'x' as it is a specific right, not a simple right
+	// ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":f")
+	// ccc.Stdout = os.Stdout
+	// ccc.Stderr = os.Stderr
+	// err = ccc.Run()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	log.Print("Dir after creating wrapper script...")
 	ccc = exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
@@ -399,16 +406,16 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		panic(err)
 	}
 
-	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
-	log.Print("icacls to make script executable...")
-	// Need brackets around 'x' as it is a specific right, not a simple right
-	ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":f")
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		panic(err)
-	}
+	// // See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	// log.Print("icacls to make script executable...")
+	// // Need brackets around 'x' as it is a specific right, not a simple right
+	// ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":f")
+	// ccc.Stdout = os.Stdout
+	// ccc.Stderr = os.Stderr
+	// err = ccc.Run()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	// log.Printf("Script %q:", script)
 	// log.Print("Contents:")
