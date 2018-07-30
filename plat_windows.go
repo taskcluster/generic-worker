@@ -339,7 +339,8 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
 	log.Print("icacls to make wrapper executable...")
-	ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":x")
+	// Need brackets around 'x' as it is a specific right, not a simple right
+	ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":(x)")
 	ccc.Stdout = os.Stdout
 	ccc.Stderr = os.Stderr
 	err = ccc.Run()
@@ -400,7 +401,8 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
 	log.Print("icacls to make script executable...")
-	ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":x")
+	// Need brackets around 'x' as it is a specific right, not a simple right
+	ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":(x)")
 	ccc.Stdout = os.Stdout
 	ccc.Stderr = os.Stderr
 	err = ccc.Run()
