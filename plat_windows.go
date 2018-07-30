@@ -333,7 +333,12 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		[]byte(contents),
 		0755,
 	)
+	if err != nil {
+		panic(err)
+	}
 
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	err = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":x").Run()
 	if err != nil {
 		panic(err)
 	}
@@ -385,6 +390,12 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		fileContents,
 		0755,
 	)
+
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	err = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":x").Run()
+	if err != nil {
+		panic(err)
+	}
 
 	// log.Printf("Script %q:", script)
 	// log.Print("Contents:")
