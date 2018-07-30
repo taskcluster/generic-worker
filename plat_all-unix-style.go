@@ -3,7 +3,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -120,12 +119,12 @@ func (task *TaskRun) EnvVars() []string {
 
 func makeDirReadableForTaskUser(task *TaskRun, dir string) error {
 	// No user separation yet
-	return errors.New("Task user separation is not yet implemented on non-Windows platforms")
+	return nil
 }
 
 func makeDirUnreadableForTaskUser(task *TaskRun, dir string) error {
 	// No user separation yet
-	return errors.New("Task user separation is not yet implemented on non-Windows platforms")
+	return nil
 }
 
 func RenameCrossDevice(oldpath, newpath string) error {
