@@ -578,9 +578,8 @@ func (task *TaskRun) formatCommand(index int) string {
 
 // see http://ss64.com/nt/icacls.html
 func makeDirReadableForTaskUser(task *TaskRun, dir string) error {
-	if config.RunTasksAsCurrentUser {
-		return nil
-	}
+	// It doesn't concern us if config.RunTasksAsCurrentUser is set or not
+	// because files inside task directory should be owned/managed by task user
 	task.Infof("[mounts] Granting %v full control of '%v'", taskContext.LogonSession.User.Name, dir)
 	err := runtime.RunCommands(
 		false,
@@ -594,9 +593,8 @@ func makeDirReadableForTaskUser(task *TaskRun, dir string) error {
 
 // see http://ss64.com/nt/icacls.html
 func makeDirUnreadableForTaskUser(task *TaskRun, dir string) error {
-	if config.RunTasksAsCurrentUser {
-		return nil
-	}
+	// It doesn't concern us if config.RunTasksAsCurrentUser is set or not
+	// because files inside task directory should be owned/managed by task user
 	task.Infof("[mounts] Denying %v access to '%v'", taskContext.LogonSession.User.Name, dir)
 	err := runtime.RunCommands(
 		false,
