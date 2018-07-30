@@ -238,7 +238,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	wrapper := filepath.Join(taskContext.TaskDir, commandName+"_wrapper.bat")
 	script := filepath.Join(taskContext.TaskDir, commandName+".bat")
 	contents := ":: This script runs command " + strconv.Itoa(index) + " defined in TaskId " + task.TaskID + "..." + "\r\n"
-	// contents += "@echo off\r\n"
+	contents += "@echo off\r\n"
 
 	// At the end of each command we export all the env vars, and import them
 	// at the start of the next command. Otherwise env variable changes would
@@ -295,7 +295,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	//      contents += "call " + script + " > " + absLogFile + " 2>&1" + "\r\n"
 	// ******************************
 	contents += "call " + script + " 2>&1" + "\r\n"
-	// contents += "@echo off" + "\r\n"
+	contents += "@echo off" + "\r\n"
 
 	// store exit code
 	contents += "set tcexitcode=%errorlevel%\r\n"
@@ -309,24 +309,6 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	// exit with stored exit code
 	contents += "exit /b %tcexitcode%\r\n"
 
-	log.Print("Dir before creating wrapper script...")
-	ccc := exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err := ccc.Run()
-	if err != nil {
-		log.Printf("dir before error: %v", err)
-	}
-
-	log.Print("icacls of parent dir before creating wrapper script...")
-	ccc = exec.Command("icacls", filepath.Dir(wrapper))
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		log.Printf("icacls wrapper script parent dir before error: %v", err)
-	}
-
 	// now generate the .bat script that runs all of this
 	err = ioutil.WriteFile(
 		wrapper,
@@ -338,50 +320,13 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	}
 
 	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
-	log.Print("icacls to make wrapper executable...")
 	// Need brackets around 'x' as it is a specific right, not a simple right
 	ccc = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":(x)")
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
+	// ccc.Stdout = os.Stdout
+	// ccc.Stderr = os.Stderr
 	err = ccc.Run()
 	if err != nil {
 		panic(err)
-	}
-
-	log.Print("Dir after creating wrapper script...")
-	ccc = exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		log.Printf("dir after error: %v", err)
-	}
-
-	log.Print("icacls of parent dir after creating wrapper script...")
-	ccc = exec.Command("icacls", filepath.Dir(wrapper))
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		log.Printf("icacls wrapper script parent dir after error: %v", err)
-	}
-
-	log.Print("icacls of wrapper script after creating it...")
-	ccc = exec.Command("icacls", wrapper)
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		log.Printf("icacls wrapper script error: %v", err)
-	}
-
-	log.Print("wmic useraccount get name,sid...")
-	ccc = exec.Command("wmic", "useraccount", "get", "name,sid")
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
-	err = ccc.Run()
-	if err != nil {
-		log.Printf("wmic error: %v", err)
 	}
 
 	// Now make the actual task a .bat script
@@ -403,8 +348,8 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	log.Print("icacls to make script executable...")
 	// Need brackets around 'x' as it is a specific right, not a simple right
 	ccc = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":(x)")
-	ccc.Stdout = os.Stdout
-	ccc.Stderr = os.Stderr
+	// ccc.Stdout = os.Stdout
+	// ccc.Stderr = os.Stderr
 	err = ccc.Run()
 	if err != nil {
 		panic(err)
@@ -779,8 +724,10 @@ func (task *TaskRun) SetLoginInfo() (err error) {
 func (task *TaskRun) RefreshLoginSession() {
 	// On Windows we need to call LogonUser to get new access token with the group changes
 	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
-		DumpTokenInfo(task.LoginInfo.HUser)
+		// DumpTokenInfo(task.LoginInfo.HUser)
 
+		// This is the SID of "Everyone" group
+		// TODO: we should probably change this to the logon SID of the user
 		sid := "S-1-1-0"
 		// no need to grant if already granted
 		if sidsThatCanControlDesktopAndWindowsStation[sid] {
@@ -821,14 +768,14 @@ func (task *TaskRun) RefreshLoginSession() {
 		// implies a serious bug
 		panic(logonError)
 	}
-	DumpTokenInfo(loginInfo.HUser)
+	// DumpTokenInfo(loginInfo.HUser)
 
 	err := loginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
-	DumpTokenInfo(loginInfo.HUser)
+	// DumpTokenInfo(loginInfo.HUser)
 
 	task.LoginInfo = loginInfo
 }
