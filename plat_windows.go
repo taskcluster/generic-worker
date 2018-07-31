@@ -124,7 +124,7 @@ func prepareTaskUser(userName string) (reboot bool) {
 		// Note we don't create task directory before logging in, since
 		// if the task directory is also the user profile home, this
 		// would mess up the windows logon process.
-		err = os.MkdirAll(taskContext.TaskDir, 0777)
+		err = os.MkdirAll(taskContext.TaskDir, 0777) // note: 0777 is mostly ignored on windows
 		if err != nil {
 			panic(err)
 		}
@@ -317,10 +317,10 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	contents += "exit /b %tcexitcode%\r\n"
 
 	// now generate the .bat script that runs all of this
-	err = ioutil.WriteFile(
+	err := ioutil.WriteFile(
 		wrapper,
 		[]byte(contents),
-		0755,
+		0755, // note this is mostly ignored on windows
 	)
 	if err != nil {
 		panic(err)
@@ -335,7 +335,7 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	err = ioutil.WriteFile(
 		script,
 		fileContents,
-		0755,
+		0755, // note this is mostly ignored on windows
 	)
 	if err != nil {
 		panic(err)
@@ -397,9 +397,9 @@ func CreateRunGenericWorkerBatScript(batScriptFilePath string) error {
 		`::   70: deployment ID changed - system shutdown has been triggered`,
 		``,
 	}, "\r\n"))
-	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755)
+	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755) // note 0755 is mostly ignored on windows
 	if err != nil {
-		return fmt.Errorf("Was not able to create file %q with access permissions 0755 due to %s", batScriptFilePath, err)
+		return fmt.Errorf("Was not able to create file %q due to %s", batScriptFilePath, err)
 	}
 	return nil
 }
