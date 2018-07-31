@@ -110,29 +110,6 @@ func AddAceToWindowStation(winsta Hwinsta, sid *syscall.SID) error {
 	return SetAclTo(syscall.Handle(winsta), acl)
 }
 
-// func CopyAllAce(dest, source *Acl) error {
-// 	if source == nil {
-// 		return nil
-// 	}
-// 	aclSize, err := GetAclSize(source)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if aclSize == nil {
-// 		return nil
-// 	}
-// 	for i := uint32(0); i < aclSize.AceCount; i++ {
-// 		ace, err := GetAce(source, i)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		if err = CopyAce(dest, ace); err != nil {
-// 			return err
-// 		}
-// 	}
-// 	return nil
-// }
-
 // Return byte slice of given size, aligned at given offset.
 func AlignedBuffer(size, offset int) []byte {
 	buf := make([]byte, size+offset)
@@ -156,42 +133,6 @@ func CreateNewAcl(length int) (*Acl, error) {
 	return result, nil
 }
 
-// func GetUserObjectSecurity_Ex(obj syscall.Handle, sid uint32, desc []byte) (uint32, error) {
-// 	var nLength uint32
-// 	var nptr uintptr
-// 	if desc != nil {
-// 		nptr = uintptr(unsafe.Pointer(&desc[0]))
-// 	}
-// 	r1, _, e1 := procGetUserObjectSecurity.Call(
-// 		uintptr(obj),
-// 		uintptr(unsafe.Pointer(&sid)),
-// 		nptr,
-// 		uintptr(len(desc)),
-// 		uintptr(unsafe.Pointer(&nLength)))
-// 	runtime.KeepAlive(&sid)
-// 	runtime.KeepAlive(&nLength)
-// 	if int(r1) == 0 {
-// 		return nLength, os.NewSyscallError("GetUserObjectSecurity", e1)
-// 	}
-// 	return nLength, nil
-// }
-
-// func GetUserObjectSecurity(obj syscall.Handle, sid uint32) ([]byte, error) {
-// 	nLength, err := GetUserObjectSecurity_Ex(obj, sid, nil)
-// 	if nLength == 0 {
-// 		return nil, err
-// 	}
-//
-// 	desc, err := CreateSecurityDescriptor(int(nLength))
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if _, err = GetUserObjectSecurity_Ex(obj, sid, desc); err != nil {
-// 		return nil, err
-// 	}
-// 	return desc, err
-// }
-
 func SetUserObjectSecurity(obj syscall.Handle, sid uint32, desc []byte) error {
 	r1, _, e1 := procSetUserObjectSecurity.Call(
 		uintptr(obj),
@@ -206,60 +147,6 @@ func SetUserObjectSecurity(obj syscall.Handle, sid uint32, desc []byte) error {
 }
 
 type Acl struct{}
-
-// func GetSecurityDescriptorDacl(sid []byte) (present bool, acl *Acl, defaulted bool, err error) {
-// 	var dPresent, dDefaulted uint32
-// 	r1, _, e1 := procGetSecurityDescriptorDacl.Call(
-// 		uintptr(unsafe.Pointer(&sid[0])),
-// 		uintptr(unsafe.Pointer(&dPresent)),
-// 		uintptr(unsafe.Pointer(&acl)),
-// 		uintptr(unsafe.Pointer(&dDefaulted)))
-// 	runtime.KeepAlive(&sid)
-// 	if dPresent != 0 {
-// 		present = true
-// 	}
-// 	if dDefaulted != 0 {
-// 		defaulted = true
-// 	}
-// 	if int(r1) == 0 {
-// 		err = os.NewSyscallError("GetSecurityDescriptorDacl", e1)
-// 	}
-// 	return
-// }
-
-// func IsValidAcl(acl *Acl) bool {
-// 	r1, _, _ := procIsValidAcl.Call(
-// 		uintptr(unsafe.Pointer(acl)))
-// 	runtime.KeepAlive(acl)
-// 	return r1 != 0
-// }
-
-// func GetAclInformation(acl *Acl, info unsafe.Pointer, length uint32, class uint32) error {
-// 	r1, _, e1 := procGetAclInformation.Call(
-// 		uintptr(unsafe.Pointer(acl)),
-// 		uintptr(info),
-// 		uintptr(length),
-// 		uintptr(class))
-// 	runtime.KeepAlive(acl)
-// 	if int(r1) == 0 {
-// 		return os.NewSyscallError("GetAclInformation", e1)
-// 	}
-// 	return nil
-// }
-
-// type AclSizeInformation struct {
-// 	AceCount      uint32
-// 	AclBytesInUse uint32
-// 	AclBytesFree  uint32
-// }
-
-// func GetAclSize(acl *Acl) (*AclSizeInformation, error) {
-// 	var result AclSizeInformation
-// 	if err := GetAclInformation(acl, unsafe.Pointer(&result), uint32(unsafe.Sizeof(result)), 2); err != nil {
-// 		return nil, err
-// 	}
-// 	return &result, nil
-// }
 
 func InitializeSecurityDescriptor(sd []byte) error {
 	r1, _, e1 := procInitializeSecurityDescriptor.Call(
@@ -291,40 +178,6 @@ type AceHeader struct {
 }
 
 type Ace struct{}
-
-// func AddAce(acl *Acl, revision, startIndex uint32, ace *Ace, size uint32) error {
-// 	r1, _, e1 := procAddAce.Call(
-// 		uintptr(unsafe.Pointer(acl)),
-// 		uintptr(revision),
-// 		uintptr(startIndex),
-// 		uintptr(unsafe.Pointer(ace)),
-// 		uintptr(size))
-// 	runtime.KeepAlive(acl)
-// 	runtime.KeepAlive(ace)
-// 	if int(r1) == 0 {
-// 		return os.NewSyscallError("AddAce", e1)
-// 	}
-// 	return nil
-// }
-
-// func GetAce(acl *Acl, index uint32) (*Ace, error) {
-// 	var result *Ace
-// 	r1, _, e1 := procGetAce.Call(
-// 		uintptr(unsafe.Pointer(acl)),
-// 		uintptr(index),
-// 		uintptr(unsafe.Pointer(&result)))
-// 	runtime.KeepAlive(acl)
-// 	if int(r1) == 0 {
-// 		return nil, os.NewSyscallError("GetAce", e1)
-// 	}
-// 	return result, nil
-// }
-
-// func CopyAce(acl *Acl, ace *Ace) error {
-// 	header := (*AceHeader)(unsafe.Pointer(ace))
-// 	err := AddAce(acl, ACL_REVISION, 0xffffffff, ace, uint32(header.AceSize))
-// 	return err
-// }
 
 func AddAccessAllowedAce(acl *Acl, revision, mask uint32, sid *syscall.SID) error {
 	r1, _, e1 := procAddAccessAllowedAce.Call(
