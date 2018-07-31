@@ -758,23 +758,24 @@ func deleteTaskDirs() error {
 	return removeTaskDirs(config.TasksDir)
 }
 
-func (task *TaskRun) RefreshLoginSession() {
-	err := task.PlatformData.LoginInfo.Release()
+func (pd *PlatformData) RefreshLoginSession() {
+	err := pd.LoginInfo.Release()
 	if err != nil {
 		panic(err)
 	}
 	user, pass := AutoLogonCredentials()
-	task.PlatformData.LoginInfo, err = process.NewLoginInfo(user, pass)
+	pd.LoginInfo, err = process.NewLoginInfo(user, pass)
 	if err != nil {
 		// implies a serious bug
 		panic(err)
 	}
-	err = task.PlatformData.LoginInfo.SetActiveConsoleSessionId()
+	err = pd.LoginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
-	DumpTokenInfo(task.PlatformData.LoginInfo.AccessToken())
+	pd.CommandAccessToken = pd.LoginInfo.AccessToken()
+	DumpTokenInfo(pd.LoginInfo.AccessToken())
 }
 
 func DumpTokenInfo(token syscall.Token) {
