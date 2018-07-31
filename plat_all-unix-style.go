@@ -138,14 +138,6 @@ func RenameCrossDevice(oldpath, newpath string) error {
 	return os.Rename(oldpath, newpath)
 }
 
-func (task *TaskRun) removeUserFromGroups(groups []string) (updatedGroups []string, notUpdatedGroups []string) {
-	return updatedGroups, groups
-}
-
-func (task *TaskRun) addUserToGroups(groups []string) (updatedGroups []string, notUpdatedGroups []string) {
-	return updatedGroups, groups
-}
-
 func (task *TaskRun) formatCommand(index int) string {
 	return shell.Escape(task.Payload.Command[index]...)
 }

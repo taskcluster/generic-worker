@@ -27,7 +27,6 @@ type (
 		// not exported
 		logMux             sync.RWMutex
 		logWriter          io.Writer
-		reclaimTimer       *time.Timer
 		maxRunTimeDeadline time.Time
 		queueMux           sync.RWMutex
 		Queue              *tcqueue.Queue     `json:"-"`
