@@ -30,6 +30,53 @@ type PlatformData struct {
 	LoginInfo          *process.LoginInfo
 }
 
+func (pd *PlatformData) Initialise() (err error) {
+
+	if config.RunTasksAsCurrentUser {
+		pd.LoginInfo = &process.LoginInfo{}
+		return
+	}
+
+	pd.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
+	if err != nil {
+		return
+	}
+	pd.CommandAccessToken = pd.LoginInfo.AccessToken()
+
+	// This is the SID of "Everyone" group
+	// TODO: we should probably change this to the logon SID of the user
+	sid := "S-1-1-0"
+	// no need to grant if already granted
+	if sidsThatCanControlDesktopAndWindowsStation[sid] {
+		log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
+	} else {
+		log.Printf("SID %v NOT found in %#v - granting access...", sid, sidsThatCanControlDesktopAndWindowsStation)
+
+		// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
+		// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
+		// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
+		var exe string
+		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
+			exe = os.Args[0]
+		} else {
+			exe = `..\..\..\..\bin\generic-worker.exe`
+		}
+		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, pd.LoginInfo.AccessToken())
+		cmd.DirectOutput(os.Stdout)
+		log.Printf("About to run command: %#v", *(cmd.Cmd))
+		if err != nil {
+			panic(err)
+		}
+		result := cmd.Execute()
+		if !result.Succeeded() {
+			panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
+		}
+		log.Printf("Granted %v full control of interactive windows station and desktop", sid)
+		sidsThatCanControlDesktopAndWindowsStation[sid] = true
+	}
+	return
+}
+
 func (pd *PlatformData) ReleaseResources() error {
 	pd.CommandAccessToken = 0
 	return pd.LoginInfo.Release()
@@ -709,55 +756,6 @@ func deleteTaskDirs() error {
 		return err
 	}
 	return removeTaskDirs(config.TasksDir)
-}
-
-// SetLoginInfo determins LoginInfo to use for the task, and grants permissions
-// to access desktop/windows station if required
-func (task *TaskRun) SetLoginInfo() (err error) {
-
-	if config.RunTasksAsCurrentUser {
-		task.PlatformData.LoginInfo = &process.LoginInfo{}
-		return
-	}
-
-	task.PlatformData.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
-	if err != nil {
-		return
-	}
-	task.PlatformData.CommandAccessToken = task.PlatformData.LoginInfo.AccessToken()
-
-	// This is the SID of "Everyone" group
-	// TODO: we should probably change this to the logon SID of the user
-	sid := "S-1-1-0"
-	// no need to grant if already granted
-	if sidsThatCanControlDesktopAndWindowsStation[sid] {
-		log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
-	} else {
-		log.Printf("SID %v NOT found in %#v - granting access...", sid, sidsThatCanControlDesktopAndWindowsStation)
-
-		// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
-		// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
-		// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
-		var exe string
-		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
-			exe = os.Args[0]
-		} else {
-			exe = `..\..\..\..\bin\generic-worker.exe`
-		}
-		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.PlatformData.LoginInfo.AccessToken())
-		cmd.DirectOutput(os.Stdout)
-		log.Printf("About to run command: %#v", *(cmd.Cmd))
-		if err != nil {
-			panic(err)
-		}
-		result := cmd.Execute()
-		if !result.Succeeded() {
-			panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
-		}
-		log.Printf("Granted %v full control of interactive windows station and desktop", sid)
-		sidsThatCanControlDesktopAndWindowsStation[sid] = true
-	}
-	return
 }
 
 func (task *TaskRun) RefreshLoginSession() {

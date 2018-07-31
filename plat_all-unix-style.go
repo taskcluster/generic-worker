@@ -24,6 +24,10 @@ func platformFeatures() []Feature {
 type PlatformData struct {
 }
 
+func (pd *PlatformData) Initialise() error {
+	return nil
+}
+
 func (pd *PlatformData) ReleaseResources() error {
 	return nil
 }
@@ -188,13 +192,6 @@ func unsetAutoLogon() {
 
 func deleteTaskDirs() {
 	removeTaskDirs(config.TasksDir)
-}
-
-func (task *TaskRun) SetLoginInfo() error {
-	return nil
-}
-
-func (task *TaskRun) RefreshLoginSession() {
 }
 
 func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {
