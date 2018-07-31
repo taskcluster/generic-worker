@@ -69,7 +69,7 @@ func (osGroups *OSGroups) Start() *CommandExecutionError {
 	}
 	osGroups.Task.RefreshLoginSession()
 	for _, command := range osGroups.Task.Commands {
-		command.SysProcAttr.Token = osGroups.Task.LoginInfo.AccessToken()
+		command.SysProcAttr.Token = osGroups.Task.PlatformData.LoginInfo.AccessToken()
 	}
 	return nil
 }

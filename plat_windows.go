@@ -27,6 +27,12 @@ var sidsThatCanControlDesktopAndWindowsStation map[string]bool = map[string]bool
 
 type PlatformData struct {
 	CommandAccessToken syscall.Token
+	LoginInfo          *process.LoginInfo
+}
+
+func (pd *PlatformData) ReleaseResources() error {
+	pd.CommandAccessToken = 0
+	return pd.LoginInfo.Release()
 }
 
 type TaskContext struct {
@@ -199,13 +205,14 @@ func generatePassword() string {
 	return "pWd0_" + uniuri.NewLen(24)
 }
 
-func deleteExistingOSUsers() {
+func deleteExistingOSUsers() error {
 	log.Print("Looking for existing task users to delete...")
 	err := processCommandOutput(deleteOSUserAccount, "wmic", "useraccount", "get", "name")
 	if err != nil {
 		log.Print("WARNING: could not list existing Windows user accounts")
 		log.Printf("%v", err)
 	}
+	return nil
 }
 
 func deleteOSUserAccount(line string) {
@@ -226,7 +233,7 @@ func (task *TaskRun) generateCommand(index int) error {
 	commandName := fmt.Sprintf("command_%06d", index)
 	wrapper := filepath.Join(taskContext.TaskDir, commandName+"_wrapper.bat")
 	log.Printf("Creating wrapper script: %v", wrapper)
-	loginInfo := task.LoginInfo
+	loginInfo := task.PlatformData.LoginInfo
 	command, err := process.NewCommand([]string{wrapper}, taskContext.TaskDir, nil, loginInfo.AccessToken())
 	if err != nil {
 		return err
@@ -354,13 +361,20 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 	return nil
 }
 
-func taskCleanup() error {
+// Only return critical errors
+func purgeOldTasks() error {
 	if config.CleanUpTaskDirs {
-		deleteTaskDirs()
+		err := deleteTaskDirs()
+		if err != nil {
+			log.Printf("Could not delete old task directories:\n%v", err)
+		}
 	}
 	// note if this fails, we carry on without throwing an error
 	if !config.RunTasksAsCurrentUser {
-		deleteExistingOSUsers()
+		err := deleteExistingOSUsers()
+		if err != nil {
+			log.Printf("Could not delete old task users:\n%v", err)
+		}
 	}
 	return nil
 }
@@ -689,9 +703,12 @@ func unsetAutoLogon() {
 	}
 }
 
-func deleteTaskDirs() {
-	removeTaskDirs(win32.ProfilesDirectory())
-	removeTaskDirs(config.TasksDir)
+func deleteTaskDirs() error {
+	err := removeTaskDirs(win32.ProfilesDirectory())
+	if err != nil {
+		return err
+	}
+	return removeTaskDirs(config.TasksDir)
 }
 
 // SetLoginInfo determins LoginInfo to use for the task, and grants permissions
@@ -699,15 +716,15 @@ func deleteTaskDirs() {
 func (task *TaskRun) SetLoginInfo() (err error) {
 
 	if config.RunTasksAsCurrentUser {
-		task.LoginInfo = &process.LoginInfo{}
+		task.PlatformData.LoginInfo = &process.LoginInfo{}
 		return
 	}
 
-	task.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
+	task.PlatformData.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
 	if err != nil {
 		return
 	}
-	task.PlatformData.CommandAccessToken = task.LoginInfo.AccessToken()
+	task.PlatformData.CommandAccessToken = task.PlatformData.LoginInfo.AccessToken()
 
 	// This is the SID of "Everyone" group
 	// TODO: we should probably change this to the logon SID of the user
@@ -727,7 +744,7 @@ func (task *TaskRun) SetLoginInfo() (err error) {
 		} else {
 			exe = `..\..\..\..\bin\generic-worker.exe`
 		}
-		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.LoginInfo.AccessToken())
+		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.PlatformData.LoginInfo.AccessToken())
 		cmd.DirectOutput(os.Stdout)
 		log.Printf("About to run command: %#v", *(cmd.Cmd))
 		if err != nil {
@@ -744,22 +761,22 @@ func (task *TaskRun) SetLoginInfo() (err error) {
 }
 
 func (task *TaskRun) RefreshLoginSession() {
-	err := task.LoginInfo.Release()
+	err := task.PlatformData.LoginInfo.Release()
 	if err != nil {
 		panic(err)
 	}
 	user, pass := AutoLogonCredentials()
-	task.LoginInfo, err = process.NewLoginInfo(user, pass)
+	task.PlatformData.LoginInfo, err = process.NewLoginInfo(user, pass)
 	if err != nil {
 		// implies a serious bug
 		panic(err)
 	}
-	err = task.LoginInfo.SetActiveConsoleSessionId()
+	err = task.PlatformData.LoginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
-	DumpTokenInfo(task.LoginInfo.AccessToken())
+	DumpTokenInfo(task.PlatformData.LoginInfo.AccessToken())
 }
 
 func DumpTokenInfo(token syscall.Token) {

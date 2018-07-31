@@ -32,7 +32,6 @@ type (
 		Queue              *tcqueue.Queue     `json:"-"`
 		StatusManager      *TaskStatusManager `json:"-"`
 		LocalClaimTime     time.Time          `json:"-"`
-		LoginInfo          *process.LoginInfo `json:"-"`
 		PlatformData       *PlatformData      `json:"-"`
 		// This is a map of artifact names to internal feature names for
 		// reserving artifact names that are uploaded implicitly rather than

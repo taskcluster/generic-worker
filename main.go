@@ -597,7 +597,7 @@ func RunWorker() (exitCode ExitCode) {
 			panic(err)
 		}
 	}(&tasksResolved)
-	err = taskCleanup()
+	err = purgeOldTasks()
 	// any errors are fatal
 	if err != nil {
 		log.Printf("OH NO!!!\n\n%#v", err)
@@ -669,13 +669,13 @@ func RunWorker() (exitCode ExitCode) {
 			if errors.WorkerShutdown() {
 				return WORKER_SHUTDOWN
 			}
-			err := task.LoginInfo.Release()
+			err := task.ReleaseResources()
 			if err != nil {
-				log.Printf("ERROR: logging out user!\n%v", err)
+				log.Printf("ERROR: releasing resources\n%v", err)
 			}
-			err = taskCleanup()
+			err = purgeOldTasks()
 			if err != nil {
-				log.Printf("ERROR: cleaning up after task!\n%v", err)
+				panic(err)
 			}
 			tasksResolved++
 			// remainingTasks will be -ve, if config.NumberOfTasksToRun is not set (=0)
@@ -705,7 +705,7 @@ func RunWorker() (exitCode ExitCode) {
 			if config.IdleTimeoutSecs > 0 {
 				remainingIdleTimeText = fmt.Sprintf(" (will exit if no task claimed in %v)", time.Second*time.Duration(config.IdleTimeoutSecs)-idleTime)
 				if idleTime.Seconds() > float64(config.IdleTimeoutSecs) {
-					taskCleanup()
+					purgeOldTasks()
 					log.Printf("Worker idle for idleShutdownTimeoutSecs seconds (%v)", idleTime)
 					return IDLE_TIMEOUT
 				}
@@ -1343,13 +1343,13 @@ func PrepareTaskEnvironment() (reboot bool) {
 	return
 }
 
-func removeTaskDirs(parentDir string) {
+func removeTaskDirs(parentDir string) error {
 	activeTaskUser, _ := AutoLogonCredentials()
 	taskDirsParent, err := os.Open(parentDir)
 	if err != nil {
 		log.Print("WARNING: Could not open " + parentDir + " directory to find old home directories to delete")
 		log.Printf("%v", err)
-		return
+		return nil
 	}
 	defer taskDirsParent.Close()
 	fi, err := taskDirsParent.Readdir(-1)
@@ -1363,9 +1363,16 @@ func removeTaskDirs(parentDir string) {
 		path := filepath.Join(parentDir, fileName)
 		if file.IsDir() {
 			if strings.HasPrefix(fileName, "task_") && fileName != activeTaskUser {
-				// ignore any error occuring here, not a lot we can do about it...
-				deleteTaskDir(path)
+				err = deleteTaskDir(path)
+				if err != nil {
+					log.Printf("WARNING: Could not delete task directory %v: %v", path, err)
+				}
 			}
 		}
 	}
+	return nil
+}
+
+func (task *TaskRun) ReleaseResources() error {
+	return task.PlatformData.ReleaseResources()
 }

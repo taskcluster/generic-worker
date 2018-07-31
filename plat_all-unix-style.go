@@ -24,6 +24,10 @@ func platformFeatures() []Feature {
 type PlatformData struct {
 }
 
+func (pd *PlatformData) ReleaseResources() error {
+	return nil
+}
+
 type OSUser struct {
 	HomeDir  string
 	Name     string
@@ -85,7 +89,7 @@ func (task *TaskRun) generateCommand(index int) error {
 	return nil
 }
 
-func taskCleanup() error {
+func purgeOldTasks() error {
 	if config.CleanUpTaskDirs {
 		deleteTaskDirs()
 	}
