@@ -32,11 +32,11 @@ type PlatformData struct {
 
 func (task *TaskRun) NewPlatformData() (pd *PlatformData, err error) {
 
+	pd = &PlatformData{}
 	if config.RunTasksAsCurrentUser {
 		pd.LoginInfo = &process.LoginInfo{}
 		return
 	}
-
 	pd.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
 	if err != nil {
 		return
