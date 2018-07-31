@@ -133,7 +133,7 @@ func setup(t *testing.T) (teardown func()) {
 		// have a lot of free disk
 		RequiredDiskSpaceMegabytes:     16,
 		RunAfterUserCreation:           "",
-		RunTasksAsCurrentUser:          os.Getenv("GW_TESTS_RUN_AS_CURRENT_USER") != "",
+		RunTasksAsCurrentUser:          os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
 		SentryProject:                  "generic-worker-tests",
 		ShutdownMachineOnIdle:          false,
 		ShutdownMachineOnInternalError: false,
