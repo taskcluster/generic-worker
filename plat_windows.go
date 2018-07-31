@@ -317,13 +317,75 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 
 	// exit with stored exit code
 	contents += "exit /b %tcexitcode%\r\n"
+	log.Print("Dir before creating wrapper script...")
+	ccc := exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err := ccc.Run()
+	if err != nil {
+		log.Printf("dir before error: %v", err)
+	}
+
+	log.Print("icacls of parent dir before creating wrapper script...")
+	ccc = exec.Command("icacls", filepath.Dir(wrapper))
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("icacls wrapper script parent dir before error: %v", err)
+	}
 
 	// now generate the .bat script that runs all of this
-	err := ioutil.WriteFile(
+	err = ioutil.WriteFile(
 		wrapper,
 		[]byte(contents),
 		0755,
 	)
+	if err != nil {
+		panic(err)
+	}
+
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	err = exec.Command("icacls", wrapper, "/grant", taskContext.LogonSession.User.Name+":x").Run()
+	if err != nil {
+		panic(err)
+	}
+
+	log.Print("Dir after creating wrapper script...")
+	ccc = exec.Command("cmd.exe", "/c", "dir", filepath.Dir(wrapper))
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("dir after error: %v", err)
+	}
+
+	log.Print("icacls of parent dir after creating wrapper script...")
+	ccc = exec.Command("icacls", filepath.Dir(wrapper))
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("icacls wrapper script parent dir after error: %v", err)
+	}
+
+	log.Print("icacls of wrapper script after creating it...")
+	ccc = exec.Command("icacls", wrapper)
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("icacls wrapper script error: %v", err)
+	}
+
+	log.Print("wmic useraccount get name,sid...")
+	ccc = exec.Command("wmic", "useraccount", "get", "name,sid")
+	ccc.Stdout = os.Stdout
+	ccc.Stderr = os.Stderr
+	err = ccc.Run()
+	if err != nil {
+		log.Printf("wmic error: %v", err)
+	}
 
 	if err != nil {
 		panic(err)
@@ -340,6 +402,12 @@ func (task *TaskRun) prepareCommand(index int) *CommandExecutionError {
 		fileContents,
 		0755,
 	)
+
+	// See https://bugzilla.mozilla.org/show_bug.cgi?id=1439588#c38
+	err = exec.Command("icacls", script, "/grant", taskContext.LogonSession.User.Name+":x").Run()
+	if err != nil {
+		panic(err)
+	}
 
 	// log.Printf("Script %q:", script)
 	// log.Print("Contents:")
