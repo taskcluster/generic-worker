@@ -707,6 +707,7 @@ func (task *TaskRun) SetLoginInfo() (err error) {
 	if err != nil {
 		return
 	}
+	task.PlatformData.CommandAccessToken = task.LoginInfo.AccessToken()
 
 	// This is the SID of "Everyone" group
 	// TODO: we should probably change this to the logon SID of the user
