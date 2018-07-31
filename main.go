@@ -351,7 +351,6 @@ func initialiseFeatures() (err error) {
 	Features = []Feature{
 		&LiveLogFeature{},
 		&TaskclusterProxyFeature{},
-		&OSGroupsFeature{},
 		&MountsFeature{},
 		&SupersedeFeature{},
 	}
@@ -670,7 +669,7 @@ func RunWorker() (exitCode ExitCode) {
 			if errors.WorkerShutdown() {
 				return WORKER_SHUTDOWN
 			}
-			err := task.LoginInfo.Logout()
+			err := task.LoginInfo.Release()
 			if err != nil {
 				log.Printf("ERROR: logging out user!\n%v", err)
 			}

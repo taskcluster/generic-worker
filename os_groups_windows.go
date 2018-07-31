@@ -67,10 +67,9 @@ func (osGroups *OSGroups) Start() *CommandExecutionError {
 	if len(notUpdatedGroups) > 0 {
 		return MalformedPayloadError(fmt.Errorf("Could not add task user to os group(s): %v", notUpdatedGroups))
 	}
-	// On Windows we need to call LogonUser to get new access token with the group changes
 	osGroups.Task.RefreshLoginSession()
 	for _, command := range osGroups.Task.Commands {
-		command.SetLoginInfo(osGroups.Task.LoginInfo)
+		command.SysProcAttr.Token = osGroups.Task.LoginInfo.AccessToken()
 	}
 	return nil
 }

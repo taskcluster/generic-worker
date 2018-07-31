@@ -446,7 +446,7 @@ func WTSQueryUserToken(
 func WTSGetActiveConsoleSessionId() (sessionId uint32, err error) {
 	r1, _, _ := procWTSGetActiveConsoleSessionId.Call()
 	if r1 == 0xFFFFFFFF {
-		err = os.NewSyscallError("WTSGetActiveConsoleSessionId", errors.New("Got return value 0xFFFFFFFF from syscall WTSGetActiveConsoleSessionId"))
+		err = os.NewSyscallError("WTSGetActiveConsoleSessionId", errors.New("There is no session attached to the physical console (return code 0xFFFFFFFF in WTSGetActiveConsoleSessionId)"))
 	} else {
 		sessionId = uint32(r1)
 	}

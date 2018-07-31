@@ -25,6 +25,10 @@ import (
 
 var sidsThatCanControlDesktopAndWindowsStation map[string]bool = map[string]bool{}
 
+type PlatformData struct {
+	CommandAccessToken syscall.Token
+}
+
 type TaskContext struct {
 	TaskDir      string
 	LogonSession *process.LogonSession
@@ -33,6 +37,7 @@ type TaskContext struct {
 func platformFeatures() []Feature {
 	return []Feature{
 		&RDPFeature{},
+		&OSGroupsFeature{},
 		&RunAsAdministratorFeature{}, // depends on (must appear later in list than) OSGroups feature
 	}
 }
@@ -112,12 +117,9 @@ func prepareTaskUser(userName string) (reboot bool) {
 		// timeout of 3 minutes should be plenty - note, this function will
 		// return as soon as user has logged in *and* user profile directory
 		// has been created - the timeout just sets an upper cap
-		hToken, err := win32.InteractiveUserToken(3 * time.Minute)
+		accessToken, err := win32.InteractiveUserToken(3 * time.Minute)
 		if err != nil {
 			panic(err)
-		}
-		loginInfo := &process.LoginInfo{
-			HUser: hToken,
 		}
 		// At this point, we know we have already booted into the new task user, and the user
 		// is logged in.
@@ -136,7 +138,7 @@ func prepareTaskUser(userName string) (reboot bool) {
 			panic(err)
 		}
 		if script := config.RunAfterUserCreation; script != "" {
-			command, err := process.NewCommand([]string{script}, taskContext.TaskDir, nil, loginInfo)
+			command, err := process.NewCommand([]string{script}, taskContext.TaskDir, nil, accessToken)
 			if err != nil {
 				panic(err)
 			}
@@ -167,11 +169,11 @@ func prepareTaskUser(userName string) (reboot bool) {
 	if err != nil {
 		panic(err)
 	}
-	err = RedirectAppData(loginInfo.HUser, filepath.Join(taskContext.TaskDir, "AppData"))
+	err = RedirectAppData(loginInfo.AccessToken(), filepath.Join(taskContext.TaskDir, "AppData"))
 	if err != nil {
 		panic(err)
 	}
-	err = loginInfo.Logout()
+	err = loginInfo.Release()
 	if err != nil {
 		panic(err)
 	}
@@ -225,7 +227,7 @@ func (task *TaskRun) generateCommand(index int) error {
 	wrapper := filepath.Join(taskContext.TaskDir, commandName+"_wrapper.bat")
 	log.Printf("Creating wrapper script: %v", wrapper)
 	loginInfo := task.LoginInfo
-	command, err := process.NewCommand([]string{wrapper}, taskContext.TaskDir, nil, loginInfo)
+	command, err := process.NewCommand([]string{wrapper}, taskContext.TaskDir, nil, loginInfo.AccessToken())
 	if err != nil {
 		return err
 	}
@@ -692,76 +694,71 @@ func deleteTaskDirs() {
 	removeTaskDirs(config.TasksDir)
 }
 
+// SetLoginInfo determins LoginInfo to use for the task, and grants permissions
+// to access desktop/windows station if required
 func (task *TaskRun) SetLoginInfo() (err error) {
-	task.LoginInfo = &process.LoginInfo{}
-	if !config.RunTasksAsCurrentUser {
-		var hToken syscall.Token
-		hToken, err = win32.InteractiveUserToken(time.Minute)
-		if err != nil {
-			return
+
+	if config.RunTasksAsCurrentUser {
+		task.LoginInfo = &process.LoginInfo{}
+		return
+	}
+
+	task.LoginInfo, err = process.InteractiveLoginInfo(3 * time.Minute)
+	if err != nil {
+		return
+	}
+
+	// This is the SID of "Everyone" group
+	// TODO: we should probably change this to the logon SID of the user
+	sid := "S-1-1-0"
+	// no need to grant if already granted
+	if sidsThatCanControlDesktopAndWindowsStation[sid] {
+		log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
+	} else {
+		log.Printf("SID %v NOT found in %#v - granting access...", sid, sidsThatCanControlDesktopAndWindowsStation)
+
+		// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
+		// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
+		// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
+		var exe string
+		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
+			exe = os.Args[0]
+		} else {
+			exe = `..\..\..\..\bin\generic-worker.exe`
 		}
-		task.LoginInfo.HUser = hToken
+		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.LoginInfo.AccessToken())
+		cmd.DirectOutput(os.Stdout)
+		log.Printf("About to run command: %#v", *(cmd.Cmd))
+		if err != nil {
+			panic(err)
+		}
+		result := cmd.Execute()
+		if !result.Succeeded() {
+			panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
+		}
+		log.Printf("Granted %v full control of interactive windows station and desktop", sid)
+		sidsThatCanControlDesktopAndWindowsStation[sid] = true
 	}
 	return
 }
 
 func (task *TaskRun) RefreshLoginSession() {
-	// On Windows we need to call LogonUser to get new access token with the group changes
-	if task.LoginInfo != nil && task.LoginInfo.HUser != 0 {
-		// DumpTokenInfo(task.LoginInfo.HUser)
-
-		// This is the SID of "Everyone" group
-		// TODO: we should probably change this to the logon SID of the user
-		sid := "S-1-1-0"
-		// no need to grant if already granted
-		if sidsThatCanControlDesktopAndWindowsStation[sid] {
-			log.Printf("SID %v found in %#v - no need to grant access!", sid, sidsThatCanControlDesktopAndWindowsStation)
-		} else {
-			log.Printf("SID %v NOT found in %#v - granting access...", sid, sidsThatCanControlDesktopAndWindowsStation)
-
-			// We want to run generic-worker exe, which is os.Args[0] if we are running generic-worker, but if
-			// we are running tests, os.Args[0] will be the test executable, so then we use relative path to
-			// installed binary. This hack will go if we can use ImpersonateLoggedOnUser / RevertToSelf instead.
-			var exe string
-			if filepath.Base(os.Args[0]) == "generic-worker.exe" {
-				exe = os.Args[0]
-			} else {
-				exe = `..\..\..\..\bin\generic-worker.exe`
-			}
-			cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, task.LoginInfo)
-			cmd.DirectOutput(os.Stdout)
-			log.Printf("About to run command: %#v", *(cmd.Cmd))
-			if err != nil {
-				panic(err)
-			}
-			result := cmd.Execute()
-			if !result.Succeeded() {
-				panic(fmt.Sprintf("Failed to grant everyone access to windows station and desktop:\n%v", result))
-			}
-			log.Printf("Granted %v full control of interactive windows station and desktop", sid)
-			sidsThatCanControlDesktopAndWindowsStation[sid] = true
-		}
-		// logoutError := task.LoginInfo.Logout()
-		// if logoutError != nil {
-		// 	panic(logoutError)
-		// }
+	err := task.LoginInfo.Release()
+	if err != nil {
+		panic(err)
 	}
 	user, pass := AutoLogonCredentials()
-	loginInfo, logonError := process.NewLoginInfo(user, pass)
-	if logonError != nil {
+	task.LoginInfo, err = process.NewLoginInfo(user, pass)
+	if err != nil {
 		// implies a serious bug
-		panic(logonError)
+		panic(err)
 	}
-	// DumpTokenInfo(loginInfo.HUser)
-
-	err := loginInfo.SetActiveConsoleSessionId()
+	err = task.LoginInfo.SetActiveConsoleSessionId()
 	if err != nil {
 		// implies a serious bug
 		panic(fmt.Sprintf("Could not set token session information: %v", err))
 	}
-	// DumpTokenInfo(loginInfo.HUser)
-
-	task.LoginInfo = loginInfo
+	DumpTokenInfo(task.LoginInfo.AccessToken())
 }
 
 func DumpTokenInfo(token syscall.Token) {

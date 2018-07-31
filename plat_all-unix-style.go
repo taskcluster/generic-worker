@@ -21,6 +21,9 @@ func platformFeatures() []Feature {
 	return []Feature{}
 }
 
+type PlatformData struct {
+}
+
 type OSUser struct {
 	HomeDir  string
 	Name     string
