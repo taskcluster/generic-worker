@@ -24,8 +24,8 @@ func platformFeatures() []Feature {
 type PlatformData struct {
 }
 
-func (pd *PlatformData) Initialise() error {
-	return nil
+func (task *TaskRun) NewPlatformData() (pd *PlatformData, err error) {
+	return &PlatformData{}, nil
 }
 
 func (pd *PlatformData) ReleaseResources() error {

@@ -30,7 +30,7 @@ type PlatformData struct {
 	LoginInfo          *process.LoginInfo
 }
 
-func (pd *PlatformData) Initialise() (err error) {
+func (task *TaskRun) NewPlatformData() (pd *PlatformData, err error) {
 
 	if config.RunTasksAsCurrentUser {
 		pd.LoginInfo = &process.LoginInfo{}

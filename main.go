@@ -788,7 +788,8 @@ func ClaimWork() *TaskRun {
 			LocalClaimTime: localClaimTime,
 		}
 		task.StatusManager = NewTaskStatusManager(task)
-		err := task.PlatformData.Initialise()
+		var err error
+		task.PlatformData, err = task.NewPlatformData()
 		if err != nil {
 			panic(err)
 		}
