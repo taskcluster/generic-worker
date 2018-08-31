@@ -11,7 +11,7 @@ order:        1
 ---
 
 When submitting a task graph to the Task Cluster Queue (see
-[createTask](/reference/platform/queue/reference/api-docs#createTask)) you must provide a
+[createTask](/docs/reference/platform/queue/reference/api-docs#createTask)) you must provide a
 payload for defining the tasks to be executed by the worker. In the case of the
 generic worker, the payload must conform to the following schema.
 

@@ -205,7 +205,7 @@ properties:
       tasks should be ordered such that each task supersedes all tasks appearing later in the
       list.
 
-      See [superseding](https://docs.taskcluster.net/reference/platform/taskcluster-queue/docs/superseding) for more detail.
+      See [superseding](/docs/reference/platform/taskcluster-queue/docs/superseding) for more detail.
 
       Since: generic-worker 10.2.2
     format: uri
@@ -227,7 +227,7 @@ properties:
           will then schedule a new run of the existing `taskId` (rerun) if not
           all task runs have been exhausted.
 
-          See [itermittent tasks](https://docs.taskcluster.net/docs/reference/platform/taskcluster-queue/docs/worker-interaction#intermittent-tasks) for more detail.
+          See [itermittent tasks](/docs/reference/platform/taskcluster-queue/docs/worker-interaction#intermittent-tasks) for more detail.
 
           Since: generic-worker 10.10.0
         type: array
@@ -246,7 +246,7 @@ properties:
       `login-identity/<login-identity>/rdpinfo.json` which is only readable for
       the given login identity (for example
       `login-identity/mozilla-ldap/pmoore@mozilla.com/rdpinfo.json`). See the
-      [artifact namespace guide](https://docs.taskcluster.net/manual/design/namespaces#artifacts) for more information.
+      [artifact namespace guide](/docs/manual/design/namespaces#artifacts) for more information.
 
       Use of this feature requires scope
       `generic-worker:allow-rdp:<provisionerId>/<workerType>` which must be
