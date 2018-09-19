@@ -55,19 +55,22 @@ func queryMetaData(url string) (string, error) {
 
 // taken from https://github.com/taskcluster/aws-provisioner/blob/5a01a94141c38447968ec75232fd86a86cca366a/src/worker-type.js#L601-L615
 type UserData struct {
-	Data                interface{} `json:"data"`
-	Capacity            int         `json:"capacity"`
-	WorkerType          string      `json:"workerType"`
-	ProvisionerID       string      `json:"provisionerId"`
-	Region              string      `json:"region"`
+	AuthBaseURL         string      `json:"authBaseUrl"`
 	AvailabilityZone    string      `json:"availabilityZone"`
+	Capacity            int         `json:"capacity"`
+	Data                interface{} `json:"data"`
 	InstanceType        string      `json:"instanceType"`
-	SpotBid             float64     `json:"spotBid"`
-	Price               float64     `json:"price"`
-	LaunchSpecGenerated time.Time   `json:"launchSpecGenerated"`
 	LastModified        time.Time   `json:"lastModified"`
+	LaunchSpecGenerated time.Time   `json:"launchSpecGenerated"`
+	Price               float64     `json:"price"`
 	ProvisionerBaseURL  string      `json:"provisionerBaseUrl"`
+	ProvisionerID       string      `json:"provisionerId"`
+	PurgeCacheBaseURL   string      `json:"purgeCacheBaseUrl"`
+	QueueBaseURL        string      `json:"queueBaseUrl"`
+	Region              string      `json:"region"`
 	SecurityToken       string      `json:"securityToken"`
+	SpotBid             float64     `json:"spotBid"`
+	WorkerType          string      `json:"workerType"`
 }
 
 type Secrets struct {
@@ -194,6 +197,15 @@ func updateConfigWithAmazonSettings(c *gwconfig.Config) error {
 	c.ProvisionerID = userData.ProvisionerID
 	c.Region = userData.Region
 	c.ProvisionerBaseURL = userData.ProvisionerBaseURL
+	if authURL := userData.AuthBaseURL; authURL != "" {
+		c.AuthBaseURL = authURL
+	}
+	if pcURL := userData.PurgeCacheBaseURL; pcURL != "" {
+		c.PurgeCacheBaseURL = pcURL
+	}
+	if queueURL := userData.QueueBaseURL; queueURL != "" {
+		c.QueueBaseURL = queueURL
+	}
 
 	awsprov := tcawsprovisioner.AwsProvisioner{
 		Authenticate: false,
