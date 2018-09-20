@@ -95,7 +95,7 @@ func (m *MockAWSProvisionedEnvironment) Setup(t *testing.T) func() {
 				"price":               3.02,
 				"launchSpecGenerated": time.Now(),
 				"lastModified":        time.Now().Add(time.Minute * -30),
-				"provisionerBaseUrl":  "http://localhost:13243/provisioner",
+				"taskclusterRootUrl":  "http://acme.com:43243/demo",
 				"securityToken":       "12345",
 			}
 			WriteJSON(t, w, resp)

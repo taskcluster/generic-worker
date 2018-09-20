@@ -9,13 +9,13 @@ import (
 	"runtime"
 
 	"github.com/taskcluster/generic-worker/fileutil"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 )
 
 type (
 	// Generic Worker config
 	Config struct {
 		AccessToken                    string                 `json:"accessToken"`
-		AuthBaseURL                    string                 `json:"authBaseURL"`
 		AvailabilityZone               string                 `json:"availabilityZone"`
 		CachesDir                      string                 `json:"cachesDir"`
 		Certificate                    string                 `json:"certificate"`
@@ -36,11 +36,8 @@ type (
 		LiveLogSecret                  string                 `json:"livelogSecret"`
 		NumberOfTasksToRun             uint                   `json:"numberOfTasksToRun"`
 		PrivateIP                      net.IP                 `json:"privateIP"`
-		ProvisionerBaseURL             string                 `json:"provisionerBaseURL"`
 		ProvisionerID                  string                 `json:"provisionerId"`
 		PublicIP                       net.IP                 `json:"publicIP"`
-		PurgeCacheBaseURL              string                 `json:"purgeCacheBaseURL"`
-		QueueBaseURL                   string                 `json:"queueBaseURL"`
 		Region                         string                 `json:"region"`
 		RequiredDiskSpaceMegabytes     uint                   `json:"requiredDiskSpaceMegabytes"`
 		RunAfterUserCreation           string                 `json:"runAfterUserCreation"`
@@ -52,6 +49,7 @@ type (
 		Subdomain                      string                 `json:"subdomain"`
 		TaskclusterProxyExecutable     string                 `json:"taskclusterProxyExecutable"`
 		TaskclusterProxyPort           uint16                 `json:"taskclusterProxyPort"`
+		TaskclusterRootURL             string                 `json:"taskclusterRootURL"`
 		TasksDir                       string                 `json:"tasksDir"`
 		WorkerGroup                    string                 `json:"workerGroup"`
 		WorkerID                       string                 `json:"workerId"`
@@ -103,6 +101,7 @@ func (c *Config) Validate() error {
 		{value: c.SigningKeyLocation, name: "signingKeyLocation", disallowed: ""},
 		{value: c.Subdomain, name: "subdomain", disallowed: ""},
 		{value: c.TasksDir, name: "tasksDir", disallowed: ""},
+		{value: c.TaskclusterRootURL, name: "taskclusterRootURL", disallowed: ""},
 		{value: c.WorkerGroup, name: "workerGroup", disallowed: ""},
 		{value: c.WorkerID, name: "workerId", disallowed: ""},
 		{value: c.WorkerType, name: "workerType", disallowed: ""},
@@ -124,4 +123,13 @@ func (c *Config) Validate() error {
 
 func (err MissingConfigError) Error() string {
 	return "Config setting \"" + err.Setting + "\" has not been defined"
+}
+
+func (c *Config) WorkerCredentials() *tcclient.Credentials {
+	return &tcclient.Credentials{
+		ClientID:    c.ClientID,
+		AccessToken: c.AccessToken,
+		Certificate: c.Certificate,
+		RootURL:     c.TaskclusterRootURL,
+	}
 }

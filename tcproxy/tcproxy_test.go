@@ -22,6 +22,7 @@ func TestTaskclusterProxy(t *testing.T) {
 		ClientID:         os.Getenv("TASKCLUSTER_CLIENT_ID"),
 		AccessToken:      os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
 		Certificate:      os.Getenv("TASKCLUSTER_CERTIFICATE"),
+		RootURL:          os.Getenv("TASKCLUSTER_ROOT_URL"),
 		AuthorizedScopes: []string{"queue:get-artifact:SampleArtifacts/_/X.txt"},
 	}
 	ll, err := New(executable, 34569, creds, "")

@@ -184,7 +184,6 @@ and reports back results to the queue.
         ** OPTIONAL ** properties
         =========================
 
-          authBaseURL                       The base URL for API calls to the auth service.
           availabilityZone                  The EC2 availability zone of the worker.
           cachesDir                         The directory where task caches should be stored on
                                             the worker. The directory will be created if it does
@@ -249,14 +248,9 @@ and reports back results to the queue.
           numberOfTasksToRun                If zero, run tasks indefinitely. Otherwise, after
                                             this many tasks, exit. [default: 0]
           privateIP                         The private IP of the worker, used by chain of trust.
-          provisionerBaseURL                The base URL for API calls to the provisioner in
-                                            order to determine if there is a new deploymentId.
           provisionerId                     The taskcluster provisioner which is taking care
                                             of provisioning environments with generic-worker
                                             running on them. [default: test-provisioner]
-          purgeCacheBaseURL                 The base URL for API calls to the purge cache
-                                            service.
-          queueBaseURL                      The base URL for API calls to the queue service.
           region                            The EC2 region of the worker.
           requiredDiskSpaceMegabytes        The garbage collector will ensure at least this
                                             number of megabytes of disk space are available
@@ -304,6 +298,8 @@ and reports back results to the queue.
                                             [default: taskcluster-proxy]
           taskclusterProxyPort              Port number for taskcluster-proxy HTTP requests.
                                             [default: 80]
+          taskclusterRootURL                Root URL of taskcluster cluster that this worker
+                                            should interact with. [default: https://taskcluster.net]
           tasksDir                          The location where task directories should be
                                             created on the worker. [default: /Users]
           workerGroup                       Typically this would be an aws region - an

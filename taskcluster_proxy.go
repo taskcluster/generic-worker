@@ -60,6 +60,7 @@ func (l *TaskclusterProxyTask) Start() *CommandExecutionError {
 			AccessToken: l.task.TaskClaimResponse.Credentials.AccessToken,
 			Certificate: l.task.TaskClaimResponse.Credentials.Certificate,
 			ClientID:    l.task.TaskClaimResponse.Credentials.ClientID,
+			RootURL:     config.TaskclusterRootURL,
 		},
 		l.task.TaskID,
 	)

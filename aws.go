@@ -18,6 +18,7 @@ import (
 
 	"github.com/taskcluster/generic-worker/gwconfig"
 	"github.com/taskcluster/httpbackoff"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/tcawsprovisioner"
 )
 
@@ -53,21 +54,22 @@ func queryMetaData(url string) (string, error) {
 	return string(content), err
 }
 
-// taken from https://github.com/taskcluster/aws-provisioner/blob/5a01a94141c38447968ec75232fd86a86cca366a/src/worker-type.js#L601-L615
+// originally taken from
+// https://github.com/taskcluster/aws-provisioner/blob/5a01a94141c38447968ec75232fd86a86cca366a/src/worker-type.js#L601-L615
 type UserData struct {
-	Data                interface{} `json:"data"`
+	AvailabilityZone    string      `json:"availabilityZone"`
 	Capacity            int         `json:"capacity"`
-	WorkerType          string      `json:"workerType"`
+	Data                interface{} `json:"data"`
+	InstanceType        string      `json:"instanceType"`
+	LastModified        time.Time   `json:"lastModified"`
+	LaunchSpecGenerated time.Time   `json:"launchSpecGenerated"`
+	Price               float64     `json:"price"`
 	ProvisionerID       string      `json:"provisionerId"`
 	Region              string      `json:"region"`
-	AvailabilityZone    string      `json:"availabilityZone"`
-	InstanceType        string      `json:"instanceType"`
-	SpotBid             float64     `json:"spotBid"`
-	Price               float64     `json:"price"`
-	LaunchSpecGenerated time.Time   `json:"launchSpecGenerated"`
-	LastModified        time.Time   `json:"lastModified"`
-	ProvisionerBaseURL  string      `json:"provisionerBaseUrl"`
 	SecurityToken       string      `json:"securityToken"`
+	SpotBid             float64     `json:"spotBid"`
+	TaskclusterRootURL  string      `json:"taskclusterRootUrl"`
+	WorkerType          string      `json:"workerType"`
 }
 
 type Secrets struct {
@@ -193,11 +195,15 @@ func updateConfigWithAmazonSettings(c *gwconfig.Config) error {
 	}
 	c.ProvisionerID = userData.ProvisionerID
 	c.Region = userData.Region
-	c.ProvisionerBaseURL = userData.ProvisionerBaseURL
+	if userData.TaskclusterRootURL != "" {
+		c.TaskclusterRootURL = userData.TaskclusterRootURL
+	}
 
 	awsprov := tcawsprovisioner.AwsProvisioner{
 		Authenticate: false,
-		BaseURL:      userData.ProvisionerBaseURL,
+		Credentials: &tcclient.Credentials{
+			RootURL: c.TaskclusterRootURL,
+		},
 	}
 
 	secToken, getErr := awsprov.GetSecret(userData.SecurityToken)

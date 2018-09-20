@@ -25,7 +25,6 @@ import (
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/tcauth"
 	"github.com/taskcluster/taskcluster-client-go/tcawsprovisioner"
-	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 	"github.com/xeipuuv/gojsonschema"
 )
@@ -173,7 +172,6 @@ and reports back results to the queue.
         ** OPTIONAL ** properties
         =========================
 
-          authBaseURL                       The base URL for API calls to the auth service.
           availabilityZone                  The EC2 availability zone of the worker.
           cachesDir                         The directory where task caches should be stored on
                                             the worker. The directory will be created if it does
@@ -238,14 +236,9 @@ and reports back results to the queue.
           numberOfTasksToRun                If zero, run tasks indefinitely. Otherwise, after
                                             this many tasks, exit. [default: 0]
           privateIP                         The private IP of the worker, used by chain of trust.
-          provisionerBaseURL                The base URL for API calls to the provisioner in
-                                            order to determine if there is a new deploymentId.
           provisionerId                     The taskcluster provisioner which is taking care
                                             of provisioning environments with generic-worker
                                             running on them. [default: test-provisioner]
-          purgeCacheBaseURL                 The base URL for API calls to the purge cache
-                                            service.
-          queueBaseURL                      The base URL for API calls to the queue service.
           region                            The EC2 region of the worker.
           requiredDiskSpaceMegabytes        The garbage collector will ensure at least this
                                             number of megabytes of disk space are available
@@ -293,6 +286,8 @@ and reports back results to the queue.
                                             [default: taskcluster-proxy]
           taskclusterProxyPort              Port number for taskcluster-proxy HTTP requests.
                                             [default: 80]
+          taskclusterRootURL                Root URL of taskcluster cluster that this worker
+                                            should interact with. [default: https://taskcluster.net]
           tasksDir                          The location where task directories should be
                                             created on the worker. [default: ` + defaultTasksDir() + `]
           workerGroup                       Typically this would be an aws region - an
@@ -466,7 +461,6 @@ func loadConfig(filename string, queryUserData bool) (*gwconfig.Config, error) {
 
 	// first assign defaults
 	c := &gwconfig.Config{
-		AuthBaseURL:                    tcauth.DefaultBaseURL,
 		CachesDir:                      "caches",
 		CheckForNewDeploymentEverySecs: 1800,
 		CleanUpTaskDirs:                true,
@@ -477,10 +471,7 @@ func loadConfig(filename string, queryUserData bool) (*gwconfig.Config, error) {
 		LiveLogGETPort:                 60023,
 		LiveLogPUTPort:                 60022,
 		NumberOfTasksToRun:             0,
-		ProvisionerBaseURL:             "",
 		ProvisionerID:                  "test-provisioner",
-		PurgeCacheBaseURL:              tcpurgecache.DefaultBaseURL,
-		QueueBaseURL:                   tcqueue.DefaultBaseURL,
 		RequiredDiskSpaceMegabytes:     10240,
 		RunAfterUserCreation:           "",
 		RunTasksAsCurrentUser:          runtime.GOOS != "windows",
@@ -490,6 +481,7 @@ func loadConfig(filename string, queryUserData bool) (*gwconfig.Config, error) {
 		Subdomain:                      "taskcluster-worker.net",
 		TaskclusterProxyExecutable:     "taskcluster-proxy",
 		TaskclusterProxyPort:           80,
+		TaskclusterRootURL:             "https://taskcluster.net",
 		TasksDir:                       defaultTasksDir(),
 		WorkerGroup:                    "test-worker-group",
 		WorkerTypeMetadata:             map[string]interface{}{},
@@ -609,16 +601,10 @@ func RunWorker() (exitCode ExitCode) {
 		log.Printf("OH NO!!!\n\n%#v", err)
 		panic(err)
 	}
-	creds := &tcclient.Credentials{
-		ClientID:    config.ClientID,
-		AccessToken: config.AccessToken,
-		Certificate: config.Certificate,
-	}
+	creds := config.WorkerCredentials()
 	// Queue is the object we will use for accessing queue api
 	queue = tcqueue.New(creds)
-	queue.BaseURL = config.QueueBaseURL
 	provisioner = tcawsprovisioner.New(creds)
-	provisioner.BaseURL = config.ProvisionerBaseURL
 
 	err = initialiseFeatures()
 	if err != nil {
@@ -777,9 +763,9 @@ func ClaimWork() *TaskRun {
 				ClientID:    taskResponse.Credentials.ClientID,
 				AccessToken: taskResponse.Credentials.AccessToken,
 				Certificate: taskResponse.Credentials.Certificate,
+				RootURL:     config.TaskclusterRootURL,
 			},
 		)
-		taskQueue.BaseURL = config.QueueBaseURL
 		task := &TaskRun{
 			TaskID:            taskResponse.Status.TaskID,
 			RunID:             uint(taskResponse.RunID),

@@ -171,6 +171,7 @@ func (tsm *TaskStatusManager) reclaim() error {
 				ClientID:    tcrsp.Credentials.ClientID,
 				AccessToken: tcrsp.Credentials.AccessToken,
 				Certificate: tcrsp.Credentials.Certificate,
+				RootURL:     config.TaskclusterRootURL,
 			})
 			task.queueMux.Unlock()
 			tsm.status = tcrsp.Status

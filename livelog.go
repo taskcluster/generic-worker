@@ -14,6 +14,7 @@ import (
 	"github.com/taskcluster/stateless-dns-go/hostname"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
+	tcurls "github.com/taskcluster/taskcluster-lib-urls"
 )
 
 var (
@@ -131,7 +132,7 @@ func (l *LiveLogTask) Stop(err *ExecutionErrors) {
 		log.Printf("WARNING: could not terminate livelog writer: %s", errTerminate)
 	}
 	log.Printf("Redirecting %v to %v", livelogName, logName)
-	logURL := fmt.Sprintf("%v/task/%v/runs/%v/artifacts/%v", queue.BaseURL, l.task.TaskID, l.task.RunID, logName)
+	logURL := tcurls.API(queue.Credentials.RootURL, "queue", "v1", fmt.Sprintf("/task/%v/runs/%v/artifacts/%v", l.task.TaskID, l.task.RunID, logName))
 	err.add(l.task.uploadArtifact(
 		&RedirectArtifact{
 			BaseArtifact: &BaseArtifact{

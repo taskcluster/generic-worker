@@ -23,8 +23,6 @@ import (
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
-	"github.com/taskcluster/taskcluster-client-go/tcauth"
-	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
 
@@ -98,7 +96,6 @@ func setup(t *testing.T) (teardown func()) {
 	testDir := filepath.Join(testdataDir, t.Name())
 	config = &gwconfig.Config{
 		AccessToken:      os.Getenv("TASKCLUSTER_ACCESS_TOKEN"),
-		AuthBaseURL:      tcauth.DefaultBaseURL,
 		AvailabilityZone: "outer-space",
 		// Need common caches directory across tests, since files
 		// directory-caches.json and file-caches.json are not per-test.
@@ -123,11 +120,8 @@ func setup(t *testing.T) (teardown func()) {
 		LiveLogSecret:      "xyz",
 		NumberOfTasksToRun: 1,
 		PrivateIP:          net.ParseIP("87.65.43.21"),
-		ProvisionerBaseURL: "",
 		ProvisionerID:      "test-provisioner",
 		PublicIP:           net.ParseIP("12.34.56.78"),
-		PurgeCacheBaseURL:  tcpurgecache.DefaultBaseURL,
-		QueueBaseURL:       tcqueue.DefaultBaseURL,
 		Region:             "test-worker-group",
 		// should be enough for tests, and travis-ci.org CI environments don't
 		// have a lot of free disk
@@ -141,6 +135,7 @@ func setup(t *testing.T) (teardown func()) {
 		Subdomain:                      "taskcluster-worker.net",
 		TaskclusterProxyExecutable:     "taskcluster-proxy",
 		TaskclusterProxyPort:           34569,
+		TaskclusterRootURL:             os.Getenv("TASKCLUSTER_ROOT_URL"),
 		TasksDir:                       testDir,
 		WorkerGroup:                    "test-worker-group",
 		WorkerID:                       "test-worker-id",
@@ -442,11 +437,7 @@ func cancelTask(t *testing.T) (td *tcqueue.TaskDefinitionRequest, payload Generi
 			},
 		},
 	}
-	fullCreds := &tcclient.Credentials{
-		AccessToken: config.AccessToken,
-		ClientID:    config.ClientID,
-		Certificate: config.Certificate,
-	}
+	fullCreds := config.WorkerCredentials()
 	if fullCreds.AccessToken == "" || fullCreds.ClientID == "" || fullCreds.Certificate != "" {
 		t.Skip("Skipping since I need permanent TC credentials for this test")
 	}
@@ -459,6 +450,7 @@ func cancelTask(t *testing.T) (td *tcqueue.TaskDefinitionRequest, payload Generi
 		"TASKCLUSTER_CLIENT_ID":    tempCreds.ClientID,
 		"TASKCLUSTER_ACCESS_TOKEN": tempCreds.AccessToken,
 		"TASKCLUSTER_CERTIFICATE":  tempCreds.Certificate,
+		"TASKCLUSTER_ROOT_URL":     tempCreds.RootURL,
 	}
 	for _, envVar := range []string{
 		"PATH",
