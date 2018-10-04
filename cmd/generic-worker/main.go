@@ -50,7 +50,7 @@ var (
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
 
-	version  = "10.11.3"
+	version  = "11.0.1"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 )
 
@@ -1046,8 +1046,7 @@ func (task *TaskRun) resolve(e *ExecutionErrors) *CommandExecutionError {
 
 func (task *TaskRun) setMaxRunTimer() *time.Timer {
 	return time.AfterFunc(
-		// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
-		task.maxRunTimeDeadline.Round(0).Sub(time.Now()),
+		time.Second*time.Duration(task.Payload.MaxRunTime),
 		func() {
 			// ignore any error the Abort function returns - we are in the
 			// wrong go routine to properly handle it
@@ -1141,8 +1140,6 @@ func (task *TaskRun) Run() (err *ExecutionErrors) {
 	log.Printf("Running task https://tools.taskcluster.net/task-inspector/#%v/%v", task.TaskID, task.RunID)
 
 	task.Commands = make([]*process.Command, len(task.Payload.Command))
-	// need to include deadline in commands, so need to set it already here
-	task.maxRunTimeDeadline = time.Now().Add(time.Second * time.Duration(task.Payload.MaxRunTime))
 	// generate commands, in case features want to modify them
 	for i := range task.Payload.Command {
 		err := task.generateCommand(i) // platform specific
