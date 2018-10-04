@@ -47,11 +47,12 @@ func show(queue *tcqueue.Queue, t tcqueue.TaskDefinitionAndStatus) {
 		"public/logs/live_backing.log",
 		"public/logs/chain_of_trust.log",
 	} {
-		backingLogURL, err := queue.GetLatestArtifact_SignedURL(t.Status.TaskID, artifact, time.Hour)
+		logURL, err := queue.GetLatestArtifact_SignedURL(t.Status.TaskID, artifact, time.Hour)
 		if err != nil {
 			log.Fatal(2, err)
 		}
-		resp, _, err = httpbackoff.Get(backingLogURL.String())
+		// log.Printf("URL: %v", logURL)
+		resp, _, err = httpbackoff.Get(logURL.String())
 		if err == nil {
 			artifactFound = artifact
 			break
@@ -91,6 +92,8 @@ func show(queue *tcqueue.Queue, t tcqueue.TaskDefinitionAndStatus) {
 		fmt.Println("No artifacts found!")
 	case artifactFound == "public/logs/chain_of_trust.log":
 		fmt.Println("scriptworker chain of trust - unknown version")
+	case strings.Contains(logContent, `os.environ.get('GITHUB_HEAD_REPO_URL', decision_json['payload']['env']['GITHUB_HEAD_REPO_URL'])`):
+		fmt.Println("scriptworker - deepspeech - unknown version")
 	default:
 		fmt.Println("UNKNOWN")
 		log.Fatal(5, logContent)
