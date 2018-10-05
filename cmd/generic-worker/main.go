@@ -1,5 +1,5 @@
-//go:generate gw-codegen all-unix-style.yml generated_all-unix-style.go !windows
-//go:generate gw-codegen windows.yml generated_windows.go
+//go:generate gw-codegen ../../schemas/all-unix-style.yml generated_all-unix-style.go !windows
+//go:generate gw-codegen ../../schemas/windows.yml generated_windows.go
 
 package main
 
