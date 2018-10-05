@@ -5,7 +5,7 @@ if [ -z "${REPORT}" ]; then
   echo "Specify a report, e.g. '${0}' myreport.txt" >&2
   exit 64
 fi
-cd "$(dirname "${0}")"
+cd "$(dirname "${0}")"/..
 TEMP_SINGLE_REPORT="$(mktemp -t coverage.tmp.XXXXXXXXXX)"
 echo "mode: atomic" > "${REPORT}"
 HEAD_REV="$(git rev-parse HEAD)"
