@@ -29,12 +29,10 @@ if [ -z "${COLOUR}" ]; then
   exit 66
 fi
 
-cd "$(dirname "${0}")/${WORKER_TYPE}"
-
 if [ "${ACTION}" == "update" ]; then
-  . ../update.sh
+  . "$(dirname "${0}")/update.sh"
 elif [ "${ACTION}" == "delete" ]; then
-  . ../delete.sh
+  . "$(dirname "${0}")/delete.sh"
 else
   log "$(basename "${0}"): ERROR: Unknown action '${ACTION}' ... exiting" >&2
   exit 86

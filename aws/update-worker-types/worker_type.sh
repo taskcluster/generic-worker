@@ -17,17 +17,22 @@ fi
 export WORKER_TYPE="${1}"
 export ACTION="${2}"
 
-WORKER_TYPES_DIR=${WORKER_TYPES_DIR:-$(dirname "${0}")}
+# Default directory to look for definitions is current directory.
+# To select a different directory, simply export WORKER_TYPES_DIR
+# to chosen directory before calling this script.
+WORKER_TYPES_DIR=${WORKER_TYPES_DIR:-.}
 
-if [ ! -d "${WORKER_TYPES_DIR}/${WORKER_TYPE}" ]; then
-  echo "ERROR: No directory for worker type: '${WORKER_TYPES_DIR}/${WORKER_TYPE}'"
+# Note we export this env var for subshells, rathing than passing explicitly as
+# a command line argument, to keep xargs commands simple later on.
+export WORKER_TYPE_DEFINITION_DIR="${WORKER_TYPES_DIR}/${WORKER_TYPE}"
+
+if [ ! -d "${WORKER_TYPE_DEFINITION_DIR}" ]; then
+  echo "ERROR: No directory for worker type: '${WORKER_TYPE_DEFINITION_DIR}'" >&2
+  echo "Note, if your worker type definitions are stored locally in a different directory, please export WORKER_TYPES_DIR" >&2
   exit 65
 fi
 
 echo "$(date): Starting"'!'
-
-# cd into worker type directory containing script...
-cd "$(dirname "${0}")/${WORKER_TYPE}"
 
 # needed to not confuse the script later
 rm -f *.latest-ami
@@ -40,10 +45,10 @@ export SLUGID=$("$(go env GOPATH)/bin/slug")
 # aws ec2 describe-regions --query '{A:Regions[*].RegionName}' --output text | grep -v sa-east-1 | while read x REGION; do
 # (skip sa-east-1 since it doesn't support all the APIs we use in this script)
 
-echo us-west-1 118 us-west-2 199 us-east-1 100 | xargs -P32 -n2 ../process_region.sh
+echo us-west-1 118 us-west-2 199 us-east-1 100 | xargs -P32 -n2 "$(dirname "${0}")/process_region.sh"
 
 if [ "${ACTION}" == "update" ]; then
-  "$(go env GOPATH)/bin/update-worker-type" .
+  "$(go env GOPATH)/bin/update-worker-type" "${WORKER_TYPE_DEFINITION_DIR}"
   echo
   echo "The worker type has been proactively updated("'!'"):"
   echo
