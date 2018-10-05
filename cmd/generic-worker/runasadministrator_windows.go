@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/taskcluster/generic-worker/win32"
+	"github.com/taskcluster/generic-worker/lib/win32"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 )
 

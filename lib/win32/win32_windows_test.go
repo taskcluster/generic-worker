@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/taskcluster/generic-worker/win32"
+	"github.com/taskcluster/generic-worker/lib/win32"
 )
 
 func ExampleMergeEnvLists() {

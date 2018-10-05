@@ -16,9 +16,9 @@ import (
 	"unsafe"
 
 	"github.com/dchest/uniuri"
-	"github.com/taskcluster/generic-worker/process"
-	"github.com/taskcluster/generic-worker/runtime"
-	"github.com/taskcluster/generic-worker/win32"
+	"github.com/taskcluster/generic-worker/lib/process"
+	"github.com/taskcluster/generic-worker/lib/runtime"
+	"github.com/taskcluster/generic-worker/lib/win32"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )

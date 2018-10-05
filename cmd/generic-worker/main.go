@@ -19,8 +19,8 @@ import (
 	"time"
 
 	docopt "github.com/docopt/docopt-go"
-	"github.com/taskcluster/generic-worker/gwconfig"
-	"github.com/taskcluster/generic-worker/process"
+	"github.com/taskcluster/generic-worker/lib/gwconfig"
+	"github.com/taskcluster/generic-worker/lib/process"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/tcauth"

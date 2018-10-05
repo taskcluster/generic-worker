@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/taskcluster/generic-worker/runtime"
-	"github.com/taskcluster/generic-worker/win32"
+	"github.com/taskcluster/generic-worker/lib/runtime"
+	"github.com/taskcluster/generic-worker/lib/win32"
 )
 
 type Command struct {

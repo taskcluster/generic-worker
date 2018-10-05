@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/lib/gwconfig"
 )
 
 func TestMounts(t *testing.T) {

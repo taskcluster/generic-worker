@@ -7,7 +7,7 @@ import (
 	"golang.org/x/sys/windows"
 
 	acl "github.com/hectane/go-acl"
-	"github.com/taskcluster/generic-worker/process"
+	"github.com/taskcluster/generic-worker/lib/process"
 )
 
 func (cot *ChainOfTrustTaskFeature) ensureTaskUserCantReadPrivateCotKey() error {

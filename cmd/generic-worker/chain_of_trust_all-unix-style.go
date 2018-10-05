@@ -8,7 +8,7 @@ import (
 	"os/user"
 	"strconv"
 
-	"github.com/taskcluster/generic-worker/process"
+	"github.com/taskcluster/generic-worker/lib/process"
 )
 
 func (cot *ChainOfTrustTaskFeature) ensureTaskUserCantReadPrivateCotKey() error {

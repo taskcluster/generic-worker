@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/lib/gwconfig"
 	"github.com/taskcluster/taskcluster-client-go/tcawsprovisioner"
 )
 

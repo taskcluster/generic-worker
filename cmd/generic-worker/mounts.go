@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/mholt/archiver"
-	"github.com/taskcluster/generic-worker/fileutil"
+	"github.com/taskcluster/generic-worker/lib/fileutil"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-base-go/scopes"

@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/openpgp/clearsign"
 	"golang.org/x/crypto/openpgp/packet"
 
-	"github.com/taskcluster/generic-worker/fileutil"
+	"github.com/taskcluster/generic-worker/lib/fileutil"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )

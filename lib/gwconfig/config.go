@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/taskcluster/generic-worker/fileutil"
+	"github.com/taskcluster/generic-worker/lib/fileutil"
 )
 
 type (

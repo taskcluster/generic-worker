@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/taskcluster/generic-worker/process"
+	"github.com/taskcluster/generic-worker/lib/process"
 	"github.com/taskcluster/shell"
 )
 

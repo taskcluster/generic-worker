@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/taskcluster/generic-worker/livelog"
-	"github.com/taskcluster/generic-worker/process"
+	"github.com/taskcluster/generic-worker/lib/livelog"
+	"github.com/taskcluster/generic-worker/lib/process"
 	"github.com/taskcluster/stateless-dns-go/hostname"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
 	tcclient "github.com/taskcluster/taskcluster-client-go"

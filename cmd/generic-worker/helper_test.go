@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/lib/gwconfig"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
