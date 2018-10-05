@@ -107,7 +107,7 @@ tasks:
         - C:\generic-worker\generic-worker-test-creds.cmd
         - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
-        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race'
+        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race github.com/taskcluster/generic-worker/cmd/generic-worker'
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-amd64.exe
@@ -178,7 +178,7 @@ tasks:
         - C:\generic-worker\generic-worker-test-creds.cmd
         - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
-        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v'
+        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v github.com/taskcluster/generic-worker/cmd/generic-worker'
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-386.exe
@@ -260,7 +260,7 @@ tasks:
         - C:\generic-worker\generic-worker-test-creds.cmd
         - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
-        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race'
+        - 'go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker/cmd/generic-worker.revision=%revision%" -v -race github.com/taskcluster/generic-worker/cmd/generic-worker'
         - ineffassign .
       artifacts:
         - name: public/build/generic-worker-windows-amd64.exe
