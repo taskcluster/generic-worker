@@ -34,7 +34,7 @@ rm -f *.latest-ami
 
 # generate a random slugid for aws client token...
 go get github.com/taskcluster/slugid-go/slug
-go install github.com/taskcluster/generic-worker/update-worker-type
+go install github.com/taskcluster/generic-worker/aws/cmd/update-worker-type
 export SLUGID=$("$(go env GOPATH)/bin/slug")
 
 # aws ec2 describe-regions --query '{A:Regions[*].RegionName}' --output text | grep -v sa-east-1 | while read x REGION; do
