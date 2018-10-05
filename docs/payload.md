@@ -15,11 +15,21 @@ When submitting a task graph to the Task Cluster Queue (see
 payload for defining the tasks to be executed by the worker. In the case of the
 generic worker, the payload must conform to the following schema.
 
-<div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/payload.json"></div>
+
+# Windows
+
+<div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/windows.json"></div>
+
+# macOS
+
+<div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/macos.json"></div>
+
+# Linux
+
+<div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/linux.json"></div>
 
 The payload comprises of a command to run, environment variables to be set
 (optionally encrypted) and a timeout for the task (`maxRunTime`).
 
 The worker will run the task, upload log files, and report back status to the
 Queue.
-
