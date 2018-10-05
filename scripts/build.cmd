@@ -2,14 +2,14 @@
 
 @echo on
 
-:: cd to dir containing this script
-pushd %~dp0
+:: cd to parent dir of the dir of this script
+pushd %~dp0\..
 
 go get github.com/taskcluster/livelog github.com/gordonklaus/ineffassign || exit /b %ERRORLEVEL%
-cd gw-codegen
+cd cmd\gw-codegen
 go get -v || exit /b %ERRORLEVEL%
-cd ..
-go generate || exit /b %ERRORLEVEL%
+cd ..\..
+go generate ./... || exit /b %ERRORLEVEL%
 go get -v -t ./... || exit /b %ERRORLEVEL%
 
 :: this counts the number of lines returned by git status

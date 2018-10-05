@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-cd "$(dirname "${0}")"
+cd "$(dirname "${0}")"/..
 
 # Support go 1 release 1.9 or higher. Let's not move this to 1.10 until
 # https://bugzil.la/1441889 is resolved, and travis-ci.org works correctly with
@@ -42,7 +42,7 @@ done
 echo "${OUTPUT_ALL_PLATFORMS}"
 echo "${OUTPUT_TEST}"
 
-go get github.com/taskcluster/generic-worker/gw-codegen
+go get github.com/taskcluster/generic-worker/cmd/gw-codegen
 export PATH="$(go env GOPATH)/bin:${PATH}"
 go generate ./...
 
@@ -51,14 +51,12 @@ function install {
     GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
     # GOOS="${1}" GOARCH="${2}" go vet ./...
     # note, this just builds tests, it doesn't run them!
-    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker
-    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/livelog
+    GOOS="${1}" GOARCH="${2}" CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/...
   else
     CGO_ENABLED=0 go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v ./...
     go vet ./...
     # note, this just builds tests, it doesn't run them!
-    CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker
-    CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/livelog
+    CGO_ENABLED=0 go test -c github.com/taskcluster/generic-worker/...
   fi
 }
 
