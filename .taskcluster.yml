@@ -86,9 +86,9 @@ tasks:
         - 'git clean -fdx'
         - 'git checkout -B tmp -t "X%TASK_ID%"'
         - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-        - cd gw-codegen
+        - cd cmd\gw-codegen
         - go get -v -u
-        - cd ..
+        - cd ..\..
         - go generate
         - |
           :: this counts the number of lines returned by git status
@@ -168,9 +168,9 @@ tasks:
         - 'git clean -fdx'
         - 'git checkout -B tmp -t "X%TASK_ID%"'
         - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-        - cd gw-codegen
+        - cd cmd\gw-codegen
         - go get -v -u
-        - cd ..
+        - cd ..\..
         - go generate
         - set revision={{ event.head.sha }}
         - go get -ldflags "-X main.revision=%revision%" -v -u -t ./...
@@ -239,9 +239,9 @@ tasks:
         - 'git clean -fdx'
         - 'git checkout -B tmp -t "X%TASK_ID%"'
         - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-        - cd gw-codegen
+        - cd cmd\gw-codegen
         - go get -v -u
-        - cd ..
+        - cd ..\..
         - go generate
         - |
           :: this counts the number of lines returned by git status
@@ -324,9 +324,9 @@ tasks:
             git clean -fdx
             git checkout -B tmp -t "X${TASK_ID}"
             go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-            cd gw-codegen
+            cd cmd/gw-codegen
             go get -v -u
-            cd ..
+            cd ../..
             go generate
             go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v -u -t ./...
             # output of wc command can contain spaces on darwin, so no quotes around expression
@@ -397,9 +397,9 @@ tasks:
   #           git clean -fdx
   #           git checkout -B tmp -t "X${TASK_ID}"
   #           go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-  #           cd gw-codegen
+  #           cd cmd/gw-codegen
   #           go get -v -u
-  #           cd ..
+  #           cd ../..
   #           go generate
   #           go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v -u -t ./...
   #           test "$(git status --porcelain | wc -l)" == 0
@@ -464,9 +464,9 @@ tasks:
           git clean -fdx
           git checkout -B tmp -t "X${TASK_ID}"
           go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-          cd gw-codegen
+          cd cmd/gw-codegen
           go get -v -u
-          cd ..
+          cd ../..
           go generate
           go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v -u -t ./...
           test "$(git status --porcelain | wc -l)" == 0
