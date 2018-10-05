@@ -11,7 +11,7 @@ set -e
 OFFICIAL_GIT_REPO='git@github.com:taskcluster/generic-worker'
 
 # step into directory containing this script
-cd "$(dirname "${0}")"
+cd "$(dirname "${0}")/.."
 
 NEW_VERSION="${1}"
 
@@ -102,12 +102,12 @@ if ! echo "${NEW_VERSION}" | grep -q "alpha"; then
   fi
 fi
 
-inline_sed README.md "s/.\/release.sh ${OLD_VERSION//./\\.}/.\/release.sh ${NEW_VERSION}/"
+inline_sed README.md "s/scripts\/release.sh ${OLD_VERSION//./\\.}/scripts\/release.sh ${NEW_VERSION}/"
 inline_sed main.go 's/\(version *= *\)"'"${OLD_VERSION//./\\.}"'"$/\1"'"${NEW_VERSION}"'"/'
 find . -name userdata | while read file; do
   inline_sed "${file}" "s:taskcluster/generic-worker/releases/download/v${OLD_VERSION//./\\.}/:taskcluster/generic-worker/releases/download/v${NEW_VERSION}/:g"
 done
-./refresh_readme.sh
+"$(dirname "${0}")/refresh_readme.sh"
 git add README.md
 git commit -m "Version bump from ${OLD_VERSION} to ${NEW_VERSION}"
 git tag -s "v${NEW_VERSION}" -m "Making release ${NEW_VERSION}"
@@ -122,7 +122,7 @@ if ! echo "${NEW_VERSION}" | grep -q "alpha"; then
   echo
   echo 'Will you also be deploying this release to production? If so, please run:'
   echo
-  echo '  ***** ./publish-payload-schema.sh *****'
+  echo '  ***** scripts/publish-payload-schema.sh *****'
   echo
   echo 'This will update:'
   echo

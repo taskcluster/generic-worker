@@ -1,10 +1,10 @@
 #!/bin/bash -eu
-cd "$(dirname "${0}")"
+cd "$(dirname "${0}")/.."
 VALID_FORMAT='[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*'
 TEMP_GW_HELP="$(mktemp -t generic-worker-help-text.XXXXXXXXXX)"
 TEMP_GW_README="$(mktemp -t generic-worker-readme.XXXXXXXXXX)"
 TEMP_GW_BINARY="$(mktemp -t generic-worker.XXXXXXXXXX)"
-go build -o "${TEMP_GW_BINARY}"
+go build ./cmd/generic-worker -o "${TEMP_GW_BINARY}"
 "${TEMP_GW_BINARY}" --help > "${TEMP_GW_HELP}"
 echo '```' >> "${TEMP_GW_HELP}"
 sed -e "
