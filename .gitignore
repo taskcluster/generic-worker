@@ -39,7 +39,7 @@ _testmain.go
 
 # For any releases made locally
 /target/
-worker_type_definitions
+aws-provisioner-v1-worker-type-definitions
 
 # Files created by generic-worker
 generic-worker.config

@@ -29,8 +29,9 @@ type WorkerPool struct {
 // This program is a simple command line utility. When you run it, it will
 // spawn 20 go routines to download worker type defintions for
 // aws-provisioner-v1 in parallel. It will put them in a sub-directory called
-// worker_type_definitions, creating it if necessary, with each file named as
-// the workerType. I use this in combination with a cron job that runs
+// aws-provisioner-v1-worker-type-definitions, creating it if necessary, with
+// each file named as the workerType. I use this in combination with a cron job
+// that runs
 // https://github.com/petemoore/myscrapbook/blob/master/sync-worker-type-definitions.sh
 // every 5 mins, in order to maintain a git history of worker type definitions
 // locally.  I don't publish the git repository anywhere, since the worker type
@@ -38,7 +39,7 @@ type WorkerPool struct {
 // secrets at some point).
 func main() {
 	prov := tcawsprovisioner.NewFromEnv()
-	downloadDirectory := "worker_type_definitions"
+	downloadDirectory := "aws-provisioner-v1-worker-type-definitions"
 	requestChannel := make(chan string)
 	processedChannel := make(chan string)
 	_ = NewWorkerPool(20, requestChannel, processedChannel, prov, downloadDirectory)
