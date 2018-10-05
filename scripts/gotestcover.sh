@@ -16,7 +16,7 @@ go list ./... > "${PACKAGE_LIST}"
 
 while read package
 do
-  CGO_ENABLED=1 go test -ldflags "-X github.com/taskcluster/generic-worker.revision=${HEAD_REV}" -race -timeout 1h -covermode=atomic "-coverprofile=${TEMP_SINGLE_REPORT}" "${package}"
+  CGO_ENABLED=1 go test -ldflags "-X github.com/taskcluster/cmd/generic-worker.revision=${HEAD_REV}" -race -timeout 1h -covermode=atomic "-coverprofile=${TEMP_SINGLE_REPORT}" "${package}"
   if [ -f "${TEMP_SINGLE_REPORT}" ]; then
     sed 1d "${TEMP_SINGLE_REPORT}" >> "${REPORT}"
     rm "${TEMP_SINGLE_REPORT}"
