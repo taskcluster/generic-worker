@@ -1,9 +1,9 @@
 #!/bin/bash -e
 
 cd "$(dirname "${0}")"
-go get github.com/taskcluster/generic-worker/yamltojson
+go get github.com/taskcluster/generic-worker/cmd/yamltojson
 jsonFile="$(mktemp -t jsonFile.XXXXXX)"
-cat windows.yml | yamltojson > "${jsonFile}"
+cat windows.yml | "$(go env GOPATH)/bin/yamltojson" > "${jsonFile}"
 aws s3 cp "${jsonFile}" s3://schemas.taskcluster.net/generic-worker/v1/payload.json
 rm "${jsonFile}"
 curl https://schemas.taskcluster.net/generic-worker/v1/payload.json

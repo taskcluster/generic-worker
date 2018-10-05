@@ -33,19 +33,19 @@ export GOARCH="${MY_GOARCH}"
 go version
 go env
 export GOPATH="$(mktemp -d -t generic-worker.XXXXXXXXXX)"
-export PATH="${GOPATH}/bin:${PATH}"
-rm -rf "${GOPATH}"
+export PATH="$(go env GOPATH)/bin:${PATH}"
+rm -rf "$(go env GOPATH)"
 go get -d -v 'github.com/taskcluster/generic-worker'
-"${GOPATH}/src/github.com/taskcluster/generic-worker/build.sh" -a -t
+"$(go env GOPATH)/src/github.com/taskcluster/generic-worker/build.sh" -a -t
 
-mv "${GOPATH}/bin/darwin_386/generic-worker" target/generic-worker-darwin-386
-mv "${GOPATH}/bin/generic-worker" target/generic-worker-darwin-amd64
-mv "${GOPATH}/bin/linux_386/generic-worker" target/generic-worker-linux-386
-mv "${GOPATH}/bin/linux_amd64/generic-worker" target/generic-worker-linux-amd64
-mv "${GOPATH}/bin/linux_arm/generic-worker" target/generic-worker-linux-arm
-mv "${GOPATH}/bin/linux_arm64/generic-worker" target/generic-worker-linux-arm64
-mv "${GOPATH}/bin/windows_386/generic-worker.exe" target/generic-worker-windows-386
-mv "${GOPATH}/bin/windows_amd64/generic-worker.exe" target/generic-worker-windows-amd64
+mv "$(go env GOPATH)/bin/darwin_386/generic-worker" target/generic-worker-darwin-386
+mv "$(go env GOPATH)/bin/generic-worker" target/generic-worker-darwin-amd64
+mv "$(go env GOPATH)/bin/linux_386/generic-worker" target/generic-worker-linux-386
+mv "$(go env GOPATH)/bin/linux_amd64/generic-worker" target/generic-worker-linux-amd64
+mv "$(go env GOPATH)/bin/linux_arm/generic-worker" target/generic-worker-linux-arm
+mv "$(go env GOPATH)/bin/linux_arm64/generic-worker" target/generic-worker-linux-arm64
+mv "$(go env GOPATH)/bin/windows_386/generic-worker.exe" target/generic-worker-windows-386
+mv "$(go env GOPATH)/bin/windows_amd64/generic-worker.exe" target/generic-worker-windows-amd64
 
 echo
 echo "Release binaries available in directory '$(pwd)/target'"
@@ -56,5 +56,5 @@ echo
 echo
 
 rm -rf "${GO_DOWNLOAD_DIR}"
-rm -rf "${GOPATH}"
+rm -rf "$(go env GOPATH)"
 rm target/go.tar.gz

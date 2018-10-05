@@ -310,12 +310,12 @@ tasks:
             export CGO_ENABLED=0
             export GOROOT="$(pwd)/go1.10.3/go"
             export GOPATH="$(pwd)/gopath1.10.3"
-            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+            export PATH="$(go env GOPATH)/bin:${GOROOT}/bin:${PATH}"
             go version
             go env
             source "${GW_CREDS_BOOTSTRAP}"
-            mkdir -p "${GOPATH}/src/github.com/taskcluster"
-            cd "${GOPATH}/src/github.com/taskcluster"
+            mkdir -p "$(go env GOPATH)/src/github.com/taskcluster"
+            cd "$(go env GOPATH)/src/github.com/taskcluster"
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
             cd 'generic-worker'
             git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/X${TASK_ID}"
@@ -382,13 +382,13 @@ tasks:
   #           export CGO_ENABLED=0
   #           export GOROOT="$(pwd)/go1.10.3/go"
   #           export GOPATH="$(pwd)/gopath1.10.3"
-  #           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+  #           export PATH="$(go env GOPATH)/bin:${GOROOT}/bin:${PATH}"
   #           export CGO_ENABLED=0
   #           go version
   #           go env
   #           source "${GW_CREDS_BOOTSTRAP}"
-  #           mkdir -p "${GOPATH}/src/github.com/taskcluster"
-  #           cd "${GOPATH}/src/github.com/taskcluster"
+  #           mkdir -p "$(go env GOPATH)/src/github.com/taskcluster"
+  #           cd "$(go env GOPATH)/src/github.com/taskcluster"
   #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
   #           cd 'generic-worker'
   #           git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/X${TASK_ID}"
@@ -454,8 +454,8 @@ tasks:
           go env
           curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/generic-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
           source ~/env_private.sh
-          mkdir -p "${GOPATH}/src/github.com/taskcluster"
-          cd "${GOPATH}/src/github.com/taskcluster"
+          mkdir -p "$(go env GOPATH)/src/github.com/taskcluster"
+          cd "$(go env GOPATH)/src/github.com/taskcluster"
           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
           cd 'generic-worker'
           git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/X${TASK_ID}"
@@ -471,7 +471,7 @@ tasks:
           go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v -u -t ./...
           test "$(git status --porcelain | wc -l)" == 0
           GORACE=history_size=7 CGO_ENABLED=1 go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
-          "${GOPATH}/bin/ineffassign" .
+          "$(go env GOPATH)/bin/ineffassign" .
       artifacts:
         public/build/generic-worker-linux-amd64:
           path: "/go/bin/generic-worker"

@@ -22,10 +22,10 @@ script:
   - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || test $(git status --porcelain | wc -l) == 0"
   - "go get -ldflags \"-X main.revision=$(git rev-parse HEAD)\" -v -t ./..."
   - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || GORACE=history_size=7 travis_wait 30 scripts/gotestcover.sh coverage.report"
-  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || ${GOPATH}/bin/ineffassign ."
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || $(go env GOPATH)/bin/ineffassign ."
 
 after_script:
-  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || ${GOPATH}/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || $(go env GOPATH)/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
 
 before_deploy:
   - "source .travis_rename_releases.sh"
