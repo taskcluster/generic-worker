@@ -1,4 +1,11 @@
 ---
+
+# Bug 1456357 - Do **NOT** consider adding this line back in, it causes
+# github.com/xeipuuv/gojsonschema to attempt to download the schema which could
+# be out-of-sync with this version which is burned into the release.
+#
+# ### DO NOT ADD THIS!! -> id: https://schemas.taskcluster.net/generic-worker/v1/payload.json#
+
 "$schema": http://json-schema.org/draft-04/schema#
 title: Generic worker payload
 description: |-
