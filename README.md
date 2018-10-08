@@ -14,9 +14,6 @@ Interaction
 specification](https://docs.taskcluster.net/docs/reference/platform/taskcluster-queue/docs/worker-interaction).
 It is shipped as a statically linked system-native executable.
 
-The mechanism by which it achieves a sandbox is platform-specific, and is
-explained later.
-
 ## Imperative task payloads
 
 Generic worker allows tasks to run arbitrary command payloads in a sandbox. If
@@ -24,7 +21,51 @@ you are looking for a worker to run only specific commands on a privileged
 environment, see
 [scriptworker](https://github.com/mozilla-releng/scriptworker).
 
-## Docker support
+## Sandboxing
+
+The mechanism for providing a sandbox for a task to run in, is platform-specific.
+
+### Windows
+
+On Windows, `generic-worker.exe` runs in a Windows Service under the
+[LocalSystem](https://docs.microsoft.com/en-us/windows/desktop/services/localsystem-account)
+account. This service creates a fresh new (non-admin) OS user in preparation
+for running a task. The worker configures the machine to automatically log in
+as the newly created task user, and then triggers the machine to reboot. Once
+the machine reboots, the worker running in the Windows Service waits until it
+detects that the Operating System [winlogon
+module](https://docs.microsoft.com/en-us/windows/desktop/secauthn/winlogon-and-credential-providers)
+has completed the interactive logon of the task user. At this point it polls
+the taskcluster Queue to fetch a task to execute, and when it is given one, it
+executes this task in the interactive logon session of the logged-in user,
+running processes using the auth token obtained from the interactive desktop
+session.
+
+After the task completes, the home directory of the task user, and the task
+directory (if different to the home directory of the task user) are erased, a
+new task user is created, the machine is rebooted, and the former task user is
+purged.
+
+In many ways, this operation can be alikened to providing a guest account on
+the machine. After the task has completed, all trace of the changes made by the
+task user should be gone, and the machine's state should be reset to the state
+it had before the task was run. If the host environment is sufficiently locked
+down, the task user should not have been able to apply any state-change to the
+host environment. Please note that the worker has limited control to affect
+system-wide policy, so for example if a host allows arbtirary users to write to
+a system folder location, the worker is not able to prevent a task doing so.
+Therefore it is up to the machine provider to ensure that the host is
+sufficiently locked-down. Host environments for long-lived workers that are to
+run untrusted tasks should be secured carefully, to prevent that tasks may
+interfere with system state or persist changes across task runs that may affect
+the reproducibility of a task, or worse, introduce a security issue.
+
+
+### Linux
+
+There is no native sandbox support currently on Linux. Currently the worker
+will execute tasks as the same user that the worker runs as. Use at your own
+risk!
 
 Work is underway to provide support for running generic-worker tasks inside a
 docker container isolated from the host environment. However until this work is
@@ -32,7 +73,19 @@ complete, please see
 [docker-worker](https://github.com/taskcluster/docker-worker) for achieving
 this.
 
-For running
+We may, at some point, provide OS-user sandboxing, akin to the Windows
+implementation.
+
+
+### macOS
+
+There is no native sandbox support currently on macOS. Currently the worker
+will execute tasks as the same user that the worker runs as. Use at your own
+risk!
+
+We intend to provide OS-user sandboxing, akin to the Windows implementation, at
+some point in the future.
+
 
 # Payload format
 
