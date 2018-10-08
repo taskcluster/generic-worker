@@ -10,21 +10,22 @@ docref:       true
 order:        1
 ---
 
-When submitting a task graph to the Task Cluster Queue (see
-[createTask](/reference/platform/queue/reference/api-docs#createTask)) you must provide a
-payload for defining the tasks to be executed by the worker. In the case of the
-generic worker, the payload must conform to the following schema.
+When submitting a task to the Taskcluster Queue (see
+[createTask](/reference/platform/queue/reference/api-docs#createTask)) you must
+provide a payload property for the task. This `payload` property is specific to
+the worker implementation, and tells the worker what to execute, and which
+artifacts to upload. This page documents the payload property for
+generic-worker, on all the platforms that it is supported on.
 
-
-# Windows
+# generic-worker on Windows
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/windows.json"></div>
 
-# macOS
+# generic-worker on macOS
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/macos.json"></div>
 
-# Linux
+# generic-worker on Linux
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/linux.json"></div>
 
