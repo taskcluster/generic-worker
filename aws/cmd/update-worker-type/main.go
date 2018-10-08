@@ -112,7 +112,7 @@ func main() {
 	oldMetadata := config["workerTypeMetadata"].(map[string]interface{})
 	oldMachineSetup := oldMetadata["machine-setup"].(map[string]interface{})
 	oldScript := oldMachineSetup["script"].(string)
-	newScript := "https://raw.githubusercontent.com/taskcluster/generic-worker/" + gitRevision(workerTypeDir) + "/worker_types/" + workerType + "/userdata"
+	newScript := "https://raw.githubusercontent.com/taskcluster/generic-worker/" + gitRevision(workerTypeDir) + "/mozilla/worker-type-host-definitions/aws-provisioner-v1/" + workerType + "/userdata"
 	oldMachineSetup["script"] = newScript
 
 	log.Print("Old machine setup script: " + oldScript)
