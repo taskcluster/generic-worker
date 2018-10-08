@@ -127,10 +127,10 @@ There is no native sandbox support currently on Linux. Currently the worker
 will execute tasks as the same user that the worker runs as. Use at your own
 risk!
 
-Work is underway to provide support for running generic-worker tasks inside a
-docker container isolated from the host environment. However until this work is
-complete, please see
-[docker-worker](https://github.com/taskcluster/docker-worker) for achieving
+Work is [underway](https://github.com/taskcluster/generic-worker/pull/62) to
+provide support for running generic-worker tasks inside a docker container
+isolated from the host environment. However until this work is complete, please
+see [docker-worker](https://github.com/taskcluster/docker-worker) for achieving
 this.
 
 We may, at some point, provide OS-user sandboxing, akin to the Windows
