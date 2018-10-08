@@ -8,25 +8,80 @@
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
+Generic worker is a Windows/Linux/macOS program for executing taskcluster
+tasks. It communicates with the taskcluster Queue as per the [Queue-Worker
+Interaction
+specification](https://docs.taskcluster.net/docs/reference/platform/taskcluster-queue/docs/worker-interaction).
+It is shipped as a statically linked system-native executable.
+
+# Payload format
+
+# Execution policy
+
+## Windows
+### System calls (KnownFolders, generating processes, ...)
+## Mac
+No isolation
+## Linux
+No isolation - working on docker
+
+## Redeployability
+
+## Integrating with AWS / GCE
+
+## Config bootstrapping
+
+# "Bring your own worker": Running your own generic-worker workers
+## Mac
+### Installing
+
+## Windows
+### Installing
+## Linux - Docker
+## Linux - Native
+### Installing
+# Administrative tools
+## Displaying workers
+# Worker Type Host Definitions
+## Updating existing definitions
+## Modifying definitions
+## Creating your own AWS workers outside of this repo
+## Puppet
+# Developing Generic Worker
+## Fetching source
+## Credentials
+## Running unit tests
+## Writing unit tests
+## Including bug numbers in comments
+
+# Releasing Generic Worker
+## Release script
+## Publishing schemas
+## Testing in Staging
+## Rolling out to Production
+## Writing release notes (README.md, release page, ...)
+# Repository layout
 
 
-# Install binary
+
+# Downloading generic-worker binary release
 
 * Download the latest release for your platform from https://github.com/taskcluster/generic-worker/releases
 * Download the latest release of livelog for your platform from https://github.com/taskcluster/livelog/releases
 * For darwin/linux, make the binaries executable: `chmod a+x {generic-worker,livelog}*`
 
-# Build from source
+# Building generic-worker from source
 
 If you prefer not to use a prepackaged binary, or want to have the latest unreleased version from the development head:
 
 * Head over to https://golang.org/dl/ and follow the instructions for your platform. __Note, go 1.8 or higher is required__.
-* Run `go get github.com/taskcluster/generic-worker`
-* Run `go get github.com/taskcluster/livelog`
+* Run `./build.sh` (macOS/Linux) or `.\build.cmd` (Windows)
 
 All being well, the binaries will be built under `$(go env GOPATH)/bin`.
 
-# Acquire taskcluster credentials for running tests
+
+
+# Acquire taskcluster credentials for running code tests
 
 There are two alternative mechanisms to acquire the scopes you need.
 
