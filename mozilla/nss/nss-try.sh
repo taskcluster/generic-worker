@@ -19,7 +19,7 @@ function open_browser_page {
 cd "$(dirname "${0}")"
 THIS_SCRIPT_DIR="$(pwd)"
 
-NEW_VERSION="$(cat ../worker_types/nss-win2012r2-new/userdata | sed -n 's_.*https://github\.com/taskcluster/generic-worker/releases/download/v\(.*\)/generic-worker-windows-amd64\.exe.*_\1_p')"
+NEW_VERSION="$(cat ../worker-type-host-definitions/aws-provisioner-v1/nss-win2012r2-new/userdata | sed -n 's_.*https://github\.com/taskcluster/generic-worker/releases/download/v\(.*\)/generic-worker-windows-amd64\.exe.*_\1_p')"
 VALID_FORMAT='^[1-9][0-9]*\.\(0\|[1-9][0-9]*\)\.\(0\|[1-9]\)\([0-9]*alpha[1-9][0-9]*\|[0-9]*\)$'
 
 if ! echo "${NEW_VERSION}" | grep -q "${VALID_FORMAT}"; then
@@ -27,7 +27,8 @@ if ! echo "${NEW_VERSION}" | grep -q "${VALID_FORMAT}"; then
   exit 65
 fi
 
-../worker_types/worker_type.sh nss-win2012r2-new update
+export WORKER_TYPES_DIR=../worker-type-host-definitions/aws-provisioner-v1
+../../aws/update-worker-types/worker_type.sh nss-win2012r2-new update
 
 NSS_CHECKOUT="$(mktemp -d -t nss-checkout.XXXXXXXXXX)"
 cd "${NSS_CHECKOUT}"
