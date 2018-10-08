@@ -118,7 +118,7 @@ Therefore it is up to the machine provider to ensure that the host is
 sufficiently locked-down. Host environments for long-lived workers that are to
 run untrusted tasks should be secured carefully, to prevent that tasks may
 interfere with system state or persist changes across task runs that may affect
-the reproducibility of a task, or worse, introduce a security issue.
+the reproducibility of a task, or worse, introduce a security vulnerability.
 
 
 ### Linux
