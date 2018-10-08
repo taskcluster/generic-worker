@@ -34,7 +34,12 @@ NSS_CHECKOUT="$(mktemp -d -t nss-checkout.XXXXXXXXXX)"
 cd "${NSS_CHECKOUT}"
 hg clone https://hg.mozilla.org/projects/nss
 cd nss
-patch -p1 -i "${THIS_SCRIPT_DIR}/nss.patch"
+grep -rl nss-win2012r2 . | while read FILE
+do
+  cp "${FILE}" "${FILE}.x"
+  cat "${FILE}.x" | sed 's/nss-win2012r2/nss-win2012r2-new/g' > "${FILE}"
+  rm "${FILE}.x"
+done
 hg commit -m "Testing generic-worker ${NEW_VERSION} on nss-win2012r2-new worker type; try: -p win32,win64 -t none -u all"
 hg push -f ssh://hg.mozilla.org/projects/nss-try -r .
 
