@@ -11,7 +11,7 @@ HEAD_REV="$(git rev-parse HEAD)"
 # Dump package list to file rather than pipe, to avoid exit inside loop not
 # causing outer shell to exit due to running in a subshell.
 PACKAGE_LIST="$(mktemp -t package-list.tmp.XXXXXXXXXX)"
-go list ../... > "${PACKAGE_LIST}"
+go list github.com/taskcluster/generic-worker/... > "${PACKAGE_LIST}"
 
 while read package
 do
