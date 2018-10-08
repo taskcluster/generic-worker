@@ -1,5 +1,3 @@
-# generic-worker
-
 <img align="right" src="https://avatars3.githubusercontent.com/u/6257436?s=256" /> A generic worker for [taskcluster](https://tools.taskcluster.net/), written in go.
 
 [![Taskcluster CI Status](https://github.taskcluster.net/v1/repository/taskcluster/generic-worker/master/badge.svg)](https://github.taskcluster.net/v1/repository/taskcluster/generic-worker/master/latest)
@@ -8,11 +6,33 @@
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
+# Introdution
+
 Generic worker is a Windows/Linux/macOS program for executing taskcluster
 tasks. It communicates with the taskcluster Queue as per the [Queue-Worker
 Interaction
 specification](https://docs.taskcluster.net/docs/reference/platform/taskcluster-queue/docs/worker-interaction).
 It is shipped as a statically linked system-native executable.
+
+The mechanism by which it achieves a sandbox is platform-specific, and is
+explained later.
+
+## Imperative task payloads
+
+Generic worker allows tasks to run arbitrary command payloads in a sandbox. If
+you are looking for a worker to run only specific commands on a privileged
+environment, see
+[scriptworker](https://github.com/mozilla-releng/scriptworker).
+
+## Docker support
+
+Work is underway to provide support for running generic-worker tasks inside a
+docker container isolated from the host environment. However until this work is
+complete, please see
+[docker-worker](https://github.com/taskcluster/docker-worker) for achieving
+this.
+
+For running
 
 # Payload format
 
