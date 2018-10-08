@@ -59,7 +59,7 @@ func (task *TaskRun) NewPlatformData() (pd *PlatformData, err error) {
 		if filepath.Base(os.Args[0]) == "generic-worker.exe" {
 			exe = os.Args[0]
 		} else {
-			exe = `..\..\..\..\bin\generic-worker.exe`
+			exe = `..\..\..\..\..\..\bin\generic-worker.exe`
 		}
 		cmd, err := process.NewCommand([]string{exe, "grant-winsta-access", "--sid", sid}, cwd, []string{}, pd.LoginInfo.AccessToken())
 		cmd.DirectOutput(os.Stdout)
