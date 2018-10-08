@@ -40,7 +40,7 @@ do
   cat "${FILE}.x" | sed 's/nss-win2012r2/nss-win2012r2-new/g' > "${FILE}"
   rm "${FILE}.x"
 done
-hg commit -m "Testing generic-worker ${NEW_VERSION} on nss-win2012r2-new worker type; try: -p win32,win64 -t none -u all"
+hg commit -m "Testing generic-worker ${NEW_VERSION} on nss-win2012r2-new worker type; try: -p win,win64 -t none -u all"
 hg push -f ssh://hg.mozilla.org/projects/nss-try -r .
 
 open_browser_page 'https://treeherder.mozilla.org/#/jobs?repo=nss-try'
