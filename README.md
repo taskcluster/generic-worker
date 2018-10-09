@@ -177,11 +177,82 @@ No isolation - working on docker
 ## Config bootstrapping
 
 # "Bring your own worker": Running your own generic-worker workers
+## Windows
+### Installing
 ## Mac
 ### Installing
 
-## Windows
-### Installing
+There currently is no `install` target for macOS, like there is for Windows.
+
+For our own dedicated macOS workers, we install generic-worker using [this
+puppet
+module](https://wiki.mozilla.org/ReleaseEngineering/PuppetAgain/Modules/generic_worker).
+
+You can install generic-worker as a Launch Agent as follows:
+
+1) Create a regular unprivileged user account on your Mac to run the worker
+(e.g. with name `genericworker`) and log into that user account.
+
+2) Download or build generic-worker, so that you have a native darwin binary,
+move it to `/usr/local/bin/generic-worker`, and make sure it is executable for
+your new user (`chmod u+x /usr/local/bin/generic-worker`).
+
+3) Create a signing key in the user home directory by running:
+
+```
+/usr/local/bin/generic-worker new-openpgp-keypair --file .signingkey
+
+3) Create `/Library/LaunchAgents/net.generic.worker.plist` with content:
+
+```
+<%# This Source Code Form is subject to the terms of the Mozilla Public
+<%# License, v. 2.0. If a copy of the MPL was not distributed with this
+<%# file, You can obtain one at http://mozilla.org/MPL/2.0/. -%>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>net.generic.worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/generic-worker</string>
+        <string>run</string>
+        <string>--config</string>
+        <string>/etc/generic-worker.config</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string><-YOUR-NEW-USER-HOME-DIRECTORY-></string>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+```
+
+4) Create `/etc/generic-worker.config` with content:
+
+```
+{
+  "accessToken": "<-YOUR-TASKCLUSTER-ACCESS-TOKEN->",
+  "clientId": "<-YOUR-TASKCLUSTER-CLIENT-ID->",
+  "idleTimeoutSecs": 0,
+  "livelogSecret": "<-RANDOM-SHORT-STRING-HERE->",
+  "provisionerBaseURL": "",
+  "provisionerId": "<-YOUR-PROVISIONER-ID->",
+  "publicIP": "<-MAKE-UP-AN-IPv4-ADDRESS-IF-YOU-DON'T-HAVE-ONE->",
+  "signingKeyLocation": ".signingkey",
+  "tasksDir": "tasks",
+  "workerGroup": "<-CHOOSE-A-WORKER-GROUP->",
+  "workerId": "<-CHOOSE-A-WORKER-ID->",
+  "workerType": "<-YOUR-WORKER-TYPE->",
+  "workerTypeMetadata": {
+	<--- add a json blob here with information about you, how you set up the
+         worker type, etc, so people know how it is configured and maintained,
+         and who to go to in case of problems --->
+  }
+}
+```
+
 ## Linux - Docker
 ## Linux - Native
 ### Installing
@@ -207,6 +278,38 @@ No isolation - working on docker
 ## Writing release notes (README.md, release page, ...)
 # Repository layout
 
+```
+├── aws
+│   ├── cmd
+│   │   ├── download-aws-worker-type-definitions
+│   │   ├── gw-workers
+│   │   ├── update-ssl-creds
+│   │   └── update-worker-type
+│   ├── scripts
+│   └── update-worker-types
+├── cmd
+│   ├── generic-worker
+│   ├── gw-codegen
+│   ├── inspect-worker-types
+│   ├── list-worker-types
+│   └── yamltojson
+├── docs
+├── lib
+├── mozilla
+│   ├── OpenCloudConfig
+│   │   ├── occ-workers
+│   │   ├── refresh-gw-configs
+│   │   └── transform-occ
+│   ├── gecko
+│   ├── nss
+│   └── worker-type-host-definitions
+│       └── aws-provisioner-v1
+│           ├── <worker type>
+│           ├── <worker type>
+│           └── ...
+├── schemas
+└── scripts
+```
 
 
 # Downloading generic-worker binary release
