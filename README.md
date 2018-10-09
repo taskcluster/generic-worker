@@ -68,11 +68,12 @@
 
 # Introdution
 
-Generic worker is a Windows/Linux/macOS program for executing taskcluster
-tasks. It communicates with the taskcluster Queue as per the [Queue-Worker
-Interaction
+Generic worker is a native Windows/Linux/macOS program for executing
+taskcluster tasks. It communicates with the taskcluster Queue as per the
+[Queue-Worker Interaction
 specification](https://docs.taskcluster.net/docs/reference/platform/taskcluster-queue/docs/worker-interaction).
-It is shipped as a statically linked system-native executable.
+It is shipped as a statically linked system-native executable. It is written in
+go (golang).
 
 ## Imperative task payloads
 
@@ -83,7 +84,7 @@ environment, see
 
 ## Sandboxing
 
-The mechanism for providing a sandbox for a task to run in, is platform-specific.
+The sandbox implementation is platform-specific.
 
 ### Windows
 
@@ -148,6 +149,17 @@ some point in the future.
 
 
 # Payload format
+
+Each taskcluster task definition contains a top level property `payload` which
+is a json object. The format of this object is specific to the worker
+implementation. For generic-worker, this is then also further specific to the
+platform (Linux/Windows/macOS).
+
+The per-platform payload formats are described in json schema, and can be found
+in the top level `schemas` subdirectory of this repository. These schemas are
+also published to the [generic-worker
+page](https://docs.taskcluster.net/docs/reference/workers/generic-worker/docs/payload)
+of the taskcluster docs site.
 
 # Execution policy
 

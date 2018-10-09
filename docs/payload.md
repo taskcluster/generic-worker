@@ -17,15 +17,20 @@ the worker implementation, and tells the worker what to execute, and which
 artifacts to upload. This page documents the payload property for
 generic-worker, on all the platforms that it is supported on.
 
-# generic-worker on Windows
+* [Windows](#generic-worker-on-windows)
+* [macOS](#generic-worker-on-macos)
+* [Linux](#generic-worker-on-linux)
+
+
+# Generic Worker on Windows
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/windows.json"></div>
 
-# generic-worker on macOS
+# Generic Worker on macOS
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/macos.json"></div>
 
-# generic-worker on Linux
+# Generic Worker on Linux
 
 <div data-render-schema="https://schemas.taskcluster.net/generic-worker/v1/linux.json"></div>
 
