@@ -238,7 +238,6 @@ your new user (`chmod u+x /usr/local/bin/generic-worker`).
   "clientId": "<-YOUR-TASKCLUSTER-CLIENT-ID->",
   "idleTimeoutSecs": 0,
   "livelogSecret": "<-RANDOM-SHORT-STRING-HERE->",
-  "provisionerBaseURL": "",
   "provisionerId": "<-YOUR-PROVISIONER-ID->",
   "publicIP": "<-MAKE-UP-AN-IPv4-ADDRESS-IF-YOU-DON'T-HAVE-ONE->",
   "signingKeyLocation": ".signingkey",
