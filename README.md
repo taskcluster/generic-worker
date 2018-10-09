@@ -201,6 +201,7 @@ your new user (`chmod u+x /usr/local/bin/generic-worker`).
 
 ```
 /usr/local/bin/generic-worker new-openpgp-keypair --file .signingkey
+```
 
 3) Create `/Library/LaunchAgents/net.generic.worker.plist` with content:
 
