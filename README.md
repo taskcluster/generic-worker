@@ -81,11 +81,9 @@ Generic worker allows you to execute arbitrary commands in a task.
 
 If you wish to only run trusted code against
 input parameters passed in task payloads, see:
-
 * [scriptworker](https://github.com/mozilla-releng/scriptworker)
 
 If you are looking to isolate your tasks inside docker containers, see:
-
 * [docker-worker](https://github.com/taskcluster/docker-worker)
 
 Please note docker support is coming to generic-worker in [PR
