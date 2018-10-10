@@ -109,13 +109,13 @@ The worker creates a unique Operating System user to sandbox the activity of
 the task.
 
 All task commands run as the task user. After the task has completed, the user
-is deleted, together with its files.
+is deleted, together with any files it has created.
 
 In order for tasks to have access to a graphical logon session, the host is
-configured for an automatic graphical logon as the new task user, and the
+configured to logon on boot as the new task user, and the
 machine is rebooted.
 
-By default the generated users are standard (non-admin) users.
+By default the generated users are standard (non-admin) OS users.
 
 ### Task user lifecycle
 The worker configures the machine to automatically log
@@ -272,6 +272,32 @@ See [Automatic
 Logon](https://docs.microsoft.com/en-us/windows/desktop/secauthn/msgina-dll-features)
 for more detailed information about these settings.
 
+### Rebooting
+
+Rebooting is achieved by executing:
+
+```
+C:\Windows\System32\shutdown.exe /r /t 3 /c generic-worker requested reboot
+```
+
+Please note, automatic reboots can be disabled (see `generic-worker --help` for
+more information).
+
+### Executing task commands
+
+The Windows Command Shell does not provide a feature to enable exit-on-fail
+semantics. Execution of a batch script continues if a command fails, without a
+global switch available to enable such behaviour. To implement exit-on-fail
+semantics in a batch script requires explicitly checking the exit code of every
+command that may have failed.
+
+Typically tasks need to run multiple commands, and exit if any one of them
+fail. Therefore, rather than relying on the native command shell for specifying
+multiple commands to run, generic-worker supports running multiple commands
+natively, and will handle the scheduling of the commands and evaluating the
+exit codes of each command, rather than relying on the shell to do this.
+
+....
 
 # Payload format
 
