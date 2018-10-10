@@ -82,11 +82,15 @@ you are looking for a worker to run only specific commands on a privileged
 environment, see
 [scriptworker](https://github.com/mozilla-releng/scriptworker).
 
-## Sandboxing
+# Sandboxing
 
-The sandbox implementation is platform-specific.
+It is important that tasks run in a sandbox in order to that they are as
+reproducible as possible, and are not inadvertently affected by previous tasks
+that may have run on the same environment. Different operating systems provide
+different sandboxing mechanisms, and therefore the approach used by
+generic-worker is platform-dependent.
 
-### Windows
+## Windows
 
 On Windows, `generic-worker.exe` runs in a Windows Service under the
 [LocalSystem](https://docs.microsoft.com/en-us/windows/desktop/services/localsystem-account)
@@ -122,7 +126,11 @@ interfere with system state or persist changes across task runs that may affect
 the reproducibility of a task, or worse, introduce a security vulnerability.
 
 
-### Linux
+
+
+
+
+## Linux
 
 There is no native sandbox support currently on Linux. Currently the worker
 will execute tasks as the same user that the worker runs as. Use at your own
@@ -138,7 +146,7 @@ We may, at some point, provide OS-user sandboxing, akin to the Windows
 implementation.
 
 
-### macOS
+## macOS
 
 There is no native sandbox support currently on macOS. Currently the worker
 will execute tasks as the same user that the worker runs as. Use at your own
@@ -146,6 +154,86 @@ risk!
 
 We intend to provide OS-user sandboxing, akin to the Windows implementation, at
 some point in the future.
+
+# Operating System integration
+
+## Windows
+
+### Creating a task user
+
+The generic-worker creates non-privileged task users, with username
+`task_<current-unix-timestamp>` and a random password. Task users are created
+with the command:
+
+```
+net user "<username>" "<userpassword>" /add /expires:never /passwordchg:no /y
+```
+
+See [net
+user](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-xp/bb490718%28v%253dtechnet.10%29)
+for more information.
+
+### Setting Known Folder locations
+
+It may be desirable for the task directory to be in a different location to the
+home directory of the generated user. The location of the home directory is
+determined based on system settings defined at installation time of the
+operating system, and therefore may not be ideal, especially if the host image
+is provided by an external party.
+
+For example, perhaps the user home directory is `C:\Users\task_<timestamp>` but
+for performance reasons, we wish the task directory to be located on a
+different physical drive at `Z:\task_<timestamp>`.
+
+It is possible to configure the location for the task directories (in the above
+case, `Z:\`) via the `tasksDir` property of the generic-worker configuration
+file. However, this would not affect the location of the [AppData
+folder](https://www.howtogeek.com/318177/what-is-the-appdata-folder-in-windows/)
+used by Windows applications, which would still be located under the user's
+home directory.
+
+Since it is usually preferable for all user data to be written
+to the the task directory, and it isn't trivial to move the user home directory
+to an alternative location after the operating system has already been
+installed, the worker configures the user account to store the AppData folder
+under the task directory.
+
+It does this as follows:
+
+1) Calling
+[LogonUserW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-logonuserw)
+to get a logon handle for the new user.
+2) Calling
+[LoadUserProfileW](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-loaduserprofilew)
+to load the user profile.
+3) Calling
+[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
+with `KNOWNFOLDERID`
+[FOLDERID_RoamingAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid) to set the location of `AppData\Roaming` to under the task directory.
+4) Calling [SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath) with [KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag) in order to create `AppData\Roaming` folder.
+5) Calling [CoTaskMemFree](CoTaskMemFree) to release memory from `SHGETKnownFolderPath` call in step 4.
+6) Calling
+[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
+with `KNOWNFOLDERID`
+[FOLDERID_LocalAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid) to set the location of `AppData\Local` to under the task directory.
+7) Calling [SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath) with [KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag) in order to create `AppData\Local` folder.
+8) Calling [CoTaskMemFree](CoTaskMemFree) to release memory from `SHGETKnownFolderPath` call in step 7.
+9) Calling [UnloadUserProfile](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile) to release resources from `LoadUserProfileW` call in step 2.
+10) Calling [CloseHandle](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396) to release resources from `LogonUserW` call in step 1.
+
+
+### Configuring auto-logon of task user
+
+After the task user has been created, the registry is updated so that after
+rebooting, the task user will be automatically logged in.
+
+
+
+
+
+
+###
+
 
 
 # Payload format

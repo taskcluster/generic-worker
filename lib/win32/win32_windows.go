@@ -196,6 +196,7 @@ func IsWindows8OrGreater() bool {
 	return r
 }
 
+// https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-logonuserw
 func LogonUser(username *uint16, domain *uint16, password *uint16, logonType uint32, logonProvider uint32) (token syscall.Token, err error) {
 	r1, _, e1 := procLogonUserW.Call(
 		uintptr(unsafe.Pointer(username)),
