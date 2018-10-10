@@ -92,13 +92,29 @@ generic-worker is platform-dependent.
 
 ## Windows
 
-On Windows, `generic-worker.exe` runs in a Windows Service under the
+On Windows, `generic-worker.exe` runs in a [Windows
+Service](https://docs.microsoft.com/en-us/windows/desktop/services/services)
+under the
 [LocalSystem](https://docs.microsoft.com/en-us/windows/desktop/services/localsystem-account)
-account. This service creates a fresh new (non-admin) OS user in preparation
-for running a task. The worker configures the machine to automatically log in
-as the newly created task user, and then triggers the machine to reboot. Once
-the machine reboots, the worker running in the Windows Service waits until it
-detects that the Operating System [winlogon
+account.
+
+The worker creates a unique Operating System user to sandbox the activity of
+the task.
+
+All task commands run as the task user. After the task has completed, the user
+is deleted, together with its files.
+
+In order for tasks to have access to a graphical logon session, the host is
+configured for an automatic graphical logon as the new task user, and the
+machine is rebooted.
+
+By default the generated users are standard (non-admin) users.
+
+### Task user lifecycle
+The worker configures the machine to automatically log
+in as the newly created task user, and then triggers the machine to reboot.
+Once the machine reboots, the worker running in the Windows Service waits until
+it detects that the Operating System [winlogon
 module](https://docs.microsoft.com/en-us/windows/desktop/secauthn/winlogon-and-credential-providers)
 has completed the interactive logon of the task user. At this point it polls
 the taskcluster Queue to fetch a task to execute, and when it is given one, it
@@ -111,12 +127,14 @@ directory (if different to the home directory of the task user) are erased, a
 new task user is created, the machine is rebooted, and the former task user is
 purged.
 
-In many ways, this operation can be alikened to providing a guest account on
-the machine. After the task has completed, all trace of the changes made by the
-task user should be gone, and the machine's state should be reset to the state
-it had before the task was run. If the host environment is sufficiently locked
-down, the task user should not have been able to apply any state-change to the
-host environment. Please note that the worker has limited control to affect
+In the same way that a guest account allows an untrusted user to temporarily
+use a machine without impacting the rest of the machine, the generic worker
+allows tasks to run on the host without having permanent affect.  After the
+task has completed, all trace of the changes made by the task user should be
+gone, and the machine's state should be reset to the state it had before the
+task was run. If the host environment is sufficiently locked down, the task
+user should not have been able to apply any state-change to the host
+environment. Please note that the worker has limited control to affect
 system-wide policy, so for example if a host allows arbtirary users to write to
 a system folder location, the worker is not able to prevent a task doing so.
 Therefore it is up to the machine provider to ensure that the host is
