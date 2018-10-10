@@ -280,7 +280,7 @@ for more detailed information about these settings.
 Rebooting is achieved by executing:
 
 ```
-C:\Windows\System32\shutdown.exe /r /t 3 /c generic-worker requested reboot
+C:\Windows\System32\shutdown.exe /r /t 3 /c "generic-worker requested reboot"
 ```
 
 Please note, automatic reboots can be disabled (see `generic-worker --help` for
