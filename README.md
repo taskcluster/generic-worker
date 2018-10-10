@@ -77,10 +77,19 @@ go (golang).
 
 ## Imperative task payloads
 
-Generic worker allows tasks to run arbitrary command payloads in a sandbox. If
-you are looking for a worker to run only specific commands on a privileged
-environment, see
-[scriptworker](https://github.com/mozilla-releng/scriptworker).
+Generic worker allows you to execute arbitrary commands in a task.
+
+If you wish to only run trusted code against
+input parameters passed in task payloads, see:
+
+* [scriptworker](https://github.com/mozilla-releng/scriptworker)
+
+If you are looking to isolate your tasks inside docker containers, see:
+
+* [docker-worker](https://github.com/taskcluster/docker-worker)
+
+Please note docker support is coming to generic-worker in [PR
+62](https://github.com/taskcluster/generic-worker/pull/62).
 
 # Sandboxing
 
@@ -220,38 +229,50 @@ It does this as follows:
 
 1) Calling
 [LogonUserW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-logonuserw)
-to get a logon handle for the new user.
-2) Calling
+to get a logon handle for the new user.  2) Calling
 [LoadUserProfileW](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-loaduserprofilew)
-to load the user profile.
-3) Calling
+to load the user profile.  3) Calling
 [SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
 with `KNOWNFOLDERID`
-[FOLDERID_RoamingAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid) to set the location of `AppData\Roaming` to under the task directory.
-4) Calling [SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath) with [KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag) in order to create `AppData\Roaming` folder.
-5) Calling [CoTaskMemFree](CoTaskMemFree) to release memory from `SHGETKnownFolderPath` call in step 4.
-6) Calling
+[FOLDERID_RoamingAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
+to set the location of `AppData\Roaming` to under the task directory.  4)
+Calling
+[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
+with
+[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
+in order to create `AppData\Roaming` folder.  5) Calling
+[CoTaskMemFree](CoTaskMemFree) to release resources from `SHGETKnownFolderPath`
+call in step 4.  6) Calling
 [SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
 with `KNOWNFOLDERID`
-[FOLDERID_LocalAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid) to set the location of `AppData\Local` to under the task directory.
-7) Calling [SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath) with [KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag) in order to create `AppData\Local` folder.
-8) Calling [CoTaskMemFree](CoTaskMemFree) to release memory from `SHGETKnownFolderPath` call in step 7.
-9) Calling [UnloadUserProfile](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile) to release resources from `LoadUserProfileW` call in step 2.
-10) Calling [CloseHandle](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396) to release resources from `LogonUserW` call in step 1.
+[FOLDERID_LocalAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
+to set the location of `AppData\Local` to under the task directory.  7) Calling
+[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
+with
+[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
+in order to create `AppData\Local` folder.  8) Calling
+[CoTaskMemFree](CoTaskMemFree) to release resources from `SHGETKnownFolderPath`
+call in step 7.  9) Calling
+[UnloadUserProfile](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile)
+to release resources from `LoadUserProfileW` call in step 2.  10) Calling
+[CloseHandle](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396)
+to release resources from `LogonUserW` call in step 1.
 
 
 ### Configuring auto-logon of task user
 
-After the task user has been created, the registry is updated so that after
-rebooting, the task user will be automatically logged in.
+After the task user has been created, the Windows registry is updated so that
+after rebooting, the task user will be automatically logged in.
 
+This is achieved by configuring the registry key values:
 
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon = 1`
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultUserName = <task user username>`
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultPassword = <task user password>`
 
-
-
-
-###
-
+See [Automatic
+Logon](https://docs.microsoft.com/en-us/windows/desktop/secauthn/msgina-dll-features)
+for more detailed information about these settings.
 
 
 # Payload format
@@ -267,22 +288,17 @@ also published to the [generic-worker
 page](https://docs.taskcluster.net/docs/reference/workers/generic-worker/docs/payload)
 of the taskcluster docs site.
 
-# Execution policy
+# Redeployability
 
-## Windows
-### System calls (KnownFolders, generating processes, ...)
-## Mac
-No isolation
-## Linux
-No isolation - working on docker
+# Integrating with AWS / GCE
 
-## Redeployability
+# Config bootstrapping
 
-## Integrating with AWS / GCE
+# Bring your own worker
 
-## Config bootstrapping
+This section explains how to configure and run your own generic-worker workers
+to talk to an existing taskcluster deployment.
 
-# "Bring your own worker": Running your own generic-worker workers
 ## Windows
 ### Installing
 ## Mac
