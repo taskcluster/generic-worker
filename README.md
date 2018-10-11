@@ -288,19 +288,28 @@ more information).
 
 ### Executing task commands
 
-The Windows Command Shell does not provide a feature to enable exit-on-fail
-semantics. Execution of a batch script continues if a command fails, without a
-global switch available to enable such behaviour. To implement exit-on-fail
-semantics in a batch script requires explicitly checking the exit code of every
-command that may have failed.
+The Windows Command Shell does not have a setting to enable exit-on-fail
+semantics. Execution of a batch script continues if a command fails. To cause
+a batch script to exit after a failed command, the exit code of every command
+needs to be checked, or commands need to be chained together with `&&`.
 
-Typically tasks need to run multiple commands, and exit if any one of them
-fail. Therefore, rather than relying on the native command shell for specifying
-multiple commands to run, generic-worker supports running multiple commands
-natively, and will handle the scheduling of the commands and evaluating the
-exit codes of each command, rather than relying on the shell to do this.
+Since this is cumbersome or error-prone, generic-worker accepts task payloads
+with multiple commands. It will execute them in sequence with exit-on-fail
+semantics. Each command is implicitly executed with `cmd.exe`, which means that
+commands may contain any valid [command shell syntax](https://ss64.com/nt/).
 
-....
+Other workers (such as docker worker) accept only a single task command. If a
+task wishes to execute multiple commands, it will usually specify a single
+shell command to execute them. This approach works well when the shell supports
+exit-on-fail semantics, but not so well when it doesn't, which is why a
+different approach was chosen for generic-worker.
+
+Generic worker generates a wrapper batch script for each command it runs, which
+initialises environment variables, sets the working directory, executes the
+task command, and then if more commands are to follow, captures the working
+directory and environment variables for the next command.
+
+
 
 # Payload format
 
