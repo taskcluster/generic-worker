@@ -1,3 +1,5 @@
+// +build !docker
+
 package main
 
 import (
@@ -13,15 +15,8 @@ import (
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/clearsign"
 
-	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
-)
-
-var (
-	// all tests can share taskGroupId so we can view all test tasks in same
-	// graph later for troubleshooting
-	taskGroupID = slugid.Nice()
 )
 
 func validateArtifacts(

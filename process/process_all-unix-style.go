@@ -1,3 +1,5 @@
+// +build !windows,!docker
+
 package process
 
 import (
