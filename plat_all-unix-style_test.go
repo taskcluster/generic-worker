@@ -2,7 +2,9 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestSeparateTaskUsersNotSupported(t *testing.T) {
 	defer setup(t)()

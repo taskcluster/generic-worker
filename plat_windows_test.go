@@ -2,6 +2,8 @@ package main
 
 import (
 	"testing"
+
+	"github.com/taskcluster/slugid-go/slugid"
 )
 
 // Test APPDATA / LOCALAPPDATA folder are not shared between tasks
@@ -105,4 +107,8 @@ func TestDesktopResizeAndMovePointer(t *testing.T) {
 	td := testTask(t)
 
 	_ = submitAndAssert(t, td, payload, "completed", "completed")
+}
+
+func nonexistentCommand() []string {
+	return []string{slugid.Nice()}
 }

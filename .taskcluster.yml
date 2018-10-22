@@ -68,9 +68,6 @@ tasks:
       - generic-worker:cache:generic-worker-checkout
     payload:
       maxRunTime: 3600
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
         - set GOPATH=%CD%\gopath1.10.3
@@ -153,9 +150,6 @@ tasks:
       - generic-worker:cache:generic-worker-checkout
     payload:
       maxRunTime: 3600
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
         - set GOPATH=%CD%\gopath1.10.3
@@ -227,9 +221,6 @@ tasks:
       - generic-worker:cache:generic-worker-checkout
     payload:
       maxRunTime: 3600
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - set CGO_ENABLED=0
         - set GOPATH=%CD%\gopath1.10.3
@@ -312,9 +303,6 @@ tasks:
       - generic-worker:cache:generic-worker-checkout
     payload:
       maxRunTime: 3600
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - - /bin/bash
           - -vxec
@@ -436,10 +424,10 @@ tasks:
   ################### Linux amd64 Build ####################
   ##########################################################
 
-  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
-    workerType: "{{ taskcluster.docker.workerType }}"
+  - provisionerId: pmoore-manual
+    workerType: linux-amd64
     metadata:
-      name: "Build/test 64 bit generic-worker on Debian GNU/Linux 8 (jessie)"
+      name: "Build/test 64 bit generic-worker on Ubuntu 17.04 VM"
       description: "This builds the 64 bit linux version of generic-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
@@ -450,16 +438,9 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
-      - secrets:get:repo:github.com/taskcluster/generic-worker
-      - docker-worker:cache:generic-worker-checkout
+      - generic-worker:cache:generic-worker-checkout
     payload:
-      features:
-        taskclusterProxy: true
       maxRunTime: 3600
-      image: golang
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - /bin/bash
         - -vxec
@@ -488,17 +469,27 @@ tasks:
           GORACE=history_size=7 CGO_ENABLED=1 go test -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
           "${GOPATH}/bin/ineffassign" .
       artifacts:
-        public/build/generic-worker-linux-amd64:
-          path: "/go/bin/generic-worker"
+        - name: public/build/generic-worker-linux-amd64
+          path: gopath1.10.1/bin/generic-worker
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
-      cache:
-        generic-worker-checkout: /go/src
+      mounts:
+        - cacheName: generic-worker-checkout
+          directory: gopath1.10.1/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.10.1.linux-amd64.tar.gz
+          directory: go1.10.1
+          format: tar.gz
+
+
+  ##########################################################
+  ####################### Dep Check ########################
+  ##########################################################
 
   - provisionerId: "{{ taskcluster.docker.provisionerId }}"
     workerType: "{{ taskcluster.docker.workerType }}"
     metadata:
-      name: dep-check
+      name: "Run 'dep check' to ensure dependencies are up to date"
       description: "Run 'dep check' to ensure dependencies are up to date"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
@@ -510,16 +501,10 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
-      - secrets:get:repo:github.com/taskcluster/generic-worker
       - docker-worker:cache:generic-worker-checkout
     payload:
-      features:
-        taskclusterProxy: true
-      maxRunTime: 3600
+      maxRunTime: 900
       image: golang:1.10
-      env:
-        # once bug 1508383 is landed, this won't be required (the worker will supply it)
-        TASKCLUSTER_ROOT_URL: https://taskcluster.net
       command:
         - /bin/bash
         - -vxec
@@ -530,7 +515,10 @@ tasks:
           curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
           mkdir -p "${GOPATH}/src/github.com/taskcluster"
           cd "${GOPATH}/src/github.com/taskcluster"
-          if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
+          if [ ! -d generic-worker/.git ]; then
+            rm -rf generic-worker
+            git clone '{{ event.head.repo.url }}' 'generic-worker'
+          fi
           cd 'generic-worker'
           git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/X${TASK_ID}"
           git checkout -f "X${TASK_ID}"
