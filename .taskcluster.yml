@@ -424,10 +424,12 @@ tasks:
   ################### Linux amd64 Build ####################
   ##########################################################
 
-  - provisionerId: "{{ taskcluster.docker.provisionerId }}"
-    workerType: "{{ taskcluster.docker.workerType }}"
+  # - provisionerId: scl3-puppet
+  #   workerType: os-x-10-10-gw
+  - provisionerId: pmoore-manual
+    workerType: linux-amd64
     metadata:
-      name: "Build/test 64 bit generic-worker on Debian GNU/Linux 8 (jessie)"
+      name: "Build/test 64 bit generic-worker on Ubuntu 17.04 VM"
       description: "This builds the 64 bit linux version of generic-worker"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
@@ -438,13 +440,9 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
-      - secrets:get:repo:github.com/taskcluster/generic-worker
-      - docker-worker:cache:generic-worker-checkout
+      - generic-worker:cache:generic-worker-checkout
     payload:
-      features:
-        taskclusterProxy: true
       maxRunTime: 3600
-      image: golang
       command:
         - /bin/bash
         - -vxec
@@ -473,9 +471,14 @@ tasks:
           GORACE=history_size=7 CGO_ENABLED=1 go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
           "${GOPATH}/bin/ineffassign" .
       artifacts:
-        public/build/generic-worker-linux-amd64:
-          path: "/go/bin/generic-worker"
+        - name: public/build/generic-worker-linux-amd64
+          path: gopath1.10.1/bin/generic-worker
           expires: "{{ '2 weeks' | $fromNow }}"
           type: file
-      cache:
-        generic-worker-checkout: /go/src
+      mounts:
+        - cacheName: generic-worker-checkout
+          directory: gopath1.10.1/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.10.1.linux-amd64.tar.gz
+          directory: go1.10.1
+          format: tar.gz
