@@ -421,16 +421,14 @@ tasks:
 
 
   ##########################################################
-  ################### Linux amd64 Build ####################
+  ##################### docker tests #######################
   ##########################################################
 
-  # - provisionerId: scl3-puppet
-  #   workerType: os-x-10-10-gw
-  - provisionerId: pmoore-manual
-    workerType: linux-amd64
+  - provisionerId: aws-provisioner-v1
+    workerType: worker-ci-test
     metadata:
-      name: "Build/test 64 bit generic-worker on Ubuntu 17.04 VM"
-      description: "This builds the 64 bit linux version of generic-worker"
+      name: "docker-worker tests"
+      description: "This runs docker-worker tests"
       owner: "{{ event.head.user.email }}" # the user who sent the pr/push e-mail will be inserted here
       source: "{{ event.head.repo.url }}"  # the repo where the pr came from will be inserted here
     extra:
@@ -438,47 +436,16 @@ tasks:
         # Events that will trigger this task
         events:
           - pull_request.synchronize
-          - push
+          - pull_request.opened
+          - pull_request.reopened
     scopes:
-      - generic-worker:cache:generic-worker-checkout
+      - "secrets:get:repo:github.com/taskcluster/docker-worker:ci-creds"
     payload:
-      maxRunTime: 3600
+      maxRunTime: 2400
+      image: "taskcluster/generic-worker-docker-test@sha256:a9968fb676106a49dc55c2a0d1c782e52e4dd70becfa4501115e6e15828323ad"
+      features:
+        dind: true
+        taskclusterProxy: true
       command:
-        - /bin/bash
-        - -vxec
-        - |
-          export CGO_ENABLED=0
-          go version
-          go env
-          curl -s http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/generic-worker | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
-          source ~/env_private.sh
-          mkdir -p "${GOPATH}/src/github.com/taskcluster"
-          cd "${GOPATH}/src/github.com/taskcluster"
-          if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
-          cd 'generic-worker'
-          git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/X${TASK_ID}"
-          git checkout -f "X${TASK_ID}"
-          git reset --hard '{{ event.head.sha }}'
-          git clean -fdx
-          git checkout -B tmp -t "X${TASK_ID}"
-          go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-          cd gw-codegen
-          go get -v -u
-          cd ..
-          go generate
-          go get -ldflags "-X main.revision=$(git rev-parse HEAD)" -v -u -t ./...
-          test "$(git status --porcelain | wc -l)" == 0
-          GORACE=history_size=7 CGO_ENABLED=1 go test -timeout 30m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
-          "${GOPATH}/bin/ineffassign" .
-      artifacts:
-        - name: public/build/generic-worker-linux-amd64
-          path: gopath1.10.4/bin/generic-worker
-          expires: "{{ '2 weeks' | $fromNow }}"
-          type: file
-      mounts:
-        - cacheName: generic-worker-checkout
-          directory: gopath1.10.4/src
-        - content:
-            url: https://storage.googleapis.com/golang/go1.10.4.linux-amd64.tar.gz
-          directory: go1.10.4
-          format: tar.gz
+        - "{{ event.head.repo.url }}"
+        - "{{ event.head.sha }}"
