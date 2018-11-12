@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/taskcluster/httpbackoff"
 )
 
 const (
@@ -15,7 +16,7 @@ const (
 	exampleImage  = "coreos/example:1.0.0"
 )
 
-func loadArtifactImageTest(t *testing.T, artifactName string) {
+func loadArtifactImageTest(t *testing.T, taskID, artifactName string) {
 	d := NewTestDockerWorker(t)
 
 	imageName := MakeImageName(imageTaskID, "", artifactName)
@@ -30,15 +31,15 @@ func loadArtifactImageTest(t *testing.T, artifactName string) {
 }
 
 func TestLoadArtifactImageTar(t *testing.T) {
-	loadArtifactImageTest(t, "public/image.tar")
+	loadArtifactImageTest(t, imageTaskID, "public/image.tar")
 }
 
 func TestLoadArtifactImageZst(t *testing.T) {
-	loadArtifactImageTest(t, "public/image.tar.zst")
+	loadArtifactImageTest(t, imageTaskID, "public/image.tar.zst")
 }
 
 func TestLoadArtifactImageLz4(t *testing.T) {
-	loadArtifactImageTest(t, "public/image.tar.lz4")
+	loadArtifactImageTest(t, imageTaskID, "public/image.tar.lz4")
 }
 
 func TestLoadIndexedImage(t *testing.T) {
@@ -60,4 +61,23 @@ func TestLoadImage(t *testing.T) {
 	img2, err := d.Client.InspectImage(exampleImage)
 	require.NoError(t, err)
 	require.Equal(t, img.ID, img2.ID)
+}
+
+func TestImageWithManifest(t *testing.T) {
+	const imageURL = "https://s3-us-west-2.amazonaws.com/docker-worker-manifest-test/image.tar.zst"
+	const artifactName = "public/image.tar.zst"
+
+	d := NewTestDockerWorker(t)
+
+	resp, _, err := httpbackoff.Get(imageURL)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	taskID, err := createDummyTask(d)
+	require.NoError(t, err)
+	defer d.Queue.ReportCompleted(taskID, "0")
+
+	require.NoError(t, uploadArtifact(d, taskID, "0", artifactName, resp.Body))
+
+	loadArtifactImageTest(t, imageTaskID, "public/image.tar.zst")
 }
