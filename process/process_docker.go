@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ type Command struct {
 	workingDirectory string
 	image            json.RawMessage
 	env              []string
+	artifacts        []string
 }
 
 func (c *Command) ensureImage() (img *docker.Image, err error) {
@@ -79,6 +81,15 @@ func (c *Command) Execute() (r *Result) {
 	defer c.worker.RemoveContainer(container)
 	r.exitCode, r.Duration, r.ExitError = c.worker.RunContainer(container)
 
+	for _, artifact := range c.artifacts {
+		containerArtifact := filepath.Join("/", artifact)
+		destdir := filepath.Join(c.workingDirectory, filepath.Dir(artifact))
+		if err := c.worker.ExtractArtifact(container, containerArtifact, destdir); err != nil {
+			r.ExitError = fmt.Errorf("Error downloading artifact '%s': %v", containerArtifact, err)
+			return
+		}
+	}
+
 	return
 }
 
@@ -110,7 +121,14 @@ func (r *Result) ExitCode() int {
 	return r.exitCode
 }
 
-func NewCommand(worker *dockerworker.DockerWorker, commandLine []string, image json.RawMessage, workingDirectory string, env []string) (*Command, error) {
+func NewCommand(
+	worker *dockerworker.DockerWorker,
+	commandLine []string,
+	image json.RawMessage,
+	workingDirectory string,
+	env []string,
+	artifacts []string,
+) (*Command, error) {
 	c := &Command{
 		worker:           worker,
 		writer:           os.Stdout,
@@ -118,6 +136,7 @@ func NewCommand(worker *dockerworker.DockerWorker, commandLine []string, image j
 		workingDirectory: workingDirectory,
 		image:            image,
 		env:              env,
+		artifacts:        artifacts,
 	}
 	return c, nil
 }

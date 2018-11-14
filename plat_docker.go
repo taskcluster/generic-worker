@@ -68,14 +68,19 @@ func (task *TaskRun) prepareCommand(index int) error {
 	return nil
 }
 
-func (task *TaskRun) generateCommand(index int) error {
-	var err error
+func (task *TaskRun) generateCommand(index int) (err error) {
+	artifacts := make([]string, 0, len(task.Payload.Artifacts))
+	for _, artifact := range task.Payload.Artifacts {
+		artifacts = append(artifacts, artifact.Path)
+	}
+
 	task.Commands[index], err = process.NewCommand(
 		dockerworker.New(context.Background(), task.Queue, task.TaskID, task.logWriter),
 		task.Payload.Command[index],
 		task.PlatformData.Image,
 		taskContext.TaskDir,
 		task.EnvVars(),
+		artifacts,
 	)
 	return err
 }

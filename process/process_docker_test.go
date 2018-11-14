@@ -38,6 +38,7 @@ func TestProcess(t *testing.T) {
 		image,
 		"/",
 		[]string{fmt.Sprintf("MESSAGE='%s'", message)},
+		[]string{},
 	)
 	require.NoError(t, err)
 
