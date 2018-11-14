@@ -3,17 +3,23 @@
 package dockerworker
 
 import (
+	"archive/tar"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/cenkalti/backoff"
+	docker "github.com/fsouza/go-dockerclient"
 	"github.com/mattetti/filebuffer"
 	"github.com/mitchellh/ioprogress"
+	"github.com/taskcluster/slugid-go/slugid"
 )
 
 // DownloadArtifact downloads an artifact using exponential backoff algorithm
@@ -95,4 +101,74 @@ func (d *DockerWorker) DownloadArtifact(taskID, runID, name string, out io.Write
 	}
 
 	return
+}
+
+// ExtractArtifact gets files or directory trees from the container and copy them to destdir
+func (d *DockerWorker) ExtractArtifact(container *docker.Container, path, destdir string) error {
+	d.TaskLogger.Printf("Extracting '%s' from the container", path)
+
+	tmp, err := ioutil.TempFile(os.TempDir(), slugid.Nice())
+	if err != nil {
+		return err
+	}
+	defer tmp.Close()
+	defer os.Remove(tmp.Name())
+
+	err = d.Client.DownloadFromContainer(container.ID, docker.DownloadFromContainerOptions{
+		Context:      d.Context,
+		Path:         path,
+		OutputStream: tmp,
+	})
+
+	if err != nil {
+		return fmt.Errorf("Error extracting '%s' from container: %v", path, err)
+	}
+
+	if _, err = tmp.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+
+	tr := tar.NewReader(tmp)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			d.TaskLogger.Print("Container extraction done")
+			break
+		}
+
+		if err != nil {
+			return err
+		}
+
+		d.TaskLogger.Printf("Unpacking '%s' at %s", hdr.Name, destdir)
+
+		dest := filepath.Join(destdir, hdr.Name)
+
+		if hdr.FileInfo().IsDir() {
+			if err = os.MkdirAll(dest, 0700); err != nil && err != os.ErrExist {
+				return err
+			}
+			continue
+		}
+
+		f, err := os.Create(dest)
+		if err != nil {
+			return err
+		}
+
+		_, err = io.Copy(f, tr)
+
+		// Why not use defer f.Close()?
+		// Imagine we have to extract a dir with thousands of files,
+		// if we use defer, the files will be closed only when we exit
+		// the loop, which may, under a perfect storm, exaust the whole
+		// memory available in the system.
+		f.Close()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
