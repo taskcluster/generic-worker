@@ -76,33 +76,8 @@ func (c *Command) Execute() (r *Result) {
 		return
 	}
 
-	if err = c.worker.Client.StartContainerWithContext(container.ID, nil, c.worker.Context); err != nil {
-		r.ExitError = fmt.Errorf("Error starting container: %v", err)
-		return
-	}
-
-	started := time.Now()
-	if r.exitCode, err = c.worker.Client.WaitContainer(container.ID); err != nil {
-		r.ExitError = fmt.Errorf("Error wating for container to finish: %v", err)
-		return
-	}
-
-	err = c.worker.Client.Logs(docker.LogsOptions{
-		Context:      c.worker.Context,
-		Container:    container.ID,
-		OutputStream: c.worker.LivelogWriter,
-		ErrorStream:  c.worker.LivelogWriter,
-		Stdout:       true,
-		Stderr:       true,
-		RawTerminal:  true,
-		Timestamps:   true,
-	})
-	if err != nil {
-		r.SystemError = fmt.Errorf("Error pulling container logs: %v", err)
-	}
-
-	finished := time.Now()
-	r.Duration = finished.Sub(started)
+	defer c.worker.RemoveContainer(container)
+	r.exitCode, r.Duration, r.ExitError = c.worker.RunContainer(container)
 
 	return
 }

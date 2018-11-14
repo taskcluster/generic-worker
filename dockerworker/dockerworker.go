@@ -5,8 +5,11 @@ package dockerworker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
+	"strings"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
@@ -51,6 +54,7 @@ func ValidatePayload(payload json.RawMessage) (result *gojsonschema.Result, err 
 
 // CreateContainer creates a new docker container to run a task
 func (d *DockerWorker) CreateContainer(env []string, image *docker.Image, command []string, privileged bool) (container *docker.Container, err error) {
+	d.TaskLogger.Printf("Running \"%s\"", strings.Join(command, " "))
 	return d.Client.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
 			Image:        image.ID,
@@ -72,6 +76,48 @@ func (d *DockerWorker) CreateContainer(env []string, image *docker.Image, comman
 				"localhost.localdomain:127.0.0.1", // Bug 1488148
 			},
 		},
+		Context: d.Context,
+	})
+}
+
+// RunContainers runs the passed container and extracts its logs
+func (d *DockerWorker) RunContainer(container *docker.Container) (exitCode int, duration time.Duration, err error) {
+	if err = d.Client.StartContainerWithContext(container.ID, nil, d.Context); err != nil {
+		err = fmt.Errorf("Error starting container: %v", err)
+		return
+	}
+
+	started := time.Now()
+	if exitCode, err = d.Client.WaitContainer(container.ID); err != nil {
+		err = fmt.Errorf("Error wating for container to finish: %v", err)
+		return
+	}
+
+	err = d.Client.Logs(docker.LogsOptions{
+		Context:      d.Context,
+		Container:    container.ID,
+		OutputStream: d.LivelogWriter,
+		ErrorStream:  d.LivelogWriter,
+		Stdout:       true,
+		Stderr:       true,
+		RawTerminal:  true,
+		Timestamps:   true,
+	})
+
+	if err != nil {
+		err = fmt.Errorf("Error pulling container logs: %v", err)
+		return
+	}
+
+	duration = time.Now().Sub(started)
+	return
+}
+
+// RemoveContainer removes the given container from the system
+func (d *DockerWorker) RemoveContainer(container *docker.Container) error {
+	return d.Client.RemoveContainer(docker.RemoveContainerOptions{
+		ID:      container.ID,
+		Force:   true,
 		Context: d.Context,
 	})
 }
