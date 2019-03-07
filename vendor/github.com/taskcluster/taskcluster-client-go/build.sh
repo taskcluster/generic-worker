@@ -21,6 +21,11 @@ elif [ "${GO_MAJ}" != "go1" ] || [ "${GO_MIN}" -lt 8 ]; then
   exit 65
 fi
 
+if [ -z "${TASKCLUSTER_ROOT_URL}" ]; then
+  echo "Please export TASKCLUSTER_ROOT_URL to the cluster you wish to build the client for." >&2
+  exit 66
+fi
+
 # in case build.sh was run with -d option since last build
 git checkout -f codegenerator/model-data.txt
 UNIX_TIMESTAMP="$(head -1 codegenerator/model-data.txt | sed -n 's/^Generated: //p')"
@@ -55,9 +60,8 @@ go get github.com/docopt/docopt-go
 go get github.com/xeipuuv/gojsonschema
 go get github.com/taskcluster/jsonschema2go/...
 go get golang.org/x/tools/cmd/goimports
-# rebuild codegenerator/model/types.go based on https://schemas.taskcluster.net/base/v1/api-reference.json
-echo 'https://schemas.taskcluster.net/base/v1/api-reference.json' | "${GOPATH}/bin/jsonschema2go" -o model | sed 's/^\([[:space:]]*\)API\(Entry struct\)/\1\2/' | sed 's/json\.RawMessage/ScopeExpressionTemplate/g' > codegenerator/model/types.go
-"${GOPATH}/bin/goimports" -w codegenerator/model/types.go
+# rebuild codegenerator/model/types.go based on api-reference.json
+##### TODO: check README.md examples still work
 "${GENERATE}" && go generate ./...
 
 # fetch deps/build/install taskcluster-client-go
