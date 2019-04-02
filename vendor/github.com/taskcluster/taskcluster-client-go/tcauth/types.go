@@ -880,30 +880,20 @@ type (
 	// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#
 	WebsocktunnelTokenResponse struct {
 
-		// The time at which the JWT will expire.
+		// websocket url at which proxy is hosted
 		//
-		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/expires
-		Expires tcclient.Time `json:"expires"`
+		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/proxyUrl
+		ProxyURL string `json:"proxyUrl"`
 
-		// The JWT to be used as `Bearer <token>` when connecting to the service.
+		// jwt token to be used as `Bearer <token>` when connecting to proxy.
 		//
 		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/token
 		Token string `json:"token"`
 
-		// Audience identifying the websocktunnel servers that will honor this token; this will be the
-		// same as the requested `wstAudience`.
+		// id for proxy connection
 		//
-		// Syntax:     ^[a-zA-Z0-9_-]{1,38}$
-		//
-		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/wstAudience
-		WstAudience string `json:"wstAudience"`
-
-		// Id for the websocktunnel client connection; this will be the same as the requested `wstClient`.
-		//
-		// Syntax:     ^[A-Za-z0-9!@/:.+|_-]+$
-		//
-		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/wstClient
-		WstClient string `json:"wstClient"`
+		// See https://taskcluster-staging.net/schemas/auth/v1/websocktunnel-token-response.json#/properties/tunnelId
+		TunnelID string `json:"tunnelId"`
 	}
 )
 
