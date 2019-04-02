@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	// Message containing a Taskcluster Secret
+	// Message containing a TaskCluster Secret
 	//
 	// See https://taskcluster-staging.net/schemas/secrets/v1/secret.json#
 	Secret struct {
