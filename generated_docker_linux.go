@@ -187,6 +187,11 @@ type (
 		// Since: generic-worker 5.3.0
 		Features FeatureFlags `json:"features,omitempty"`
 
+		// Docker image to run the task inside.
+		//
+		// Since: generic-worker 14.1.0
+		Image string `json:"image,omitempty"`
+
 		// Maximum time the task container can run in seconds.
 		//
 		// Since: generic-worker 0.0.1
@@ -629,6 +634,11 @@ func taskPayloadSchema() string {
       },
       "title": "Feature flags",
       "type": "object"
+    },
+    "image": {
+      "description": "Docker image to run the task inside.\n\nSince: generic-worker 14.1.0",
+      "title": "Docker image",
+      "type": "string"
     },
     "maxRunTime": {
       "description": "Maximum time the task container can run in seconds.\n\nSince: generic-worker 0.0.1",

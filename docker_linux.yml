@@ -211,6 +211,13 @@ properties:
           title: Exit codes
           type: integer
           minimum: 1
+  image:
+    title: Docker image
+    description: |-
+      Docker image to run the task inside.
+
+      Since: generic-worker 14.1.0
+    type: string
 definitions:
   mount:
     title: Mount
