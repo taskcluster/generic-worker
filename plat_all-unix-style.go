@@ -33,7 +33,7 @@ func (pd *PlatformData) ReleaseResources() error {
 func immediateShutdown(cause string) {
 	log.Println("Immediate shutdown being issued...")
 	log.Println(cause)
-	cmd := exec.Command("shutdown", "now", cause)
+	cmd := exec.Command("sudo", "/sbin/shutdown", "now", cause)
 	err := cmd.Run()
 	if err != nil {
 		log.Fatal(err)
@@ -44,7 +44,7 @@ func immediateReboot() {
 	log.Println("Immediate reboot being issued...")
 	cause := "generic-worker requested reboot"
 	log.Println(cause)
-	cmd := exec.Command("shutdown", "/r", "now", cause)
+	cmd := exec.Command("sudo", "/sbin/shutdown", "-r", "now", cause)
 	err := cmd.Run()
 	if err != nil {
 		log.Fatal(err)

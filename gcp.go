@@ -12,6 +12,8 @@ import (
 
 	"github.com/taskcluster/generic-worker/gwconfig"
 	"github.com/taskcluster/httpbackoff"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
+	"github.com/taskcluster/taskcluster-client-go/tcsecrets"
 )
 
 var (
@@ -20,13 +22,12 @@ var (
 )
 
 type GCPUserData struct {
-	WorkerType                string `json:"workerType"`
-	WorkerGroup               string `json:"workerGroup"`
-	ProvisionerID             string `json:"provisionerId"`
-	CredentialURL             string `json:"credentialURL"`
-	Audience                  string `json:"audience"`
-	Ed25519SigningKeyLocation string `json:"ed25519SigningKeyLocation"`
-	RootURL                   string `json:"rootURL"`
+	WorkerType    string                       `json:"workerType"`
+	WorkerGroup   string                       `json:"workerGroup"`
+	ProvisionerID string                       `json:"provisionerId"`
+	CredentialURL string                       `json:"credentialURL"`
+	RootURL       string                       `json:"rootURL"`
+	Data          WorkerTypeDefinitionUserData `json:"userData"`
 }
 
 type CredentialRequestData struct {
@@ -64,7 +65,7 @@ func updateConfigWithGCPSettings(c *gwconfig.Config) error {
 	c.ShutdownMachineOnIdle = true
 
 	client := &http.Client{}
-	userDataString, err := queryGCPMetaData(client, "instance/attributes/config")
+	userDataString, err := queryGCPMetaData(client, "instance/attributes/taskcluster")
 	if err != nil {
 		return err
 	}
@@ -80,12 +81,10 @@ func updateConfigWithGCPSettings(c *gwconfig.Config) error {
 	c.WorkerGroup = userData.WorkerGroup
 
 	c.RootURL = userData.RootURL
-	c.Ed25519SigningKeyLocation = userData.Ed25519SigningKeyLocation
 
 	// Now we get taskcluster credentials via instance identity
 	// TODO: Disable getting instance identity after first run
-	audience := userData.Audience
-	instanceIDPath := fmt.Sprintf("instance/service-accounts/default/identity?audience=%s&format=full", audience)
+	instanceIDPath := fmt.Sprintf("instance/service-accounts/default/identity?audience=%s&format=full", c.RootURL)
 	instanceIDToken, err := queryGCPMetaData(client, instanceIDPath)
 	if err != nil {
 		return err
@@ -144,15 +143,73 @@ func updateConfigWithGCPSettings(c *gwconfig.Config) error {
 		gcpMetadata[key] = value
 	}
 	c.WorkerTypeMetadata["gcp"] = gcpMetadata
-	c.WorkerID = gcpMetadata["id"].(string)
+	c.WorkerID = "gcp-" + gcpMetadata["id"].(string)
 	c.PublicIP = net.ParseIP(gcpMetadata["external-ip"].(string))
 	c.PrivateIP = net.ParseIP(gcpMetadata["ip"].(string))
 	c.InstanceID = gcpMetadata["id"].(string)
 	c.InstanceType = gcpMetadata["machine-type"].(string)
 	c.AvailabilityZone = gcpMetadata["zone"].(string)
 
-	// TODO: Fetch these from secrets
-	c.LiveLogSecret = "foobar"
+	// TODO: These next two sections should be abstracted out into shared between gcp and aws
+
+	// Host setup per worker type "userData" section.
+	//
+	// Note, we first update configuration from public host setup, before
+	// calling tc-secrets to get private host setup, in case secretsBaseURL is
+	// configured in userdata.
+	err = c.MergeInJSON(userData.Data.GenericWorker, func(a map[string]interface{}) map[string]interface{} {
+		if config, exists := a["config"]; exists {
+			return config.(map[string]interface{})
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Error applying /data/genericWorker/config from GCP userdata to config: %v", err)
+	}
+
+	// Fetch additional (secret) host setup from taskcluster-secrets service.
+	// See: https://bugzil.la/1375200
+	tcsec := c.Secrets()
+	secretName := "worker-type:" + c.ProvisionerID + "/" + c.WorkerType
+	sec, err := tcsec.Get(secretName)
+	if err != nil {
+		// 404 error is ok, since secrets aren't required. Anything else indicates there was a problem retrieving
+		// secret or talking to secrets service, so they should return an error
+		if apiCallException, isAPICallException := err.(*tcclient.APICallException); isAPICallException {
+			rootCause := apiCallException.RootCause
+			if badHTTPResponseCode, isBadHTTPResponseCode := rootCause.(httpbackoff.BadHttpResponseCode); isBadHTTPResponseCode {
+				if badHTTPResponseCode.HttpResponseCode == 404 {
+					log.Printf("WARNING: No worker secrets for worker type %v - secret %v does not exist.", c.WorkerType, secretName)
+					err = nil
+					sec = &tcsecrets.Secret{
+						Secret: json.RawMessage(`{}`),
+					}
+				}
+			}
+		}
+	}
+	if err != nil {
+		return fmt.Errorf("Error fetching secret %v from taskcluster-secrets service: %v", secretName, err)
+	}
+	b := bytes.NewBuffer([]byte(sec.Secret))
+	d := json.NewDecoder(b)
+	d.DisallowUnknownFields()
+	var privateHostSetup PrivateHostSetup
+	err = d.Decode(&privateHostSetup)
+	if err != nil {
+		return fmt.Errorf("Error converting secret %v from taskcluster-secrets service into config/files: %v", secretName, err)
+	}
+
+	// Apply config from secret
+	err = c.MergeInJSON(sec.Secret, func(a map[string]interface{}) map[string]interface{} {
+		if config, exists := a["config"]; exists {
+			return config.(map[string]interface{})
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Error applying config from secret %v to generic worker config: %v", secretName, err)
+	}
 
 	return nil
 }
