@@ -134,7 +134,7 @@ func setup(t *testing.T) (teardown func()) {
 			// should be enough for tests, and travis-ci.org CI environments don't
 			// have a lot of free disk
 			RequiredDiskSpaceMegabytes:     16,
-			RootURL:                        os.Getenv("TASKCLUSTER_ROOT_URL"),
+			RootURL:                        tcclient.RootURLFromEnvVars(),
 			RunAfterUserCreation:           "",
 			RunTasksAsCurrentUser:          os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
 			SentryProject:                  "generic-worker-tests",
@@ -175,14 +175,14 @@ func setup(t *testing.T) (teardown func()) {
 
 func NewQueue(t *testing.T) *tcqueue.Queue {
 	// check we have all the env vars we need to run this test
-	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
-		os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
-		os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
-		t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
+	if os.Getenv("TASKCLUSTER_PROXY_URL") == "" {
+		if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
+			os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
+			os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
+			t.Skip("Skipping test since TASKCLUSTER_PROXY_URL is not set, and also one or more of TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} are also not set")
+		}
 	}
-	// BaseURL shouldn't be proxy otherwise requests will use CI clientId
-	// rather than env var TASKCLUSTER_CLIENT_ID
-	return tcqueue.New(tcclient.CredentialsFromEnvVars(), os.Getenv("TASKCLUSTER_ROOT_URL"))
+	return tcqueue.NewFromEnv()
 }
 
 func scheduleTask(t *testing.T, td *tcqueue.TaskDefinitionRequest, payload GenericWorkerPayload) (taskID string) {

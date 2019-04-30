@@ -11,10 +11,12 @@ import (
 )
 
 func TestTcProxy(t *testing.T) {
-	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
-		os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
-		os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
-		t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
+	if os.Getenv("TASKCLUSTER_PROXY_URL") == "" {
+		if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
+			os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
+			os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
+			t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
+		}
 	}
 
 	var executable string
@@ -30,7 +32,7 @@ func TestTcProxy(t *testing.T) {
 		Certificate:      os.Getenv("TASKCLUSTER_CERTIFICATE"),
 		AuthorizedScopes: []string{"queue:get-artifact:SampleArtifacts/_/X.txt"},
 	}
-	ll, err := New(executable, 34569, os.Getenv("TASKCLUSTER_ROOT_URL"), creds)
+	ll, err := New(executable, 34569, tcclient.RootURLFromEnvVars(), creds)
 	// Do defer before checking err since err could be a different error and
 	// process may have already started up.
 	defer func() {

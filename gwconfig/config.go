@@ -47,6 +47,7 @@ type (
 		PrivateIP                      net.IP                 `json:"privateIP"`
 		ProvisionerBaseURL             string                 `json:"provisionerBaseURL"`
 		ProvisionerID                  string                 `json:"provisionerId"`
+		ProxyURL                       string                 `json:"proxyURL"`
 		PublicIP                       net.IP                 `json:"publicIP"`
 		PurgeCacheBaseURL              string                 `json:"purgeCacheBaseURL"`
 		QueueBaseURL                   string                 `json:"queueBaseURL"`
@@ -107,9 +108,7 @@ func (c *Config) Validate() error {
 		name       string
 		disallowed interface{}
 	}{
-		{value: c.AccessToken, name: "accessToken", disallowed: ""},
 		{value: c.CachesDir, name: "cachesDir", disallowed: ""},
-		{value: c.ClientID, name: "clientId", disallowed: ""},
 		{value: c.DownloadsDir, name: "downloadsDir", disallowed: ""},
 		{value: c.Ed25519SigningKeyLocation, name: "ed25519SigningKeyLocation", disallowed: ""},
 		{value: c.LiveLogExecutable, name: "livelogExecutable", disallowed: ""},

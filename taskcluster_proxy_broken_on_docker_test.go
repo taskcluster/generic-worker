@@ -3,16 +3,17 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"testing"
 )
 
 func TestTaskclusterProxy(t *testing.T) {
-	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
-		os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
-		os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
-		t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
+	if os.Getenv("TASKCLUSTER_PROXY_URL") == "" {
+		if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
+			os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
+			os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
+			t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
+		}
 	}
 
 	defer setup(t)()
@@ -26,7 +27,7 @@ func TestTaskclusterProxy(t *testing.T) {
 			goRun(
 				"curlget.go",
 				// note that curlget.go supports substituting the proxy URL from its runtime environment
-				fmt.Sprintf("TASKCLUSTER_PROXY_URL/queue/v1/task/KTBKfEgxR5GdfIIREQIvFQ/runs/0/artifacts/SampleArtifacts/_/X.txt"),
+				"TASKCLUSTER_PROXY_URL/queue/v1/task/KTBKfEgxR5GdfIIREQIvFQ/runs/0/artifacts/SampleArtifacts/_/X.txt",
 			)...,
 		),
 		MaxRunTime: 60,
