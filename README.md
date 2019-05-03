@@ -8,20 +8,633 @@
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
+Table of Contents
+=================
+
+   * [Introdution](#introdution)
+      * [Imperative task payloads](#imperative-task-payloads)
+   * [Sandboxing](#sandboxing)
+      * [Windows](#windows)
+         * [Task user lifecycle](#task-user-lifecycle)
+      * [Linux](#linux)
+      * [macOS](#macos)
+   * [Operating System integration](#operating-system-integration)
+      * [Windows](#windows-1)
+         * [Creating a task user](#creating-a-task-user)
+         * [Setting Known Folder locations](#setting-known-folder-locations)
+         * [Configuring auto-logon of task user](#configuring-auto-logon-of-task-user)
+         * [Rebooting](#rebooting)
+         * [Executing task commands](#executing-task-commands)
+   * [Payload format](#payload-format)
+   * [Redeployability](#redeployability)
+   * [Integrating with AWS / GCE](#integrating-with-aws--gce)
+   * [Config bootstrapping](#config-bootstrapping)
+   * [Bring your own worker](#bring-your-own-worker)
+      * [Windows](#windows-2)
+         * [Installing](#installing)
+      * [Mac](#mac)
+         * [Installing](#installing-1)
+      * [Linux - Docker](#linux---docker)
+      * [Linux - Native](#linux---native)
+         * [Installing](#installing-2)
+   * [Administrative tools](#administrative-tools)
+      * [Displaying workers](#displaying-workers)
+   * [Worker Type Host Definitions](#worker-type-host-definitions)
+      * [Updating existing definitions](#updating-existing-definitions)
+      * [Modifying definitions](#modifying-definitions)
+      * [Creating your own AWS workers outside of this repo](#creating-your-own-aws-workers-outside-of-this-repo)
+      * [Puppet](#puppet)
+   * [Developing Generic Worker](#developing-generic-worker)
+      * [Fetching source](#fetching-source)
+      * [Credentials](#credentials)
+      * [Running unit tests](#running-unit-tests)
+      * [Writing unit tests](#writing-unit-tests)
+      * [Including bug numbers in comments](#including-bug-numbers-in-comments)
+   * [Releasing Generic Worker](#releasing-generic-worker)
+      * [Release script](#release-script)
+      * [Publishing schemas](#publishing-schemas)
+      * [Testing in Staging](#testing-in-staging)
+      * [Rolling out to Production](#rolling-out-to-production)
+      * [Writing release notes (README.md, release page, ...)](#writing-release-notes-readmemd-release-page-)
+   * [Repository layout](#repository-layout)
+   * [Downloading generic-worker binary release](#downloading-generic-worker-binary-release)
+   * [Building generic-worker from source](#building-generic-worker-from-source)
+   * [Acquire taskcluster credentials for running tests](#acquire-taskcluster-credentials-for-running-tests)
+      * [Option 1](#option-1)
+      * [Option 2](#option-2)
+   * [Set up your env](#set-up-your-env)
+   * [Start the generic worker](#start-the-generic-worker)
+   * [Create a test job](#create-a-test-job)
+   * [Modify dependencies](#modify-dependencies)
+   * [Run the generic worker test suite](#run-the-generic-worker-test-suite)
+   * [Making a new generic worker release](#making-a-new-generic-worker-release)
+   * [Creating and updating worker types](#creating-and-updating-worker-types)
+   * [Release notes](#release-notes)
+      * [In v14.1.0 since v14.0.2](#in-v1410-since-v1402)
+         * [In v14.0.2 since v14.0.1](#in-v1402-since-v1401)
+         * [In v14.0.1 since v14.0.0](#in-v1401-since-v1400)
+         * [In v14.0.0 since v13.0.4](#in-v1400-since-v1304)
+      * [In v13.0.4 since v13.0.3](#in-v1304-since-v1303)
+         * [In v13.0.3 since v13.0.2](#in-v1303-since-v1302)
+         * [In v13.0.2 since v12.0.0](#in-v1302-since-v1200)
+         * [v13.0.1](#v1301)
+         * [v13.0.0](#v1300)
+      * [In v12.0.0 since v11.1.1](#in-v1200-since-v1111)
+      * [In v11.1.1 since v11.1.0](#in-v1111-since-v1110)
+         * [In v11.1.0 since v11.0.1](#in-v1110-since-v1101)
+         * [In v11.0.1 since v11.0.0](#in-v1101-since-v1100)
+         * [In v11.0.0 since v10.11.3](#in-v1100-since-v10113)
+      * [In v10.11.3 since v10.11.2](#in-v10113-since-v10112)
+         * [In v10.11.2 since v10.11.1](#in-v10112-since-v10111)
+         * [In v10.11.1 since v10.11.1alpha1](#in-v10111-since-v10111alpha1)
+         * [In v10.10.0 since v10.9.0](#in-v10100-since-v1090)
+         * [In v10.8.5 since v10.8.4](#in-v1085-since-v1084)
+         * [In v10.8.4 since v10.8.3](#in-v1084-since-v1083)
+         * [In v10.8.2 since v10.8.1](#in-v1082-since-v1081)
+         * [In v10.8.0 since v10.7.12](#in-v1080-since-v10712)
+         * [In v10.7.12 since v10.7.11](#in-v10712-since-v10711)
+         * [In v10.7.11 since v10.7.10](#in-v10711-since-v10710)
+         * [In v10.7.10 since v10.7.9](#in-v10710-since-v1079)
+         * [In v10.7.6 since v10.7.5](#in-v1076-since-v1075)
+         * [In v10.7.3 since v10.7.2](#in-v1073-since-v1072)
+         * [In v10.6.1 since v10.6.0](#in-v1061-since-v1060)
+         * [In v10.6.0 since v10.5.1](#in-v1060-since-v1051)
+         * [In v10.5.1 since v10.5.0](#in-v1051-since-v1050)
+         * [In v10.5.0 since v10.5.0alpha4](#in-v1050-since-v1050alpha4)
+         * [In v10.4.1 since v10.4.0](#in-v1041-since-v1040)
+         * [In v10.4.0 since v10.3.1](#in-v1040-since-v1031)
+         * [In v10.3.0 since v10.2.3](#in-v1030-since-v1023)
+         * [In v10.2.3 since v10.2.2](#in-v1023-since-v1022)
+         * [In v10.2.2 since v10.2.1](#in-v1022-since-v1021)
+         * [In v10.2.1 since v10.2.0](#in-v1021-since-v1020)
+         * [In v10.2.0 since v10.1.8](#in-v1020-since-v1018)
+         * [In v10.1.8 since v10.1.7](#in-v1018-since-v1017)
+         * [In v10.1.7 since v10.1.6](#in-v1017-since-v1016)
+         * [In v10.1.6 since v10.1.5](#in-v1016-since-v1015)
+         * [In v10.1.5 since v10.1.4](#in-v1015-since-v1014)
+         * [In v10.1.4 since v10.1.3](#in-v1014-since-v1013)
+         * [In v10.0.5 since v10.0.4](#in-v1005-since-v1004)
+      * [In v8.5.0 since v8.4.1](#in-v850-since-v841)
+         * [In v8.3.0 since v8.2.0](#in-v830-since-v820)
+         * [In v8.2.0 since v8.1.1](#in-v820-since-v811)
+         * [In v8.1.0 since v8.0.1](#in-v810-since-v801)
+         * [In v8.0.1 since v8.0.0](#in-v801-since-v800)
+      * [In v7.2.13 since v7.2.12](#in-v7213-since-v7212)
+         * [In v7.2.6 since v7.2.5](#in-v726-since-v725)
+         * [In v7.2.2 since v7.2.1](#in-v722-since-v721)
+         * [In v7.1.1 since v7.1.0](#in-v711-since-v710)
+         * [In v7.1.0 since v7.0.3alpha1](#in-v710-since-v703alpha1)
+         * [In v7.0.3alpha1 since v7.0.2alpha1](#in-v703alpha1-since-v702alpha1)
+      * [In v6.1.0 since v6.1.0alpha1](#in-v610-since-v610alpha1)
+         * [In v6.0.0 since v5.4.0](#in-v600-since-v540)
+      * [In v5.4.0 since v5.3.1](#in-v540-since-v531)
+         * [In v5.3.0 since v5.2.0](#in-v530-since-v520)
+         * [In v5.1.0 since v5.0.3](#in-v510-since-v503)
+      * [In v4.0.0alpha1 since v3.0.0alpha1](#in-v400alpha1-since-v300alpha1)
+      * [In v3.0.0alpha1 since v2.1.0](#in-v300alpha1-since-v210)
+      * [In v2.0.0alpha44 since v2.0.0alpha43](#in-v200alpha44-since-v200alpha43)
+   * [Further information](#further-information)
+
+# Introdution
+
+Generic worker is a native Windows/Linux/macOS program for executing
+taskcluster tasks. It communicates with the taskcluster Queue as per the
+[Queue-Worker Interaction
+specification](https://docs.taskcluster.net/docs/reference/platform/queue/worker-interaction).
+It is shipped as a statically linked system-native executable. It is written in
+go (golang).
+
+## Imperative task payloads
+
+Generic worker allows you to execute arbitrary commands in a task.
+
+If you wish to only run trusted code against
+input parameters passed in task payloads, see:
+* [scriptworker](https://github.com/mozilla-releng/scriptworker)
+
+If you are looking to isolate your tasks inside docker containers, see:
+* [docker-worker](https://github.com/taskcluster/docker-worker)
+
+Please note docker support is coming to generic-worker in [bug
+1499055](https://bugzil.la/1499055).
+
+# Sandboxing
+
+It is important that tasks run in a sandbox in order to that they are as
+reproducible as possible, and are not inadvertently affected by previous tasks
+that may have run on the same environment. Different operating systems provide
+different sandboxing mechanisms, and therefore the approach used by
+generic-worker is platform-dependent.
+
+## Windows
+
+On Windows, `generic-worker.exe` runs in a [Windows
+Service](https://docs.microsoft.com/en-us/windows/desktop/services/services)
+under the
+[LocalSystem](https://docs.microsoft.com/en-us/windows/desktop/services/localsystem-account)
+account.
+
+The worker creates a unique Operating System user to sandbox the activity of
+the task.
+
+All task commands run as the task user. After the task has completed, the user
+is deleted, together with any files it has created.
+
+In order for tasks to have access to a graphical logon session, the new task
+user is created, the host is configured to logon on boot as the new task user,
+and then the machine is rebooted. The worker, running as a Windows Service, is
+able to retrieve the primary access token of the interactive desktop session
+in order to run processes as the task user in its desktop.
+
+By default the generated users are standard (non-admin) OS users.
+
+Earlier releases of generic-worker would create a new task user for the
+subsequent task after the current task had completed, before rebooting to
+trigger the automatic logon of the new user. So the workflow looked
+approximately like this:
+
+```
+while executedTasks < numberOfTasksToRun {
+  Create new task user
+  Reboot computer
+  Wait for interactive desktop logon to complete
+  Poll the Queue for a task
+  Execute task
+  Resolve task
+}
+```
+
+Since there is a reboot in the middle of the loop, the worker needed to
+recognise at startup if it was running for the first time, or if there had
+already been a reboot, so the implementation looked something like this:
+
+* If computer is not currently logged in/logging in as a task user:
+  * Create new task user
+  * Reboot computer
+* Else:
+  * Wait for Operating System [winlogon
+    module](https://docs.microsoft.com/en-us/windows/desktop/secauthn/winlogon-and-credential-providers)
+    to complete the interactive logon of the task user
+  * Poll the Queue for a task
+  * Execute task
+  * Resolve task
+  * Create new task user
+  * Reboot computer
+
+However, this caused a problem if during the *Execute task* step, the task
+would crash or reboot the machine. If this happened, the next task user would
+not be created before the reboot, so when the worker started up after the
+reboot, it would reuse the task user that had already been used by the previous
+task (that crashed/restarted the worker).
+
+In order to get around this, generic-worker was changed to create a task user
+for the current task, *and* a task user for the subsequent task, *and* to
+configure the autologon to use the subsequent task user, *before* running the
+current task. This way, if the worker crashed/rebooted for any reason during
+the `Execute task` step, the task user for the subsequent task would already be
+created and configured to automatically log on, so the same task user couldn't
+get reused.
+
+The new logic looks something like this:
+
+* reboot = true
+* If computer is currently logged in/logging in as a task user:
+  * reboot = false
+  * set current task user to the one we are currently logging in as
+* Create new task user for *subsequent* task (and configure machine to auto-logon on boot as that user)
+* if reboot:
+  * Reboot computer
+* Wait for interactive desktop logon to complete for *current* task user
+* Claim task
+* Execute task as current task user
+* Resolve task
+* Reboot computer
+
+With this adjusted approach, the first few iterations look like this:
+
+1. Create task user 1 (and configure auto-logon as task user 1)
+2. Reboot computer
+3. Create task user 2 (and configure auto-logon as task user 2)
+4. Wait for task user 1 to complete auto-logon
+5. Claim task A
+6. Execute task A as user 1
+7. Resolve task A
+8. Reboot computer
+9. Create task user 3 (and configure auto-logon as task user 3)
+10. Wait for task user 2 to complete auto-logon
+11. Claim task B
+12. Execute task B as user 2
+13. Resolve task B
+14. Reboot computer
+
+Note, if (for example) step 6 causes the machine to reboot mid-task, only step
+7 will be missed (resolving task A), since task user 2 was already created and
+auto-logon configured to user 2 in step 3. The Queue will eventually resolve
+task A as `exception/claim-expired`, when it is not resolved by the worker
+within 20 minutes of the worker claiming/reclaiming the task in step 6. But
+most importantly, after the reboot, the machine will log in as pristine task
+user 2, unaffected by any debris left behind in the task user 1 account, since
+step 3 executed successfully before the reboot,
+
+### Task user purging
+
+Additionally, on start up, for task users that are not for the current task or
+subsequent task, the home directory and the task directory (if different to the
+home directory of the task user) are deleted, as well as the task user itself.
+
+### Guest account analogy
+
+In the same way that a guest account allows an untrusted user to temporarily
+use a machine without impacting the rest of the machine, the generic worker
+allows tasks to run on the host without having permanent affect.  After the
+task has completed, all trace of the changes made by the task user should be
+gone, and the machine's state should be reset to the state it had before the
+task was run. If the host environment is sufficiently locked down, the task
+user should not have been able to apply any state-change to the host
+environment.
+
+### Caveats
+
+Please note that the worker has limited control to affect system-wide policy,
+so for example if a host allows arbtirary users to write to a system folder
+location, the worker is not able to prevent a task doing so.  Therefore it is
+up to the machine provider to ensure that the host is sufficiently locked-down.
+Host environments for long-lived workers that are to run untrusted tasks should
+be secured carefully, to prevent that tasks may interfere with system state or
+persist changes across task runs that may affect the reproducibility of a task,
+or worse, introduce a security vulnerability.
 
 
-# Install binary
+## Linux
+
+There is no native sandbox support currently on Linux. Currently the worker
+will execute tasks as the same user that the worker runs as. Use at your own
+risk!
+
+Work is [underway](https://bugzil.la/1499055) to provide support for running
+generic-worker tasks inside a docker container isolated from the host
+environment. However until this work is complete, please see
+[docker-worker](https://github.com/taskcluster/docker-worker) for achieving
+this.
+
+We may, at some point, provide OS-user sandboxing, akin to the Windows
+implementation.
+
+
+## macOS
+
+There is no native sandbox support currently on macOS. Currently the worker
+will execute tasks as the same user that the worker runs as. Use at your own
+risk!
+
+We intend to provide OS-user sandboxing, akin to the Windows implementation, at
+some point in the future.
+
+# Operating System integration
+
+## Windows
+
+### Creating a task user
+
+The generic-worker creates non-privileged task users, with username
+`task_<current-unix-timestamp>` and a random password. Task users are created
+with the command:
+
+```
+net user "<username>" "<userpassword>" /add /expires:never /passwordchg:no /y
+```
+
+See [net
+user](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-xp/bb490718%28v%253dtechnet.10%29)
+for more information.
+
+### Setting Known Folder locations
+
+It may be desirable for the task directory to be in a different location to the
+home directory of the generated user. The location of the home directory is
+determined based on system settings defined at installation time of the
+operating system, and therefore may not be ideal, especially if the host image
+is provided by an external party.
+
+For example, perhaps the user home directory is `C:\Users\task_<timestamp>` but
+for performance reasons, we wish the task directory to be located on a
+different physical drive at `Z:\task_<timestamp>`.
+
+It is possible to configure the location for the task directories (in the above
+case, `Z:\`) via the `tasksDir` property of the generic-worker configuration
+file. However, this would not affect the location of the [AppData
+folder](https://www.howtogeek.com/318177/what-is-the-appdata-folder-in-windows/)
+used by Windows applications, which would still be located under the user's
+home directory.
+
+Since it is usually preferable for all user data to be written
+to the the task directory, and it isn't trivial to move the user home directory
+to an alternative location after the operating system has already been
+installed, the worker configures the user account to store the AppData folder
+under the task directory.
+
+It does this as follows:
+
+1) Calling
+[LogonUserW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-logonuserw)
+to get a logon handle for the new user.
+
+2) Calling
+[LoadUserProfileW](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-loaduserprofilew)
+to load the user profile.
+
+3) Calling
+[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
+with `KNOWNFOLDERID`
+[FOLDERID_RoamingAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
+to set the location of `AppData\Roaming` to under the task directory.
+
+4) Calling
+[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
+with
+[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
+in order to create `AppData\Roaming` folder.
+
+5) Calling [CoTaskMemFree](CoTaskMemFree) to release resources from
+`SHGETKnownFolderPath` call in step 4.
+
+6) Calling
+[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
+with `KNOWNFOLDERID`
+[FOLDERID_LocalAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
+to set the location of `AppData\Local` to under the task directory.
+
+7) Calling
+[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
+with
+[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
+in order to create `AppData\Local` folder.
+
+8) Calling [CoTaskMemFree](CoTaskMemFree) to release resources from
+`SHGETKnownFolderPath` call in step 7.
+
+9) Calling
+[UnloadUserProfile](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile)
+to release resources from `LoadUserProfileW` call in step 2.
+
+10) Calling
+[CloseHandle](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396)
+to release resources from `LogonUserW` call in step 1.
+
+
+### Configuring auto-logon of task user
+
+After the task user has been created, the Windows registry is updated so that
+after rebooting, the task user will be automatically logged in.
+
+This is achieved by configuring the registry key values:
+
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon = 1`
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultUserName = <task user username>`
+* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultPassword = <task user password>`
+
+See [Automatic
+Logon](https://docs.microsoft.com/en-us/windows/desktop/secauthn/msgina-dll-features)
+for more detailed information about these settings.
+
+### Rebooting
+
+Rebooting is achieved by executing:
+
+```
+C:\Windows\System32\shutdown.exe /r /t 3 /c "generic-worker requested reboot"
+```
+
+Please note, automatic reboots can be disabled (see `generic-worker --help` for
+more information).
+
+### Executing task commands
+
+The Windows Command Shell does not have a setting to enable exit-on-fail
+semantics. Execution of a batch script continues if a command fails. To cause
+a batch script to exit after a failed command, the exit code of every command
+needs to be checked, or commands need to be chained together with `&&`.
+
+Since this is cumbersome or error-prone, generic-worker accepts task payloads
+with multiple commands. It will execute them in sequence with exit-on-fail
+semantics. Each command is implicitly executed with `cmd.exe`, which means that
+commands may contain any valid [command shell syntax](https://ss64.com/nt/).
+
+Other workers (such as docker worker) accept only a single task command. If a
+task wishes to execute multiple commands, it will usually specify a single
+shell command to execute them. This approach works well when the shell supports
+exit-on-fail semantics, but not so well when it doesn't, which is why a
+different approach was chosen for generic-worker.
+
+Generic worker generates a wrapper batch script for each command it runs, which
+initialises environment variables, sets the working directory, executes the
+task command, and then if more commands are to follow, captures the working
+directory and environment variables for the next command.
+
+
+
+# Payload format
+
+Each taskcluster task definition contains a top level property `payload` which
+is a json object. The format of this object is specific to the worker
+implementation. For generic-worker, this is then also further specific to the
+platform (Linux/Windows/macOS).
+
+The per-platform payload formats are described in json schema, and can be found
+in the top level `schemas` subdirectory of this repository. These schemas are
+also published to the [generic-worker
+page](https://docs.taskcluster.net/docs/reference/workers/generic-worker/docs/payload)
+of the taskcluster docs site.
+
+# Redeployability
+
+# Integrating with AWS / GCE
+
+# Config bootstrapping
+
+# Bring your own worker
+
+This section explains how to configure and run your own generic-worker workers
+to talk to an existing taskcluster deployment.
+
+## Windows
+### Installing
+## Mac
+### Installing
+
+There currently is no `install` target for macOS, like there is for Windows.
+
+For our own dedicated macOS workers, we install generic-worker using [this
+puppet
+module](https://wiki.mozilla.org/ReleaseEngineering/PuppetAgain/Modules/generic_worker).
+
+You can install generic-worker as a Launch Agent as follows:
+
+1) Create a regular unprivileged user account on your Mac to run the worker
+(e.g. with name `genericworker`) and log into that user account.
+
+2) Download or build generic-worker, so that you have a native darwin binary,
+move it to `/usr/local/bin/generic-worker`, and make sure it is executable for
+your new user (`chmod u+x /usr/local/bin/generic-worker`).
+
+3) Create a signing key in the user home directory by running:
+
+```
+/usr/local/bin/generic-worker new-openpgp-keypair --file .signingkey
+```
+
+3) Create `/Library/LaunchAgents/net.generic.worker.plist` with content:
+
+```
+<%# This Source Code Form is subject to the terms of the Mozilla Public
+<%# License, v. 2.0. If a copy of the MPL was not distributed with this
+<%# file, You can obtain one at http://mozilla.org/MPL/2.0/. -%>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>net.generic.worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/generic-worker</string>
+        <string>run</string>
+        <string>--config</string>
+        <string>/etc/generic-worker.config</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string><-YOUR-NEW-USER-HOME-DIRECTORY-></string>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+```
+
+4) Create `/etc/generic-worker.config` with content:
+
+```
+{
+  "accessToken": "<-YOUR-TASKCLUSTER-ACCESS-TOKEN->",
+  "clientId": "<-YOUR-TASKCLUSTER-CLIENT-ID->",
+  "idleTimeoutSecs": 0,
+  "livelogSecret": "<-RANDOM-SHORT-STRING-HERE->",
+  "provisionerId": "<-YOUR-PROVISIONER-ID->",
+  "publicIP": "<-MAKE-UP-AN-IPv4-ADDRESS-IF-YOU-DON'T-HAVE-ONE->",
+  "signingKeyLocation": ".signingkey",
+  "tasksDir": "tasks",
+  "workerGroup": "<-CHOOSE-A-WORKER-GROUP->",
+  "workerId": "<-CHOOSE-A-WORKER-ID->",
+  "workerType": "<-YOUR-WORKER-TYPE->",
+  "workerTypeMetadata": {
+	<--- add a json blob here with information about you, how you set up the
+         worker type, etc, so people know how it is configured and maintained,
+         and who to go to in case of problems --->
+  }
+}
+```
+
+## Linux - Docker
+## Linux - Native
+### Installing
+# Administrative tools
+## Displaying workers
+# Worker Type Host Definitions
+## Updating existing definitions
+## Modifying definitions
+## Creating your own AWS workers outside of this repo
+## Puppet
+# Developing Generic Worker
+## Fetching source
+## Credentials
+## Running unit tests
+## Writing unit tests
+## Including bug numbers in comments
+
+# Releasing Generic Worker
+## Release script
+## Publishing schemas
+## Testing in Staging
+## Rolling out to Production
+## Writing release notes (README.md, release page, ...)
+# Repository layout
+
+TODO: document layout of this repository...
+
+```
+├── docs
+├── expose
+├── fileutil
+├── gw-codegen
+├── gw-workers
+├── gwconfig
+├── livelog
+├── mozilla-try-scripts
+│   └── lib
+├── occ-workers
+├── process
+├── runtime
+├── tcproxy
+├── testdata
+├── update-ssl-creds
+├── update-worker-type
+├── vendor
+├── win32
+├── worker_types
+└── yamltojson
+```
+
+
+# Downloading generic-worker binary release
 
 * Download the latest release for your platform from https://github.com/taskcluster/generic-worker/releases
 * Download the latest release of livelog for your platform from https://github.com/taskcluster/livelog/releases
-* Download the latest release of livelog for your platform from https://github.com/taskcluster/taskcluster-proxy/releases
 * For darwin/linux, make the binaries executable: `chmod a+x {generic-worker,livelog}*`
 
-# Build from source
+# Building generic-worker from source
 
 If you prefer not to use a prepackaged binary, or want to have the latest unreleased version from the development head:
 
-* Head over to https://golang.org/dl/ and follow the instructions for your platform. __NOTE: go 1.8 or higher is required__. Be sure to set your GOPATH to something appropriate.
+* Head over to https://golang.org/dl/ and follow the instructions for your platform. __Note, go 1.8 or higher is required__.
 * Run `go get github.com/taskcluster/generic-worker`
 * Run `go get github.com/taskcluster/livelog`
 * Run `go get github.com/taskcluster/taskcluster-proxy`
