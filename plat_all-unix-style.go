@@ -85,7 +85,9 @@ func purgeOldTasks() error {
 		log.Printf("WARNING: Not purging previous task directories/users since config setting cleanUpTaskDirs is false")
 		return nil
 	}
-	return deleteTaskDirs(config.TasksDir, taskContext.User.Name)
+	// Use filepath.Base(taskContext.TaskDir) rather than taskContext.User.Name
+	// since taskContext.User is nil if running tasks as current user.
+	return deleteTaskDirs(config.TasksDir, filepath.Base(taskContext.TaskDir))
 }
 
 func install(arguments map[string]interface{}) (err error) {
