@@ -992,7 +992,8 @@ TODO: document layout of this repository...
 
 * Download the latest release for your platform from https://github.com/taskcluster/generic-worker/releases
 * Download the latest release of livelog for your platform from https://github.com/taskcluster/livelog/releases
-* For darwin/linux, make the binaries executable: `chmod a+x {generic-worker,livelog}*`
+* Download the latest release of taskcluster-proxy for your platform from https://github.com/taskcluster/taskcluster-proxy/releases
+* For darwin/linux, make the binaries executable: `chmod a+x {generic-worker,livelog,taskcluster-proxy}*`
 
 # Building generic-worker from source
 
