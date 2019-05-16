@@ -56,7 +56,7 @@ var (
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
 
-	version  = "14.1.0"
+	version  = "14.1.1"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 )
 
@@ -431,11 +431,6 @@ func RunWorker() (exitCode ExitCode) {
 		return INTERNAL_ERROR
 	}
 
-	reboot := PrepareTaskEnvironment()
-	if reboot {
-		return REBOOT_REQUIRED
-	}
-
 	// number of tasks resolved since worker first ran
 	// stored in a json file, since we may reboot between tasks etc
 	tasksResolved := ReadTasksResolvedFile()
@@ -446,11 +441,7 @@ func RunWorker() (exitCode ExitCode) {
 			panic(err)
 		}
 	}(&tasksResolved)
-	err = purgeOldTasks()
-	// errors are not fatal
-	if err != nil {
-		log.Printf("WARNING: failed to remove old task directories/users: %v", err)
-	}
+
 	// Queue is the object we will use for accessing queue api
 	queue = config.Queue()
 	provisioner = config.AWSProvisioner()
@@ -475,6 +466,17 @@ func RunWorker() (exitCode ExitCode) {
 	sigInterrupt := make(chan os.Signal, 1)
 	signal.Notify(sigInterrupt, os.Interrupt)
 	for {
+
+		reboot := PrepareTaskEnvironment()
+		if reboot {
+			return REBOOT_REQUIRED
+		}
+
+		err = purgeOldTasks()
+		// errors are not fatal
+		if err != nil {
+			log.Printf("WARNING: failed to remove old task directories/users: %v", err)
+		}
 
 		// See https://bugzil.la/1298010 - routinely check if this worker type is
 		// outdated, and shut down if a new deployment is required.
