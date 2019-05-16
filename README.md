@@ -1070,7 +1070,7 @@ Once you have been granted the above scope:
 To see a full description of all the config options available to you, run `generic-worker --help`:
 
 ```
-generic-worker 14.1.0
+generic-worker 14.1.1
 
 generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
 See http://taskcluster.github.io/generic-worker/ for more details. Essentially, the worker is
@@ -1324,7 +1324,7 @@ and reports back results to the queue.
           taskclusterProxyPort              Port number for taskcluster-proxy HTTP requests.
                                             [default: 80]
           tasksDir                          The location where task directories should be
-                                            created on the worker. [default: /home]
+                                            created on the worker. [default: /Users]
           workerGroup                       Typically this would be an aws region - an
                                             identifier to uniquely identify which pool of
                                             workers this worker logically belongs to.
@@ -1425,7 +1425,7 @@ go test -v ./...
 Run the `release.sh` script like so:
 
 ```
-$ ./release.sh 14.1.0
+$ ./release.sh 14.1.1
 ```
 
 This will perform some checks, tag the repo, push the tag to github, which will then trigger travis-ci to run tests, and publish the new release.
@@ -1436,8 +1436,16 @@ See [worker_types README.md](https://github.com/taskcluster/generic-worker/blob/
 
 # Release notes
 
+In v14.1.1 since v14.1.0
+========================
+
+* [Bug 1548829 - generic-worker: log header should mention provisionerId](https://bugzil.la/1548829)
+* [Bug 1551164 - [mounts] Not able to rename dir caches/*** as tasks/task_***/***: rename caches/*** tasks/task_***/***: file exists](https://bugzil.la/1551164)
+
 In v14.1.0 since v14.0.2
 ========================
+
+__Please don't use release 14.1.0 on macOS/linux due to [bug 1551164](https://bugzil.la/1551164) which will be fixed in v14.1.1.__
 
 * [Bug 1436195 - Add support for live-logs via websocktunnel](https://bugzil.la/1436195) (note that existing livelog support via stateless DNS still works)
 

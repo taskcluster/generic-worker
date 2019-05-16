@@ -1,4 +1,4 @@
-#!/bin/bash -exv
+#!/bin/bash -e
 
 ######
 # This script allows you to test a new generic-worker Windows release on
@@ -34,7 +34,7 @@ if [ -z "${NEW_GW_VERSION}" ] || [ -z "${NEW_TP_VERSION}" ]; then
 fi
 
 echo "Checking system dependencies..."
-for command in curl jq grep sleep file git hg cat sed rm mktemp python go patch basename tr; do
+for command in curl jq grep sleep file git hg cat sed rm mktemp python2 go patch basename tr; do
   if ! which "${command}" >/dev/null; then
     echo -e "  \xE2\x9D\x8C ${command}"
     echo "${0} requires ${command} to be installed and available in your PATH - please fix and rerun" >&2
@@ -75,7 +75,7 @@ function add_github {
   "${THIS_SCRIPT_DIR}/lib/tooltool.py" add --visibility internal "${LOCAL_FILE}"
   # Bug 1460178 - sanity check binary downloads of generic-worker before publishing to tooltool...
   if ! file "${LOCAL_FILE}" | grep -F "${FILETYPE}" | grep -F 'for MS Windows'; then
-    echo "Downloaded file doesn't appear to be '${FILETYPE}':" >&2
+    echo "Downloaded file '${LOCAL_FILE}' (from dir '$(pwd)') doesn't appear to be '${FILETYPE}':" >&2
     file "${LOCAL_FILE}" >&2
     exit 69
   fi
@@ -102,7 +102,7 @@ cat manifest.tt
 
 git clone git@github.com:mozilla-releng/OpenCloudConfig.git
 cd OpenCloudConfig/userdata/Manifest
-for MANIFEST in *-b.json *-cu.json *-beta.json; do
+for MANIFEST in gecko-t-win10-64-gpu-b gecko-t-win7-32-gpu-b gecko-t-win10-64-cu gecko-t-win7-32-cu gecko-1-b-win2012-beta gecko-t-win10-64-beta gecko-t-win7-32-beta; do
   cat "${MANIFEST}" > "${MANIFEST}.bak"
   cat "${MANIFEST}.bak" \
     | sed "s_\\(generic-worker/releases/download/v\\)[^/]*\\(/generic-worker-nativeEngine-windows-\\)_\\1${NEW_GW_VERSION}\\2_" | sed "s_\\(\"generic-worker \\)[^ ]*\\(.*\\)\$_\\1${NEW_GW_VERSION}\\2_" \
@@ -111,7 +111,7 @@ for MANIFEST in *-b.json *-cu.json *-beta.json; do
   cat "${MANIFEST}" > "${MANIFEST}.bak"
   THIS_ARCH="$(cat "${MANIFEST}" | sed -n 's/.*\/generic-worker-nativeEngine-windows-\(.*\)\.exe.*/\1/p' | sort -u)"
   if [ "${THIS_ARCH}" != "386" ] && [ "${THIS_ARCH}" != "amd64" ]; then
-    echo "NOOOOOOO - cannot recognise ARCH '${THIS_ARCH}'" >&2
+    echo "NOOOOOOO - cannot recognise ARCH '${THIS_ARCH}' of generic-worker binary in manifest '${MANIFEST}' (from dir '$(pwd)')" >&2
     exit 67
   fi
   updateSHA512 "generic-worker-nativeEngine-windows-${THIS_ARCH}.exe" "GenericWorkerDownload"
@@ -130,7 +130,7 @@ This change does _not_ affect any production workers. Commit made with:
 
     ${0} $(echo ${@})
 
-See https://github.com/taskcluster/generic-worker/blob/$THIS_REV/$THIS_FILE -m \"${DEPLOY}\""
+See https://github.com/taskcluster/generic-worker/blob/$THIS_REV/$THIS_FILE" -m "${DEPLOY}"
 OCC_COMMIT="$(git rev-parse HEAD)"
 git push
 
