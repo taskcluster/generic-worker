@@ -10,6 +10,12 @@ import (
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 )
 
+// Note, we don't test TestTcProxy in the CI because we don't have explicit
+// credentials (we operate through the taskcluster proxy of the CI task).
+// However skipping this unit tests doesn't matter, since the proxy is already
+// tested in the integration test TestTaskclusterProxy in the parent package.
+// Leaving it here is useful for developers that just want to run the unit
+// tests in this package.
 func TestTcProxy(t *testing.T) {
 	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
 		os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
@@ -30,7 +36,7 @@ func TestTcProxy(t *testing.T) {
 		Certificate:      os.Getenv("TASKCLUSTER_CERTIFICATE"),
 		AuthorizedScopes: []string{"queue:get-artifact:SampleArtifacts/_/X.txt"},
 	}
-	ll, err := New(executable, 34569, os.Getenv("TASKCLUSTER_ROOT_URL"), creds)
+	ll, err := New(executable, 34569, tcclient.RootURLFromEnvVars(), creds)
 	// Do defer before checking err since err could be a different error and
 	// process may have already started up.
 	defer func() {

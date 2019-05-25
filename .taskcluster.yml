@@ -29,8 +29,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
     payload:
+      features:
+        taskclusterProxy: true
       maxRunTime: 3600
       command:
         - set CGO_ENABLED=0
@@ -68,7 +71,6 @@ tasks:
         - go install -tags nativeEngine -v -ldflags "-X main.revision=%revision%" ./...
         - set CGO_ENABLED=1
         - set GORACE=history_size=7
-        - C:\generic-worker\generic-worker-test-creds.cmd
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race'
@@ -112,8 +114,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
     payload:
+      features:
+        taskclusterProxy: true
       maxRunTime: 3600
       env:
         # Python 2 is needed for TestDesktopResizeAndMovePointer
@@ -144,8 +149,9 @@ tasks:
         - go generate
         - set revision={{ event.head.sha }}
         - go install -tags nativeEngine -v -ldflags "-X main.revision=%revision%" ./...
-        - set GORACE=history_size=7
-        - C:\generic-worker\generic-worker-test-creds.cmd
+        # go test: -race and -msan are only supported on:
+        # linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64
+        # i.e. - *not* on windows/386
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v'
@@ -189,8 +195,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
     payload:
+      features:
+        taskclusterProxy: true
       maxRunTime: 3600
       command:
         - set CGO_ENABLED=0
@@ -228,7 +237,6 @@ tasks:
         - go install -tags nativeEngine -v -ldflags "-X main.revision=%revision%" ./...
         - set CGO_ENABLED=1
         - set GORACE=history_size=7
-        - C:\generic-worker\generic-worker-test-creds.cmd
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race ./...'
         - set GW_TESTS_RUN_AS_TASK_USER=true
         - 'go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race'
@@ -272,8 +280,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
     payload:
+      features:
+        taskclusterProxy: true
       maxRunTime: 3600
       command:
         - - /bin/bash
@@ -285,7 +296,6 @@ tasks:
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             go version
             go env
-            source "${GW_CREDS_BOOTSTRAP}"
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
@@ -303,8 +313,8 @@ tasks:
             go install -tags nativeEngine -v -ldflags "-X main.revision=$(git rev-parse HEAD)" ./...
             # output of wc command can contain spaces on darwin, so no quotes around expression
             test $(git status --porcelain | wc -l) == 0
-            GORACE=history_size=7 CGO_ENABLED=1 go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -race -v ./...
-            ineffassign .
+            GORACE=history_size=7 CGO_ENABLED=1 go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
+            "${GOPATH}/bin/ineffassign" .
       artifacts:
         - name: public/build/generic-worker-darwin-amd64
           path: gopath1.10.8/bin/generic-worker
@@ -345,8 +355,11 @@ tasks:
   #         - pull_request.synchronize
   #         - push
   #   scopes:
+  #     - assume:project:taskcluster:generic-worker-tester
   #     - generic-worker:cache:generic-worker-checkout
   #   payload:
+  #     features:
+  #       taskclusterProxy: true
   #     maxRunTime: 3600
   #     command:
   #       - - /bin/bash
@@ -356,10 +369,8 @@ tasks:
   #           export GOROOT="$(pwd)/go1.10.8/go"
   #           export GOPATH="$(pwd)/gopath1.10.8"
   #           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
-  #           export CGO_ENABLED=0
   #           go version
   #           go env
-  #           source "${GW_CREDS_BOOTSTRAP}"
   #           mkdir -p "${GOPATH}/src/github.com/taskcluster"
   #           cd "${GOPATH}/src/github.com/taskcluster"
   #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
@@ -376,8 +387,11 @@ tasks:
   #           go generate
   #           go install -tags nativeEngine -v -ldflags "-X main.revision=$(git rev-parse HEAD)" ./...
   #           test "$(git status --porcelain | wc -l)" == 0
-  #           GORACE=history_size=7 go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v ./...
-  #           ineffassign .
+  #           # go test: -race and -msan are only supported on:
+  #           # linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64
+  #           # i.e. - *not* on linux/arm
+  #           go test -tags nativeEngine -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v ./...
+  #           "${GOPATH}/bin/ineffassign" .
   #     artifacts:
   #       - name: public/build/generic-worker-linux-armv6l
   #         path: gopath1.10.8/bin/generic-worker
@@ -412,12 +426,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
-      - secrets:get:repo:github.com/taskcluster/generic-worker
     payload:
       features:
-        taskclusterProxy:
-          true
+        taskclusterProxy: true
       maxRunTime: 3600
       command:
         - - /bin/bash
@@ -429,8 +442,6 @@ tasks:
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             go version
             go env
-            curl -s "${TASKCLUSTER_PROXY_URL}/secrets/v1/secret/repo:github.com/taskcluster/generic-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
-            source ~/env_private.sh
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
@@ -483,12 +494,11 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
+      - assume:project:taskcluster:generic-worker-tester
       - generic-worker:cache:generic-worker-checkout
-      - secrets:get:repo:github.com/taskcluster/generic-worker
     payload:
       features:
-        taskclusterProxy:
-          true
+        taskclusterProxy: true
       maxRunTime: 3600
       command:
         - - /bin/bash
@@ -500,8 +510,6 @@ tasks:
             export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
             go version
             go env
-            curl -s "${TASKCLUSTER_PROXY_URL}/secrets/v1/secret/repo:github.com/taskcluster/generic-worker" | sed -n 's/.*"b64_encoded_credentials_script": "\(.*\)".*/\1/p' | base64 -d > ~/env_private.sh
-            source ~/env_private.sh
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
             if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '{{ event.head.repo.url }}' 'generic-worker'; fi
@@ -553,8 +561,7 @@ tasks:
       maxRunTime: 3600
       image: taskcluster/upload-project-docs:latest
       features:
-        taskclusterProxy:
-          true
+        taskclusterProxy: true
       command:
         - /bin/bash
         - '--login'
@@ -591,7 +598,7 @@ tasks:
           - pull_request.synchronize
           - push
     scopes:
-      - secrets:get:repo:github.com/taskcluster/generic-worker
+      - assume:project:taskcluster:generic-worker-tester
       - docker-worker:cache:generic-worker-checkout
     payload:
       features:

@@ -92,23 +92,55 @@ and reports back results to the queue.
     The configuration file for the generic worker is specified with -c|--config CONFIG-FILE
     as described above. Its format is a json dictionary of name/value pairs.
 
-        ** REQUIRED ** properties
-        =========================
+        AUTH properties
+        ===============
+
+        There are three options for configuring taskcluster authentication:
+
+        1) Permanent taskcluster credentials
+
+          * accessToken, clientId, rootURL should be specified
+          * certificate, proxyURL should be empty strings or unspecified
+
+        2) Temporary taskcluster credentials
+
+          * accessToken, clientId, certificate, rootURL should be specified
+          * proxyURL should be empty strings or unspecified
+
+        3) Authentication via a proxy
+
+          * proxyURL, rootURL should be specified
+          * accessToken, clientId, certificate should be empty strings or unspecified
+
 
           accessToken                       Taskcluster access token used by generic worker
                                             to talk to taskcluster queue.
+          certificate                       Taskcluster certificate, when using temporary
+                                            credentials only.
           clientId                          Taskcluster client ID used by generic worker to
                                             talk to taskcluster queue.
+          proxyURL                          If running the worker _behind_ a taskcluster proxy,
+                                            the taskcluster proxy url. Note this is mostly only
+                                            useful for the generic-worker CI itself, but if
+                                            desired, any worker can run behind a taskcluster
+                                            proxy in order to keep taskcluster credentials
+                                            away from the worker. If a proxyURL is specified,
+                                            please note that clientId / accessToken / certificate
+                                            should all be empty, but rootURL is still required.
+          rootURL                           The root URL of the taskcluster deployment to which
+                                            clientId and accessToken grant access. For example,
+                                            'https://taskcluster.net'. Individual services can
+                                            override this setting - see the *BaseURL settings.
+
+        ** REQUIRED ** properties
+        =========================
+
           ed25519SigningKeyLocation         The ed25519 signing key for signing artifacts with.
           publicIP                          The IP address for clients to be directed to
                                             for serving live logs; see
                                             https://github.com/taskcluster/livelog and
                                             https://github.com/taskcluster/stateless-dns-server
                                             Also used by chain of trust.
-          rootURL                           The root URL of the taskcluster deployment to which
-                                            clientId and accessToken grant access. For example,
-                                            'https://taskcluster.net'. Individual services can
-                                            override this setting - see the *BaseURL settings.
           workerId                          A name to uniquely identify your worker.
           workerType                        This should match a worker_type managed by the
                                             provisioner you have specified.
@@ -127,8 +159,6 @@ and reports back results to the queue.
                                             not exist. This may be a relative path to the
                                             current directory, or an absolute path.
                                             [default: caches]
-          certificate                       Taskcluster certificate, when using temporary
-                                            credentials only.
           checkForNewDeploymentEverySecs    The number of seconds between consecutive calls
                                             to the provisioner, to check if there has been a
                                             new deployment of the current worker type. If a
@@ -280,11 +310,11 @@ and reports back results to the queue.
                                             live logs.  Optional if not using websocktunnel to expose
                                             live logs.
 
-    If an optional config setting is not provided in the json configuration file, the
-    default will be taken (defaults documented above).
+        If an optional config setting is not provided in the json configuration file, the
+        default will be taken (defaults documented above).
 
-    If no value can be determined for a required config setting, the generic-worker will
-    exit with a failure message.
+        If no value can be determined for a required config setting, the generic-worker will
+        exit with a failure message.
 
   Exit Codes:
 

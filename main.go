@@ -248,6 +248,7 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			NumberOfTasksToRun:             0,
 			ProvisionerBaseURL:             "",
 			ProvisionerID:                  "test-provisioner",
+			ProxyURL:                       "",
 			PurgeCacheBaseURL:              "",
 			QueueBaseURL:                   "",
 			RequiredDiskSpaceMegabytes:     10240,

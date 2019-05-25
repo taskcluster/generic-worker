@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/taskcluster/slugid-go/slugid"
+	tcclient "github.com/taskcluster/taskcluster-client-go"
 	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
@@ -45,13 +46,12 @@ func (m *MockAWSProvisionedEnvironment) ValidPublicConfig(t *testing.T) map[stri
 		"downloadsDir":       filepath.Join(cwd, "downloads"),
 		"idleTimeoutSecs":    60,
 		"numberOfTasksToRun": 1,
+		"queueBaseURL":       tcqueue.New(nil, tcclient.RootURLFromEnvVars()).BaseURL,
+		"purgeCacheBaseURL":  tcpurgecache.New(nil, tcclient.RootURLFromEnvVars()).BaseURL,
 		// should be enough for tests, and travis-ci.org CI environments
 		// don't have a lot of free disk
-		"queueBaseURL":               tcqueue.New(nil, os.Getenv("TASKCLUSTER_ROOT_URL")).BaseURL,
-		"purgeCacheBaseURL":          tcpurgecache.New(nil, os.Getenv("TASKCLUSTER_ROOT_URL")).BaseURL,
-		"requiredDiskSpaceMegabytes": 16,
-		"runTasksAsCurrentUser":      os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
-		// "secretsBaseURL":                 "http://localhost:13243/secrets",
+		"requiredDiskSpaceMegabytes":     16,
+		"runTasksAsCurrentUser":          os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
 		"sentryProject":                  "generic-worker-tests",
 		"shutdownMachineOnIdle":          false,
 		"shutdownMachineOnInternalError": false,
@@ -125,21 +125,19 @@ func (m *MockAWSProvisionedEnvironment) userData(t *testing.T, w http.ResponseWr
 		data = m.WorkerTypeDefinitionUserData(t)
 	}
 	resp := map[string]interface{}{
-		"data":             data,
-		"capacity":         1,
-		"workerType":       workerType,
-		"provisionerId":    "test-provisioner",
-		"region":           "test-worker-group",
-		"availabilityZone": "neuss-germany",
-		"instanceType":     "p3.teenyweeny",
-		"spotBid":          3.5,
-		"price":            3.02,
-		// "taskclusterRootUrl":  os.Getenv("TASKCLUSTER_ROOT_URL"), // don't use tcclient.RootURLFromEnvVars() since we don't want ClientID of CI
+		"data":                data,
+		"capacity":            1,
+		"workerType":          workerType,
+		"provisionerId":       "test-provisioner",
+		"region":              "test-worker-group",
+		"availabilityZone":    "neuss-germany",
+		"instanceType":        "p3.teenyweeny",
+		"spotBid":             3.5,
+		"price":               3.02,
 		"taskclusterRootUrl":  "http://localhost:13243",
 		"launchSpecGenerated": time.Now(),
 		"lastModified":        time.Now().Add(time.Minute * -30),
-		// "provisionerBaseUrl":  "http://localhost:13243/provisioner",
-		"securityToken": "12345",
+		"securityToken":       "12345",
 	}
 	WriteJSON(t, w, resp)
 }
