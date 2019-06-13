@@ -1,8 +1,9 @@
 package main
 
 import (
-	"os"
+	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -19,9 +20,11 @@ func TestRunAfterUserCreation(t *testing.T) {
 			t.Fatalf("Problem deleting old tasks: %v", err)
 		}
 	}()
-	file := filepath.Join(taskContext.TaskDir, "run-after-user.txt")
-	_, err := os.Stat(file)
+	fileContents, err := ioutil.ReadAll(filepath.Join(taskContext.TaskDir, "run-after-user.txt"))
 	if err != nil {
 		t.Fatalf("Got error when looking for file %v: %v", file, err)
+	}
+	if !strings.Contains(string(fileContents), "task_") {
+		t.Fatalf("Expected runAfterUserCreation script to run as task user - but it ran as %v", string(fileContents))
 	}
 }
