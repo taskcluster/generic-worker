@@ -171,6 +171,9 @@ func main() {
 		// platform specific...
 		err := install(arguments)
 		exitOnError(CANT_INSTALL_GENERIC_WORKER, err, "Error installing generic worker")
+	case arguments["remove"]:
+		err := remove(arguments)
+		exitOnError(CANT_REMOVE_GENERIC_WORKER, err, "Error removing generic worker")
 	case arguments["new-ed25519-keypair"]:
 		err := generateEd25519Keypair(arguments["--file"].(string))
 		exitOnError(CANT_CREATE_ED25519_KEYPAIR, err, "Error generating ed25519 keypair %v for worker", arguments["--file"].(string))

@@ -10,7 +10,7 @@ func customTargetsSummary() string {
 	return ""
 }
 
-func installService() string {
+func installServiceDescription() string {
 	return ""
 }
 

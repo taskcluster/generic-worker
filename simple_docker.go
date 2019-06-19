@@ -105,6 +105,10 @@ func install(arguments map[string]interface{}) (err error) {
 	return nil
 }
 
+func remove(arguments map[string]interface{}) (err error) {
+	return nil
+}
+
 func RenameCrossDevice(oldpath, newpath string) (err error) {
 	// TODO: here we should be able to rename when oldpath and newpath are on
 	// different partitions - for now this will cover 99% of cases.

@@ -7,6 +7,7 @@ const (
 	TASKS_COMPLETE              ExitCode = 0
 	CANT_LOAD_CONFIG            ExitCode = 64
 	CANT_INSTALL_GENERIC_WORKER ExitCode = 65
+	CANT_REMOVE_GENERIC_WORKER  ExitCode = 66
 	REBOOT_REQUIRED             ExitCode = 67
 	IDLE_TIMEOUT                ExitCode = 68
 	INTERNAL_ERROR              ExitCode = 69
@@ -30,6 +31,9 @@ and reports back results to the queue.
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]` + installServiceSummary() + `
+    generic-worker install service          [--service-name   SERVICE-NAME]
+                                            [--config         CONFIG-FILE]
+                                            [--configure-for-aws | --configure-for-gcp]
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE` + customTargetsSummary() + `
     generic-worker --help
@@ -42,7 +46,7 @@ and reports back results to the queue.
                                             payload is validated against a json schema baked
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
-                                            worker.` + installService() + `
+                                            worker.` + installServiceDescription() + `
     new-ed25519-keypair                     This will generate a fresh, new ed25519
                                             compliant private/public key pair. The public
                                             key will be written to stdout and the private
@@ -66,6 +70,8 @@ and reports back results to the queue.
     --configure-for-gcp                     This will create the CONFIG-FILE for a GCP
                                             installation by querying the GCP environment
                                             and setting appropriate values.` + platformCommandLineParameters() + `
+    --service-name SERVICE-NAME             The name that the Windows service should be
+                                            installed under. [default: Generic Worker]
     --file PRIVATE-KEY-FILE                 The path to the file to write the private key
                                             to. The parent directory must already exist.
                                             If the file exists it will be overwritten,

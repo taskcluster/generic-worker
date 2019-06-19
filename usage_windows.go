@@ -17,7 +17,7 @@ func customTargetsSummary() string {
     generic-worker grant-winsta-access      --sid SID`
 }
 
-func installService() string {
+func installServiceDescription() string {
 	return `
     install service                         This will install the generic worker as a
                                             Windows service running under the Local System

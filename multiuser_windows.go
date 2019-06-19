@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/taskcluster/generic-worker/process"
 	"github.com/taskcluster/generic-worker/runtime"
@@ -21,7 +22,74 @@ import (
 	"github.com/taskcluster/generic-worker/win32"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
+	"golang.org/x/sys/windows/svc"
+	"golang.org/x/sys/windows/svc/debug"
+	"golang.org/x/sys/windows/svc/eventlog"
+	"golang.org/x/sys/windows/svc/mgr"
 )
+
+var elog debug.Log
+
+type windowsService struct{}
+
+// implements Execute for svc.Handler
+func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	changes <- svc.Status{State: svc.StartPending}
+
+	// set up eventlog
+
+	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+
+	go func(r <-chan svc.ChangeRequest, changes chan<- svc.Status) {
+	loop:
+		for {
+			select {
+			case c := <-r:
+				switch c.Cmd {
+				case svc.Interrogate:
+					changes <- c.CurrentStatus
+					// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+					time.Sleep(100 * time.Millisecond)
+					changes <- c.CurrentStatus
+				case svc.Stop, svc.Shutdown:
+					elog.Info(1, fmt.Sprintf("received #%d, shutting down", c))
+					break loop
+				default:
+					elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+				}
+			}
+		}
+		changes <- svc.Status{State: svc.StopPending}
+	}(r, changes)
+
+	return false, 0
+}
+
+func runService(name string, isDebug bool) {
+	var err error
+	if isDebug {
+		elog = debug.New(name)
+	} else {
+		elog, err = eventlog.Open(name)
+		if err != nil {
+			return
+		}
+	}
+	defer elog.Close()
+
+	elog.Info(1, fmt.Sprintf("starting %s service", name))
+	run := svc.Run
+	if isDebug {
+		run = debug.Run
+	}
+	err = run(name, &windowsService{})
+	if err != nil {
+		elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		return
+	}
+	elog.Info(1, fmt.Sprintf("%s service stopped", name))
+}
 
 func (task *TaskRun) formatCommand(index int) string {
 	return task.Payload.Command[index]
@@ -235,15 +303,170 @@ func install(arguments map[string]interface{}) (err error) {
 	configFile := convertNilToEmptyString(arguments["--config"])
 	switch {
 	case arguments["service"]:
-		nssm := convertNilToEmptyString(arguments["--nssm"])
-		serviceName := convertNilToEmptyString(arguments["--service-name"])
+		name := convertNilToEmptyString(arguments["--service-name"])
 		configureForAWS := arguments["--configure-for-aws"].(bool)
 		configureForGCP := arguments["--configure-for-gcp"].(bool)
 		dir := filepath.Dir(exePath)
-		return deployService(configFile, nssm, serviceName, exePath, dir, configureForAWS, configureForGCP)
+		return deployService(configFile, name, exePath, dir, configureForAWS, configureForGCP)
 	}
-	log.Fatal("Unknown install target - only 'service' is allowed")
+	return fmt.Errorf("Unknown install target - only 'service' is allowed")
+}
+
+func CreateRunGenericWorkerBatScript(batScriptFilePath, configFile string, configureForAWS bool, configureForGCP bool) error {
+	runCommand := `.\generic-worker.exe run`
+	if configFile != "" {
+		runCommand += " --config " + configFile
+	}
+	if configureForAWS {
+		runCommand += ` --configure-for-aws`
+	}
+	if configureForGCP {
+		runCommand += ` --configure-for-gcp`
+	}
+	runCommand += ` > .\generic-worker.log 2>&1`
+	batScriptContents := []byte(strings.Join([]string{
+		`:: Run generic-worker`,
+		``,
+		`:: step inside folder containing this script`,
+		`pushd %~dp0`,
+		``,
+		runCommand,
+		``,
+		`:: Possible exit codes:`,
+		`::    0: all tasks completed   - only occurs when numberOfTasksToRun > 0`,
+		`::   67: rebooting             - system reboot has been triggered`,
+		`::   68: idle timeout          - system shutdown has been triggered if shutdownMachineOnIdle=true`,
+		`::   69: internal error        - system shutdown has been triggered if shutdownMachineOnInternalError=true`,
+		`::   70: deployment ID changed - system shutdown has been triggered`,
+		``,
+	}, "\r\n"))
+	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755) // note 0755 is mostly ignored on windows
+	if err != nil {
+		return fmt.Errorf("Was not able to create file %q due to %s", batScriptFilePath, err)
+	}
 	return nil
+}
+
+// deploys the generic worker as a windows service named name
+// running as the user LocalSystem
+// if the service already exists we skip.
+func deployService(configFile, name, exePath, dir string, configureForAWS bool, configureForGCP bool) error {
+	targetScript := filepath.Join(filepath.Dir(exePath), "run-generic-worker.bat")
+	err := CreateRunGenericWorkerBatScript(targetScript, configFile, configureForAWS, configureForGCP)
+	if err != nil {
+		return err
+	}
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s, err := m.OpenService(name)
+	if err == nil {
+		s.Close()
+		return fmt.Errorf("service %s already exists", name)
+	}
+	// can pass args as variadic
+	err = installService(name, targetScript, dir)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func installService(name, exePath, dir string, args ...string) error {
+	config := mgr.Config{
+		DisplayName: name,
+		Description: "A taskcluster worker that runs on all mainstream platforms",
+		// run as LocalSystem because we call WTSQueryUserToken
+		ServiceStartName: "LocalSystem",
+		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS,
+		StartType:        mgr.StartAutomatic,
+	}
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s, err := m.CreateService(
+		name,
+		exePath,
+		config,
+	)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+	// log all events to logfile
+	err = eventlog.Install(
+		name,
+		filepath.Join(dir, "generic-worker-service.log"),
+		false,
+		eventlog.Error|eventlog.Warning|eventlog.Info,
+	)
+	if err != nil {
+		s.Delete()
+		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+func remove(arguments map[string]interface{}) error {
+	switch {
+	case arguments["service"]:
+		name := convertNilToEmptyString(arguments["--service-name"])
+		return removeService(name)
+	}
+	return fmt.Errorf("Unknown remove target - only 'service' is allowed")
+}
+
+func removeService(name string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	s, err := m.OpenService(name)
+	if err != nil {
+		return fmt.Errorf("service %s is not installed", name)
+	}
+	defer s.Close()
+	err = s.Delete()
+	if err != nil {
+		return err
+	}
+	err = eventlog.Remove(name)
+	if err != nil {
+		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
+	}
+	return nil
+}
+
+func ExePath() (string, error) {
+	log.Printf("Command args: %#v", os.Args)
+	prog := os.Args[0]
+	p, err := filepath.Abs(prog)
+	if err != nil {
+		return "", err
+	}
+	fi, err := os.Stat(p)
+	if err == nil {
+		if !fi.Mode().IsDir() {
+			return p, nil
+		}
+		err = fmt.Errorf("%s is directory", p)
+	}
+	if filepath.Ext(p) == "" {
+		p += ".exe"
+		fi, err = os.Stat(p)
+		if err == nil {
+			if !fi.Mode().IsDir() {
+				return p, nil
+			}
+			err = fmt.Errorf("%s is directory", p)
+		}
+	}
+	return "", err
 }
 
 func makeFileOrDirReadWritableForUser(recurse bool, dir string, user *gwruntime.OSUser) ([]byte, error) {
@@ -424,38 +647,6 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 	return INTERNAL_ERROR
 }
 
-func CreateRunGenericWorkerBatScript(batScriptFilePath string, configureForAWS bool, configureForGCP bool) error {
-	runCommand := `.\generic-worker.exe run`
-	if configureForAWS {
-		runCommand += ` --configure-for-aws`
-	}
-	if configureForGCP {
-		runCommand += ` --configure-for-gcp`
-	}
-	runCommand += ` > .\generic-worker.log 2>&1`
-	batScriptContents := []byte(strings.Join([]string{
-		`:: Run generic-worker`,
-		``,
-		`:: step inside folder containing this script`,
-		`pushd %~dp0`,
-		``,
-		runCommand,
-		``,
-		`:: Possible exit codes:`,
-		`::    0: all tasks completed   - only occurs when numberOfTasksToRun > 0`,
-		`::   67: rebooting             - system reboot has been triggered`,
-		`::   68: idle timeout          - system shutdown has been triggered if shutdownMachineOnIdle=true`,
-		`::   69: internal error        - system shutdown has been triggered if shutdownMachineOnInternalError=true`,
-		`::   70: deployment ID changed - system shutdown has been triggered`,
-		``,
-	}, "\r\n"))
-	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755) // note 0755 is mostly ignored on windows
-	if err != nil {
-		return fmt.Errorf("Was not able to create file %q due to %s", batScriptFilePath, err)
-	}
-	return nil
-}
-
 func SetAutoLogin(user *runtime.OSUser) error {
 	k, _, err := registry.CreateKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon`, registry.WRITE)
 	if err != nil {
@@ -475,77 +666,6 @@ func SetAutoLogin(user *runtime.OSUser) error {
 		return fmt.Errorf(`Was not able to set registry entry 'SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultPassword' to %q due to %s`, user.Password, err)
 	}
 	return nil
-}
-
-// deploys the generic worker as a windows service, running under the windows
-// user specified with username/password, such that the generic worker runs
-// with the given configuration file configFile. the http://nssm.cc/ executable
-// is required to install the service, specified as a file system path. The
-// serviceName is the service name given to the newly created service. if the
-// service already exists, it is simply updated.
-func deployService(configFile, nssm, serviceName, exePath, dir string, configureForAWS bool, configureForGCP bool) error {
-	targetScript := filepath.Join(filepath.Dir(exePath), "run-generic-worker.bat")
-	err := CreateRunGenericWorkerBatScript(targetScript, configureForAWS, configureForGCP)
-	if err != nil {
-		return err
-	}
-	return runtime.RunCommands(
-		false,
-		[]string{nssm, "install", serviceName, targetScript},
-		[]string{nssm, "set", serviceName, "AppDirectory", dir},
-		[]string{nssm, "set", serviceName, "DisplayName", serviceName},
-		[]string{nssm, "set", serviceName, "Description", "A taskcluster worker that runs on all mainstream platforms"},
-		[]string{nssm, "set", serviceName, "Start", "SERVICE_AUTO_START"},
-		// By default, NSSM installs as LocalSystem, which we need since we call WTSQueryUserToken.
-		// So let's not set it.
-		// []string{nssm, "set", serviceName, "ObjectName", ".\\" + user.Name, user.Password},
-		[]string{nssm, "set", serviceName, "Type", "SERVICE_WIN32_OWN_PROCESS"},
-		[]string{nssm, "set", serviceName, "AppPriority", "NORMAL_PRIORITY_CLASS"},
-		[]string{nssm, "set", serviceName, "AppNoConsole", "1"},
-		[]string{nssm, "set", serviceName, "AppAffinity", "All"},
-		[]string{nssm, "set", serviceName, "AppStopMethodSkip", "0"},
-		[]string{nssm, "set", serviceName, "AppStopMethodConsole", "1500"},
-		[]string{nssm, "set", serviceName, "AppStopMethodWindow", "1500"},
-		[]string{nssm, "set", serviceName, "AppStopMethodThreads", "1500"},
-		[]string{nssm, "set", serviceName, "AppThrottle", "1500"},
-		[]string{nssm, "set", serviceName, "AppExit", "Default", "Exit"},
-		[]string{nssm, "set", serviceName, "AppRestartDelay", "0"},
-		[]string{nssm, "set", serviceName, "AppStdout", filepath.Join(dir, "generic-worker-service.log")},
-		[]string{nssm, "set", serviceName, "AppStderr", filepath.Join(dir, "generic-worker-service.log")},
-		[]string{nssm, "set", serviceName, "AppStdoutCreationDisposition", "4"},
-		[]string{nssm, "set", serviceName, "AppStderrCreationDisposition", "4"},
-		[]string{nssm, "set", serviceName, "AppRotateFiles", "1"},
-		[]string{nssm, "set", serviceName, "AppRotateOnline", "1"},
-		[]string{nssm, "set", serviceName, "AppRotateSeconds", "3600"},
-		[]string{nssm, "set", serviceName, "AppRotateBytes", "0"},
-	)
-}
-
-func ExePath() (string, error) {
-	log.Printf("Command args: %#v", os.Args)
-	prog := os.Args[0]
-	p, err := filepath.Abs(prog)
-	if err != nil {
-		return "", err
-	}
-	fi, err := os.Stat(p)
-	if err == nil {
-		if !fi.Mode().IsDir() {
-			return p, nil
-		}
-		err = fmt.Errorf("%s is directory", p)
-	}
-	if filepath.Ext(p) == "" {
-		p += ".exe"
-		fi, err = os.Stat(p)
-		if err == nil {
-			if !fi.Mode().IsDir() {
-				return p, nil
-			}
-			err = fmt.Errorf("%s is directory", p)
-		}
-	}
-	return "", err
 }
 
 func GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid string) (err error) {

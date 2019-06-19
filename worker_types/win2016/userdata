@@ -79,8 +79,6 @@ Set-Acl "C:\builds" $acl
 # download tooltool
 $client.DownloadFile("https://raw.githubusercontent.com/mozilla/release-services/master/src/tooltool/client/tooltool.py", "C:\builds\tooltool.py")
 
-# install nssm
-Expand-ZIPFile -File "C:\nssm-2.24.zip" -Destination "C:\" -Url "http://www.nssm.cc/release/nssm-2.24.zip"
 
 # Bizarrely, this sets env TEMP/TMP correctly in default user profile, however, if running a
 # task as Administrator, including any subprocesses that creates, even if processes under a
@@ -111,7 +109,6 @@ Expand-ZIPFile -File "C:\nssm-2.24.zip" -Destination "C:\" -Url "http://www.nssm
 #
 # # unmount registry hive
 # reg unload HKLM\DefaultUser
-
 # download generic-worker
 md C:\generic-worker
 $client.DownloadFile("https://github.com/taskcluster/generic-worker/releases/download/v15.1.0/generic-worker-multiuser-windows-amd64.exe", "C:\generic-worker\generic-worker.exe")
@@ -120,7 +117,7 @@ $client.DownloadFile("https://github.com/taskcluster/generic-worker/releases/dow
 $client.DownloadFile("https://github.com/taskcluster/livelog/releases/download/v1.1.0/livelog-windows-amd64.exe", "C:\generic-worker\livelog.exe")
 
 # install generic-worker
-Start-Process C:\generic-worker\generic-worker.exe -ArgumentList "install service --configure-for-aws --nssm C:\nssm-2.24\win64\nssm.exe --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\generic-worker\install.log -RedirectStandardError C:\generic-worker\install.err
+Start-Process C:\generic-worker\generic-worker.exe -ArgumentList "install service --configure-for-aws --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\generic-worker\install.log -RedirectStandardError C:\generic-worker\install.err
 # Start-Process C:\generic-worker\generic-worker.exe -ArgumentList "install startup --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\generic-worker\install.log -RedirectStandardError C:\generic-worker\install.err
 
 # initial clone of mozilla-central
