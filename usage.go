@@ -7,6 +7,7 @@ const (
 	TASKS_COMPLETE              ExitCode = 0
 	CANT_LOAD_CONFIG            ExitCode = 64
 	CANT_INSTALL_GENERIC_WORKER ExitCode = 65
+	CANT_REMOVE_GENERIC_WORKER  ExitCode = 66
 	REBOOT_REQUIRED             ExitCode = 67
 	IDLE_TIMEOUT                ExitCode = 68
 	INTERNAL_ERROR              ExitCode = 69
@@ -29,7 +30,8 @@ and reports back results to the queue.
 
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
-                                            [--configure-for-aws | --configure-for-gcp]` + installServiceSummary() + `
+                                            [--configure-for-aws | --configure-for-gcp]` +
+		installServiceSummary() + removeServiceSummary() + runServiceSummary() + `
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE` + customTargetsSummary() + `
     generic-worker --help
@@ -42,7 +44,7 @@ and reports back results to the queue.
                                             payload is validated against a json schema baked
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
-                                            worker.` + installService() + `
+                                            worker.` + installServiceDescription() + `
     new-ed25519-keypair                     This will generate a fresh, new ed25519
                                             compliant private/public key pair. The public
                                             key will be written to stdout and the private

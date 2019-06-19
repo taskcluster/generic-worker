@@ -112,28 +112,25 @@ with automatic quarantining of workers, waiting for custom events, etc).
    and the public key will be written to standard out. Keep a copy of the
    public key if you wish to validate artifact signatures.
 
-3. Download NSSM 2.24 from https://nssm.cc/release/nssm-2.24.zip and extract it
-   under `C:\`.
-
-4. Install generic-worker as a Windows service running under the `LocalSystem`
+3. Install generic-worker as a Windows service running under the `LocalSystem`
    account, by running the following command as an `Administrator`:
 
    * `generic-worker.exe install service` (see `generic-worker.exe --help` to
      apply non-default configuration settings)
 
-5. Download livelog from https://github.com/taskcluster/livelog/releases and
+4. Download livelog from https://github.com/taskcluster/livelog/releases and
    place it in `C:\generic-worker\livelog.exe`.
 
-6. Download taskcluster proxy from
+5. Download taskcluster proxy from
    https://github.com/taskcluster/taskcluster-proxy/releases and place it in
    `C:\generic-worker\taskcluster-proxy.exe`.
 
-7. Create `C:\generic-worker\generic-worker.config` with appopriate values.
+6. Create `C:\generic-worker\generic-worker.config` with appopriate values.
 
-8. Edit file `C:\generic-worker\generic-worker.config` with appropriate
+7. Edit file `C:\generic-worker\generic-worker.config` with appropriate
    settings (see `generic-worker.exe --help` for information).
 
-9. Reboot the machine, and the worker should be running. Check logs under
+8. Reboot the machine, and the worker should be running. Check logs under
    `C:\generic-worker\generic-worker.log`.
 
 
@@ -350,6 +347,9 @@ and reports back results to the queue.
 
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
+                                            [--configure-for-aws | --configure-for-gcp]
+    generic-worker install service          [--service-name SERVICE-NAME]
+                                            [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE

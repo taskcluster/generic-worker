@@ -227,14 +227,8 @@ New-NetFirewallRule -DisplayName "LiveLog_Get (TCP 60022 Inbound): Allow" -Direc
 # LiveLog_Put
 New-NetFirewallRule -DisplayName "LiveLog_Put (TCP 60023 Inbound): Allow" -Direction Inbound -LocalPort 60023 -Protocol TCP -Action Allow
 
-# NSSMDownload
-$client.DownloadFile("https://nssm.cc/ci/nssm-2.24-103-gdee49fc.zip", "C:\Windows\Temp\NSSMInstall.zip")
-
-# NSSMInstall: NSSM is required to install Generic Worker as a service. Currently ZipInstall fails, so using 7z instead.
-Start-Process "C:\Program Files\7-Zip\7z.exe" -ArgumentList "x -oC:\ C:\Windows\Temp\NSSMInstall.zip" -Wait -NoNewWindow
-
 # GenericWorkerInstall
-Start-Process "C:\generic-worker\generic-worker.exe" -ArgumentList "install service --nssm C:\nssm-2.24-103-gdee49fc\win64\nssm.exe --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow
+Start-Process "C:\generic-worker\generic-worker.exe" -ArgumentList "install service --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow
 
 # GenericWorkerStateWait
 $client.DownloadFile("https://raw.githubusercontent.com/mozilla-releng/OpenCloudConfig/master/userdata/Configuration/GenericWorker/run-generic-worker-format-and-reboot.bat", "C:\generic-worker\run-generic-worker.bat")
