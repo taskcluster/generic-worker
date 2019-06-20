@@ -6,8 +6,19 @@ const (
 
 func installServiceSummary() string {
 	return `
-    generic-worker install service          [--nssm           NSSM-EXE]
-                                            [--service-name   SERVICE-NAME]
+    generic-worker install service          [--service-name   SERVICE-NAME]
+                                            [--config         CONFIG-FILE]
+                                            [--configure-for-aws | --configure-for-gcp]`
+}
+
+func removeServiceSummary() string {
+	return `
+    generic-worker remove service           [--service-name   SERVICE-NAME]`
+}
+
+func runServiceSummary() string {
+	return `
+    generic-worker run-service              [--service-name   SERVICE-NAME]
                                             [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]`
 }
@@ -32,6 +43,12 @@ func installServiceDescription() string {
                                             preconditions have been met.`
 }
 
+func removeServiceDescription() string {
+	return `
+    remove service                         This will remove the generic worker
+                                            Windows service.`
+}
+
 func customTargets() string {
 	return `
     grant-winsta-access                     Used internally by generic-worker to grant a
@@ -41,9 +58,6 @@ func customTargets() string {
 
 func platformCommandLineParameters() string {
 	return `
-    --nssm NSSM-EXE                         The full path to nssm.exe to use for installing
-                                            the service.
-                                            [default: C:\nssm-2.24\win64\nssm.exe]
     --service-name SERVICE-NAME             The name that the Windows service should be
                                             installed under. [default: Generic Worker]`
 }

@@ -34,61 +34,81 @@ type windowsService struct{}
 
 // implements Execute for svc.Handler
 func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
+	fasttick := time.Tick(500 * time.Millisecond)
+	slowtick := time.Tick(2 * time.Second)
+	tick := fasttick
+	// TODO eventlog
 
-	// set up eventlog
+	// Start worker with interruptChan
+	interruptChan := make(chan os.Signal, 1)
+
+	// TODO remove
+	// go RunWorker(interruptChan)
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-
-	go func(r <-chan svc.ChangeRequest, changes chan<- svc.Status) {
-	loop:
-		for {
-			select {
-			case c := <-r:
-				switch c.Cmd {
-				case svc.Interrogate:
-					changes <- c.CurrentStatus
-					// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
-					time.Sleep(100 * time.Millisecond)
-					changes <- c.CurrentStatus
-				case svc.Stop, svc.Shutdown:
-					elog.Info(1, fmt.Sprintf("received #%d, shutting down", c))
-					break loop
-				default:
-					elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
-				}
+loop:
+	for {
+		select {
+		case <-tick:
+			elog.Info(1, "beep")
+		case c := <-r:
+			switch c.Cmd {
+			case svc.Interrogate:
+				changes <- c.CurrentStatus
+				// Testing deadlock from https://code.google.com/p/winsvc/issues/detail?id=4
+				time.Sleep(100 * time.Millisecond)
+				changes <- c.CurrentStatus
+			case svc.Stop, svc.Shutdown:
+				log.Printf("Shutting down, received %v", c)
+				interruptChan <- os.Interrupt
+				break loop
+			case svc.Pause:
+				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
+				tick = slowtick
+			case svc.Continue:
+				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
+				tick = fasttick
+			default:
+				log.Printf("Unexpected control request #%d", c)
 			}
 		}
-		changes <- svc.Status{State: svc.StopPending}
-	}(r, changes)
-
+	}
+	changes <- svc.Status{State: svc.StopPending}
 	return false, 0
 }
 
-func runService(name string, isDebug bool) {
+func runService(name string, isDebug bool) ExitCode {
 	var err error
+	if name == "" {
+		name = "Generic Worker"
+	}
+
 	if isDebug {
+		log.Printf("Debug mode enabled, not using eventlog.")
 		elog = debug.New(name)
 	} else {
 		elog, err = eventlog.Open(name)
 		if err != nil {
-			return
+			fmt.Printf("Could not open eventlog: %v", err)
+			return INTERNAL_ERROR
 		}
 	}
 	defer elog.Close()
 
-	elog.Info(1, fmt.Sprintf("starting %s service", name))
+	elog.Info(1, fmt.Sprintf("Starting service %q", name))
 	run := svc.Run
 	if isDebug {
 		run = debug.Run
 	}
 	err = run(name, &windowsService{})
 	if err != nil {
-		elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
-		return
+		elog.Error(1, fmt.Sprintf("Service %q failed: %v", name, err))
+		return INTERNAL_ERROR
 	}
-	elog.Info(1, fmt.Sprintf("%s service stopped", name))
+	elog.Info(1, fmt.Sprintf("Stopped service %q", name))
+	return 0
 }
 
 func (task *TaskRun) formatCommand(index int) string {
@@ -306,56 +326,15 @@ func install(arguments map[string]interface{}) (err error) {
 		name := convertNilToEmptyString(arguments["--service-name"])
 		configureForAWS := arguments["--configure-for-aws"].(bool)
 		configureForGCP := arguments["--configure-for-gcp"].(bool)
-		dir := filepath.Dir(exePath)
-		return deployService(configFile, name, exePath, dir, configureForAWS, configureForGCP)
+		return deployService(configFile, name, exePath, configureForAWS, configureForGCP)
 	}
 	return fmt.Errorf("Unknown install target - only 'service' is allowed")
-}
-
-func CreateRunGenericWorkerBatScript(batScriptFilePath, configFile string, configureForAWS bool, configureForGCP bool) error {
-	runCommand := `.\generic-worker.exe run`
-	if configFile != "" {
-		runCommand += " --config " + configFile
-	}
-	if configureForAWS {
-		runCommand += ` --configure-for-aws`
-	}
-	if configureForGCP {
-		runCommand += ` --configure-for-gcp`
-	}
-	runCommand += ` > .\generic-worker.log 2>&1`
-	batScriptContents := []byte(strings.Join([]string{
-		`:: Run generic-worker`,
-		``,
-		`:: step inside folder containing this script`,
-		`pushd %~dp0`,
-		``,
-		runCommand,
-		``,
-		`:: Possible exit codes:`,
-		`::    0: all tasks completed   - only occurs when numberOfTasksToRun > 0`,
-		`::   67: rebooting             - system reboot has been triggered`,
-		`::   68: idle timeout          - system shutdown has been triggered if shutdownMachineOnIdle=true`,
-		`::   69: internal error        - system shutdown has been triggered if shutdownMachineOnInternalError=true`,
-		`::   70: deployment ID changed - system shutdown has been triggered`,
-		``,
-	}, "\r\n"))
-	err := ioutil.WriteFile(batScriptFilePath, batScriptContents, 0755) // note 0755 is mostly ignored on windows
-	if err != nil {
-		return fmt.Errorf("Was not able to create file %q due to %s", batScriptFilePath, err)
-	}
-	return nil
 }
 
 // deploys the generic worker as a windows service named name
 // running as the user LocalSystem
 // if the service already exists we skip.
-func deployService(configFile, name, exePath, dir string, configureForAWS bool, configureForGCP bool) error {
-	targetScript := filepath.Join(filepath.Dir(exePath), "run-generic-worker.bat")
-	err := CreateRunGenericWorkerBatScript(targetScript, configFile, configureForAWS, configureForGCP)
-	if err != nil {
-		return err
-	}
+func deployService(configFile, name, exePath string, configureForAWS bool, configureForGCP bool) error {
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -366,15 +345,30 @@ func deployService(configFile, name, exePath, dir string, configureForAWS bool, 
 		s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
-	// can pass args as variadic
-	err = installService(name, targetScript, dir)
+	// args are variadic
+	args := []string{
+		"run-service",
+	}
+	if configFile != "" {
+		args = append(args, "--config "+configFile)
+	}
+	if configureForAWS {
+		args = append(args, "--configure-for-aws")
+	}
+	if configureForGCP {
+		args = append(args, "--configure-for-gcp")
+	}
+	// TODO remove
+	args = []string{}
+	err = installService(name, exePath, args)
 	if err != nil {
 		return err
 	}
+	log.Printf("Successfully installed service %q.", name)
 	return nil
 }
 
-func installService(name, exePath, dir string, args ...string) error {
+func installService(name, exePath string, args []string) error {
 	config := mgr.Config{
 		DisplayName: name,
 		Description: "A taskcluster worker that runs on all mainstream platforms",
@@ -383,6 +377,8 @@ func installService(name, exePath, dir string, args ...string) error {
 		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS,
 		StartType:        mgr.StartAutomatic,
 	}
+	dir := filepath.Dir(exePath)
+	logPath := filepath.Join(dir, "generic-worker-service.log")
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -392,21 +388,31 @@ func installService(name, exePath, dir string, args ...string) error {
 		name,
 		exePath,
 		config,
+		args...,
 	)
 	if err != nil {
 		return err
 	}
 	defer s.Close()
+	log.Printf("Created service %q with exePath %q, logPath %q and args %v",
+		name, exePath, logPath, args)
+
 	// log all events to logfile
 	err = eventlog.Install(
 		name,
-		filepath.Join(dir, "generic-worker-service.log"),
+		logPath,
 		false,
 		eventlog.Error|eventlog.Warning|eventlog.Info,
 	)
 	if err != nil {
 		s.Delete()
 		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+	}
+
+	// start service manually in order to fail fast
+	err = s.Start(args...)
+	if err != nil {
+		return fmt.Errorf("Error starting service %q: %v", name, err)
 	}
 	return nil
 }
@@ -439,11 +445,11 @@ func removeService(name string) error {
 	if err != nil {
 		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
 	}
+	log.Printf("Successfully removed service %q.", name)
 	return nil
 }
 
 func ExePath() (string, error) {
-	log.Printf("Command args: %#v", os.Args)
 	prog := os.Args[0]
 	p, err := filepath.Abs(prog)
 	if err != nil {
@@ -633,6 +639,28 @@ func rebootBetweenTasks() bool {
 
 func platformTargets(arguments map[string]interface{}) ExitCode {
 	switch {
+	case arguments["install"]:
+		// platform specific...
+		err := install(arguments)
+		if err != nil {
+			log.Fatalf("failed to install service: %v", err)
+			return CANT_INSTALL_GENERIC_WORKER
+		}
+	case arguments["remove"]:
+		err := remove(arguments)
+		if err != nil {
+			log.Fatalf("failed to remove service: %v", err)
+			return CANT_REMOVE_GENERIC_WORKER
+		}
+	case arguments["run-service"]:
+		handleConfig(arguments)
+		name := convertNilToEmptyString(arguments["--service-name"])
+		isIntSess, err := svc.IsAnInteractiveSession()
+		if err != nil {
+			log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+		}
+		// debug if interactive session
+		return runService(name, isIntSess)
 	case arguments["grant-winsta-access"]:
 		sid := arguments["--sid"].(string)
 		err := GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid)
@@ -641,10 +669,11 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 			log.Printf("%v", err)
 			return CANT_GRANT_CONTROL_OF_WINSTA_AND_DESKTOP
 		}
-		return 0
+	default:
+		log.Print("Internal error - no target found to run, yet command line parsing successful")
+		return INTERNAL_ERROR
 	}
-	log.Print("Internal error - no target found to run, yet command line parsing successful")
-	return INTERNAL_ERROR
+	return 0
 }
 
 func SetAutoLogin(user *runtime.OSUser) error {
