@@ -61,8 +61,8 @@ func platformCommandLineParameters() string {
 	return `
     --service-name SERVICE-NAME             The name that the Windows service should be
                                             installed under. [default: Generic Worker]
-    --working-directory  DIRECTORY          The working directory for the Windows service.
-                                            [default: C:\Windows\system32]`
+    --working-directory DIRECTORY           The working directory the Generic Worker
+                                            service will use. [default: C:\Windows\system32]`
 }
 
 func exitCode74() string {
