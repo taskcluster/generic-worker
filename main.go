@@ -98,11 +98,14 @@ func main() {
 	if revision != "" {
 		versionName += " [ revision: https://github.com/taskcluster/generic-worker/commits/" + revision + " ]"
 	}
+
 	arguments, err := docopt.Parse(usage(versionName), nil, true, versionName, false, true)
 	if err != nil {
 		log.Println("Error parsing command line arguments!")
 		panic(err)
 	}
+
+	log.Printf("%#v", arguments)
 
 	switch {
 	case arguments["show-payload-schema"]:

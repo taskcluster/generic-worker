@@ -36,23 +36,16 @@ type windowsService struct{}
 func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
-	fasttick := time.Tick(500 * time.Millisecond)
-	slowtick := time.Tick(2 * time.Second)
-	tick := fasttick
-	// TODO eventlog
 
 	// Start worker with interruptChan
 	interruptChan := make(chan os.Signal, 1)
 
-	// TODO remove
-	// go RunWorker(interruptChan)
+	go RunWorker(interruptChan)
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 loop:
 	for {
 		select {
-		case <-tick:
-			elog.Info(1, "beep")
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -66,10 +59,8 @@ loop:
 				break loop
 			case svc.Pause:
 				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-				tick = slowtick
 			case svc.Continue:
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-				tick = fasttick
 			default:
 				log.Printf("Unexpected control request #%d", c)
 			}
@@ -345,12 +336,11 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 		s.Close()
 		return fmt.Errorf("service %s already exists", name)
 	}
-	// args are variadic
 	args := []string{
 		"run-service",
 	}
 	if configFile != "" {
-		args = append(args, "--config "+configFile)
+		args = append(args, "--config", configFile)
 	}
 	if configureForAWS {
 		args = append(args, "--configure-for-aws")
@@ -358,8 +348,6 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 	if configureForGCP {
 		args = append(args, "--configure-for-gcp")
 	}
-	// TODO remove
-	args = []string{}
 	err = installService(name, exePath, args)
 	if err != nil {
 		return err
@@ -374,7 +362,7 @@ func installService(name, exePath string, args []string) error {
 		Description: "A taskcluster worker that runs on all mainstream platforms",
 		// run as LocalSystem because we call WTSQueryUserToken
 		ServiceStartName: "LocalSystem",
-		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS,
+		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS | windows.SERVICE_INTERACTIVE_PROCESS,
 		StartType:        mgr.StartAutomatic,
 	}
 	dir := filepath.Dir(exePath)
@@ -653,7 +641,16 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 			return CANT_REMOVE_GENERIC_WORKER
 		}
 	case arguments["run-service"]:
+		cwd := convertNilToEmptyString(arguments["--working-directory"])
+		if cwd != "" {
+			os.Chdir(cwd)
+		}
 		handleConfig(arguments)
+		// TODO remove!
+		err := ioutil.WriteFile(`C:\Users\miles\Desktop\generic-worker\handle-config-works`, []byte{}, 0777)
+		if err != nil {
+			panic(err)
+		}
 		name := convertNilToEmptyString(arguments["--service-name"])
 		isIntSess, err := svc.IsAnInteractiveSession()
 		if err != nil {
