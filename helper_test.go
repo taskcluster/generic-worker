@@ -225,7 +225,8 @@ func execute(t *testing.T, expectedExitCode ExitCode) {
 	if err != nil {
 		t.Fatalf("Test setup failure - could not write to tasks-resolved-count.txt file: %v", err)
 	}
-	exitCode := RunWorker()
+	interruptChan := make(chan os.Signal, 1)
+	exitCode := RunWorker(interruptChan)
 
 	if exitCode != expectedExitCode {
 		t.Fatalf("Something went wrong executing worker - got exit code %v but was expecting exit code %v", exitCode, expectedExitCode)

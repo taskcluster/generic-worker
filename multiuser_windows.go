@@ -19,6 +19,9 @@ import (
 	"github.com/taskcluster/generic-worker/runtime"
 	gwruntime "github.com/taskcluster/generic-worker/runtime"
 	"github.com/taskcluster/generic-worker/win32"
+	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
+	"golang.org/x/sys/windows/svc"
 )
 
 func (task *TaskRun) formatCommand(index int) string {
