@@ -153,7 +153,7 @@ func installService(name, exePath string, args []string) error {
 	log.Printf("Created service %q with exePath %q, logPath %q and args %v",
 		name, exePath, logPath, args)
 
-	// log all events to logfile
+	// log all events to eventlog logfile
 	err = eventlog.Install(
 		name,
 		logPath,
@@ -162,7 +162,7 @@ func installService(name, exePath string, args []string) error {
 	)
 	if err != nil {
 		s.Delete()
-		return fmt.Errorf("SetupEventLogSource() failed: %s", err)
+		return fmt.Errorf("Setting up eventlog source failed: %s", err)
 	}
 
 	// start service manually in order to fail fast
