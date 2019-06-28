@@ -101,7 +101,7 @@
   version = "v2.7.1"
 
 [[projects]]
-  digest = "1:e7a14b8ecad894c855d35b978da4284b68174465aea4f3f6dcdcb89dba0df0a1"
+  digest = "1:9942c9cd3ea91982dcd292853f91093f13cd1d0535a0e7bb3768829d44c08cd2"
   name = "github.com/docker/docker"
   packages = [
     "api",
@@ -517,12 +517,16 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fd2145ecc2ba9d0e8697066c0f60e5d7442942a6be2accfc52d1f3a63de21edc"
+  digest = "1:c4cb6f2f42141ad29a63d6491a8cc97ced9645e5ace9ef9ed132cd9f6b17e3fd"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
     "windows/registry",
+    "windows/svc",
+    "windows/svc/debug",
+    "windows/svc/eventlog",
+    "windows/svc/mgr",
   ]
   pruneopts = "UT"
   revision = "baf5eb976a8cd65845293cd814ea151018552292"
@@ -598,6 +602,10 @@
     "golang.org/x/net/context",
     "golang.org/x/sys/windows",
     "golang.org/x/sys/windows/registry",
+    "golang.org/x/sys/windows/svc",
+    "golang.org/x/sys/windows/svc/debug",
+    "golang.org/x/sys/windows/svc/eventlog",
+    "golang.org/x/sys/windows/svc/mgr",
     "golang.org/x/tools/imports",
   ]
   solver-name = "gps-cdcl"
