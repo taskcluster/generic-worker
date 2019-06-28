@@ -10,7 +10,7 @@ cd gw-codegen
 go install -v || exit /b %ERRORLEVEL%
 cd ..
 go generate || exit /b %ERRORLEVEL%
-go install -v ./... || exit /b %ERRORLEVEL%
+go install -v -tags multiuser ./... || exit /b %ERRORLEVEL%
 
 :: this counts the number of lines returned by git status
 :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
