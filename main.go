@@ -106,8 +106,6 @@ func main() {
 		panic(err)
 	}
 
-	log.Printf("%#v", arguments)
-
 	switch {
 	case arguments["show-payload-schema"]:
 		fmt.Println(taskPayloadSchema())
@@ -1194,6 +1192,15 @@ func RotateTaskEnvironment() (reboot bool) {
 func exitOnError(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
 	if err == nil {
 		return
+	}
+	// useful for debugging broken logging
+	filename := filepath.Join(
+		filepath.Dir(os.Args[0]),
+		fmt.Sprintf("generic-worker-crash-%d.log", time.Now().Unix()),
+	)
+	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf(logMessage, args...)+"\n"+err.Error()), 0666)
+	if err != nil {
+		log.Printf("Could not open crash file %q: %v", filename, err)
 	}
 	log.Printf(logMessage, args...)
 	log.Printf("%v", err)
