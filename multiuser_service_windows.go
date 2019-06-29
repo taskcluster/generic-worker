@@ -16,7 +16,16 @@ import (
 	"golang.org/x/sys/windows/svc/mgr"
 )
 
-var elog debug.Log
+// elogWrapper is used to allow eventlog
+// to be written to by go's log package
+// it eats severity in the process
+type elogWrapper struct {
+	debug.Log
+}
+
+func (e elogWrapper) Write(p []byte) (n int, err error) {
+	return len(p), e.Info(1, string(p))
+}
 
 type windowsService struct{}
 
@@ -64,6 +73,7 @@ func runService(name string, isDebug bool) ExitCode {
 		name = "Generic Worker"
 	}
 
+	var elog debug.Log
 	if isDebug {
 		log.Printf("Debug mode enabled, not using eventlog.")
 		elog = debug.New(name)
@@ -73,20 +83,21 @@ func runService(name string, isDebug bool) ExitCode {
 			fmt.Printf("Could not open eventlog: %v", err)
 			return INTERNAL_ERROR
 		}
+		log.SetOutput(elogWrapper{elog})
 	}
 	defer elog.Close()
 
-	elog.Info(1, fmt.Sprintf("Starting service %q", name))
+	log.Printf("Starting service %q", name)
 	run := svc.Run
 	if isDebug {
 		run = debug.Run
 	}
 	err = run(name, &windowsService{})
 	if err != nil {
-		elog.Error(1, fmt.Sprintf("Service %q failed: %v", name, err))
+		log.Printf("Service %q failed: %v", name, err))
 		return INTERNAL_ERROR
 	}
-	elog.Info(1, fmt.Sprintf("Stopped service %q", name))
+	log.Printf("Stopped service %q", name)
 	return 0
 }
 
@@ -134,7 +145,6 @@ func installService(name, exePath string, args []string) error {
 		StartType:        mgr.StartAutomatic,
 	}
 	dir := filepath.Dir(exePath)
-	logPath := filepath.Join(dir, "generic-worker-service.log")
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -150,13 +160,16 @@ func installService(name, exePath string, args []string) error {
 		return err
 	}
 	defer s.Close()
-	log.Printf("Created service %q with exePath %q, logPath %q and args %v",
-		name, exePath, logPath, args)
+	log.Printf("Created service %q with exePath %q, and args %v",
+		name, exePath, args)
 
-	// log all events to eventlog logfile
+	// TODO configure an eventlog message file
+	// https://docs.microsoft.com/en-us/windows/desktop/eventlog/message-files
+
+	// configure eventlog source
 	err = eventlog.Install(
 		name,
-		logPath,
+		filepath.Join(dir, "eventlog-message-file.txt"),
 		false,
 		eventlog.Error|eventlog.Warning|eventlog.Info,
 	)
