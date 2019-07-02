@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"errors"
+	"log"
 	"time"
 )
 
@@ -27,4 +28,13 @@ func WaitForLoginCompletion(timeout time.Duration) error {
 
 func InteractiveUsername() (string, error) {
 	return "", errors.New("runtime.InteractiveUsername() not implemented on Linux")
+}
+
+func AutoLogonCredentials() (user OSUser) {
+	log.Fatalf("main.AutoLogonCredentials() not implemented on Linux")
+	return OSUser{}
+}
+
+func SetAutoLogin(user *OSUser) error {
+	return errors.New("main.SetAutoLogin not implemented on linux")
 }
