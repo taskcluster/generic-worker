@@ -123,7 +123,7 @@ func runService(name string, isDebug bool) ExitCode {
 	} else {
 		elog, err = eventlog.Open(name)
 		if err != nil {
-			exitOnError(INTERNAL_ERROR, err, "Could not open eventlog %q", name)
+			exitOnError(CANT_LOG_PROPERLY, err, "Could not open eventlog %q", name)
 		}
 	}
 	logWriter = io.MultiWriter(logWriter, elogWrapper{elog})
