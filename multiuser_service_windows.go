@@ -4,8 +4,11 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -14,7 +17,40 @@ import (
 	"golang.org/x/sys/windows/svc/debug"
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
+
+	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+// stderr handle is invalid when run as service
+var logWriter = io.MultiWriter(ioutil.Discard)
+
+func init() {
+	log.SetOutput(logWriter)
+	manageLogFile()
+}
+
+func manageLogFile() {
+	dir := filepath.Dir(os.Args[0])
+	logPath := filepath.Join(dir, "generic-worker.log")
+	logWriter = io.MultiWriter(
+		logWriter,
+		&lumberjack.Logger{
+			Filename:   logPath,
+			MaxBackups: 10,
+			MaxSize:    20,   // megabytes
+			MaxAge:     7,    //days
+			Compress:   true, // disabled by default
+		},
+	)
+	log.SetOutput(logWriter)
+	// lumberjack opens logfile on first write
+	// multiwriter will fail if write to any writer fails
+	// so we aggressively handle that scenario
+	err := log.Output(2, fmt.Sprintf("Opened logfile %q", logPath))
+	if err != nil {
+		exitOnError(CANT_LOG_PROPERLY, err, "Unable to log to logfile %q with writer: %v", logPath, logWriter)
+	}
+}
 
 // elogWrapper is used to allow eventlog
 // to be written to by go's log package
@@ -30,19 +66,26 @@ func (e elogWrapper) Write(p []byte) (n int, err error) {
 type windowsService struct{}
 
 // implements Execute for svc.Handler
-func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (bool, uint32) {
+func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
 	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
 	changes <- svc.Status{State: svc.StartPending}
 
 	// Start worker with interruptChan
 	interruptChan := make(chan os.Signal, 1)
 
-	go RunWorker(interruptChan)
+	go func() {
+		exitCode = uint32(RunWorker(interruptChan))
+		// kill the service
+		interruptChan <- os.Interrupt
+	}()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 loop:
 	for {
 		select {
+		case <-interruptChan:
+			// we send this when RunWorker exits
+			break loop
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -64,7 +107,7 @@ loop:
 		}
 	}
 	changes <- svc.Status{State: svc.StopPending}
-	return false, 0
+	return true, exitCode
 }
 
 func runService(name string, isDebug bool) ExitCode {
@@ -80,12 +123,24 @@ func runService(name string, isDebug bool) ExitCode {
 	} else {
 		elog, err = eventlog.Open(name)
 		if err != nil {
-			fmt.Printf("Could not open eventlog: %v", err)
-			return INTERNAL_ERROR
+			exitOnError(INTERNAL_ERROR, err, "Could not open eventlog %q", name)
 		}
-		log.SetOutput(elogWrapper{elog})
+	}
+	logWriter = io.MultiWriter(logWriter, elogWrapper{elog})
+	log.SetOutput(logWriter)
+	// multiwriter will fail if write to any writer fails
+	// so we aggressively handle that scenario
+	err = log.Output(2, fmt.Sprintf("Wrote to eventlog %q successfully", name))
+	if err != nil {
+		exitOnError(CANT_LOG_PROPERLY, err, "Unable to log to eventlog %q with writer: %v", name, logWriter)
 	}
 	defer elog.Close()
+
+	dir := path.Dir(os.Args[0])
+	err = os.Chdir(dir)
+	if err != nil {
+		exitOnError(INTERNAL_ERROR, err, "Unable to chdir to %q", dir)
+	}
 
 	log.Printf("Starting service %q", name)
 	run := svc.Run
@@ -94,10 +149,16 @@ func runService(name string, isDebug bool) ExitCode {
 	}
 	err = run(name, &windowsService{})
 	if err != nil {
-		log.Printf("Service %q failed: %v", name, err))
-		return INTERNAL_ERROR
+		exitOnError(INTERNAL_ERROR, err, "Service %q failed", name)
 	}
-	log.Printf("Stopped service %q", name)
+	// use Output to use all configured loggers and handle err
+	// io.MultiWriter fails for _all_ writers if any fail
+	// this helps us catch that, as normal log.Print* calls
+	// silently eat errors
+	err = log.Output(2, fmt.Sprintf("Stopped service %q", name))
+	if err != nil {
+		exitOnError(CANT_LOG_PROPERLY, err, "Unable to log to one or more log outputs, configured writer: %v", logWriter)
+	}
 	return 0
 }
 
@@ -203,7 +264,7 @@ func removeService(name string) error {
 	}
 	err = eventlog.Remove(name)
 	if err != nil {
-		return fmt.Errorf("RemoveEventLogSource() failed: %s", err)
+		return fmt.Errorf("Removing eventlog source failed: %s", err)
 	}
 	log.Printf("Successfully removed service %q.", name)
 	return nil

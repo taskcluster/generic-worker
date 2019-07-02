@@ -462,11 +462,6 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 			os.Chdir(cwd)
 		}
 		handleConfig(arguments)
-		// TODO remove!
-		err := ioutil.WriteFile(`C:\Users\miles\Desktop\generic-worker\handle-config-works`, []byte{}, 0777)
-		if err != nil {
-			panic(err)
-		}
 		name := convertNilToEmptyString(arguments["--service-name"])
 		isIntSess, err := svc.IsAnInteractiveSession()
 		if err != nil {
