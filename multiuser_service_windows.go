@@ -83,9 +83,10 @@ func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, change
 loop:
 	for {
 		select {
+		// we send this when RunWorker exits
 		case <-interruptChan:
-			// we send this when RunWorker exits
 			break loop
+		// received change request
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -123,7 +124,7 @@ func runService(name string, isDebug bool) ExitCode {
 	} else {
 		elog, err = eventlog.Open(name)
 		if err != nil {
-			exitOnError(INTERNAL_ERROR, err, "Could not open eventlog %q", name)
+			exitOnError(CANT_LOG_PROPERLY, err, "Could not open eventlog %q", name)
 		}
 	}
 	logWriter = io.MultiWriter(logWriter, elogWrapper{elog})
@@ -149,7 +150,7 @@ func runService(name string, isDebug bool) ExitCode {
 	}
 	err = run(name, &windowsService{})
 	if err != nil {
-		exitOnError(INTERNAL_ERROR, err, "Service %q failed", name)
+		exitOnError(INTERNAL_ERROR, err, "Failed to start service %q", name)
 	}
 	// use Output to use all configured loggers and handle err
 	// io.MultiWriter fails for _all_ writers if any fail
@@ -174,7 +175,7 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 	s, err := m.OpenService(name)
 	if err == nil {
 		s.Close()
-		return fmt.Errorf("service %s already exists", name)
+		return fmt.Errorf("Service %s already exists", name)
 	}
 	args := []string{
 		"run-service",
