@@ -67,7 +67,7 @@ type windowsService struct{}
 
 // implements Execute for svc.Handler
 func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
 	// Start worker with interruptChan
@@ -95,19 +95,16 @@ loop:
 				time.Sleep(100 * time.Millisecond)
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
+				changes <- svc.Status{State: svc.StopPending}
 				log.Printf("Shutting down, received %v", c)
 				interruptChan <- os.Interrupt
 				break loop
-			case svc.Pause:
-				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-			case svc.Continue:
-				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 			default:
 				log.Printf("Unexpected control request #%d", c)
 			}
 		}
 	}
-	changes <- svc.Status{State: svc.StopPending}
+	changes <- svc.Status{State: svc.Stopped}
 	return true, exitCode
 }
 
@@ -194,6 +191,12 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 		return err
 	}
 	log.Printf("Successfully installed service %q.", name)
+
+	// start service manually in order to fail fast
+	err = s.Start(args...)
+	if err != nil {
+		return fmt.Errorf("Error starting service %q: %v", name, err)
+	}
 	return nil
 }
 
@@ -225,25 +228,33 @@ func installService(name, exePath string, args []string) error {
 	log.Printf("Created service %q with exePath %q, and args %v",
 		name, exePath, args)
 
-	// TODO configure an eventlog message file
+	// minimal eventlog message file
 	// https://docs.microsoft.com/en-us/windows/desktop/eventlog/message-files
+	messageFileText := `MessageIdTypedef=DWORD
+SeverityNames=(Informational=0x1:STATUS_SEVERITY_INFORMATIONAL)
+FacilityNames=(System=0x0:FACILITY_SYSTEM)
+
+MessageId=0x1
+Severity=Informational
+Facility=System
+Language=English`
+
+	eventlogMessageFilepath := filepath.Join(dir, "eventlog-message-file.txt")
+	err = ioutil.WriteFile(eventlogMessageFilepath, []byte(messageFileText), 0644)
+	if err != nil {
+		return fmt.Errorf("Could not write eventlog message file: %s", err)
+	}
 
 	// configure eventlog source
 	err = eventlog.Install(
 		name,
-		filepath.Join(dir, "eventlog-message-file.txt"),
-		false,
+		eventlogMessageFilepath,
+		true,
 		eventlog.Error|eventlog.Warning|eventlog.Info,
 	)
 	if err != nil {
 		s.Delete()
 		return fmt.Errorf("Setting up eventlog source failed: %s", err)
-	}
-
-	// start service manually in order to fail fast
-	err = s.Start(args...)
-	if err != nil {
-		return fmt.Errorf("Error starting service %q: %v", name, err)
 	}
 	return nil
 }

@@ -116,3 +116,8 @@ func copyTestdataFileTo(src, dest string) []string {
 func singleCommandNoArgs(command string) []string {
 	return []string{command}
 }
+
+func shouldRunAdminTests() bool {
+	_, ok := os.LookupEnv("SKIP_ADMINISTRATOR_TESTS")
+	return !ok
+}
