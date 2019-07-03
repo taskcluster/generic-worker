@@ -117,12 +117,7 @@ func singleCommandNoArgs(command string) []string {
 	return []string{command}
 }
 
-// requires admin to do
-// shamelessly stolen from reddit
-func runningAsAdmin() bool {
-	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
-	if err != nil {
-		return false
-	}
-	return true
+func shouldRunAdminTests() bool {
+	_, ok := os.LookupEnv("SKIP_ADMINISTRATOR_TESTS")
+	return !ok
 }
