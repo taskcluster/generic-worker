@@ -7,7 +7,6 @@ const (
 	TASKS_COMPLETE              ExitCode = 0
 	CANT_LOAD_CONFIG            ExitCode = 64
 	CANT_INSTALL_GENERIC_WORKER ExitCode = 65
-	CANT_REMOVE_GENERIC_WORKER  ExitCode = 66
 	REBOOT_REQUIRED             ExitCode = 67
 	IDLE_TIMEOUT                ExitCode = 68
 	INTERNAL_ERROR              ExitCode = 69
@@ -19,6 +18,7 @@ const (
 	CANT_SAVE_CONFIG            ExitCode = 76
 	CANT_SECURE_CONFIG          ExitCode = 77
 	CANT_LOG_PROPERLY           ExitCode = 78
+	CANT_REMOVE_GENERIC_WORKER  ExitCode = 79
 )
 
 func usage(versionName string) string {
