@@ -116,3 +116,13 @@ func copyTestdataFileTo(src, dest string) []string {
 func singleCommandNoArgs(command string) []string {
 	return []string{command}
 }
+
+// requires admin to do
+// shamelessly stolen from reddit
+func runningAsAdmin() bool {
+	_, err := os.Open("\\\\.\\PHYSICALDRIVE0")
+	if err != nil {
+		return false
+	}
+	return true
+}
