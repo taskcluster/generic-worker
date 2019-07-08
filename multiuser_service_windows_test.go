@@ -5,6 +5,9 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
+
+	"golang.org/x/sys/windows/svc"
 
 	"golang.org/x/sys/windows/svc/eventlog"
 	"golang.org/x/sys/windows/svc/mgr"
@@ -26,7 +29,7 @@ func setupService(t *testing.T, name string) {
 	args := []string{}
 	err := installService(name, path, args)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 
@@ -34,7 +37,7 @@ func cleanupService(t *testing.T, name string) {
 	// remove service
 	err := removeService(name)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 }
 
@@ -46,28 +49,26 @@ func TestInstallAndRemoveService(t *testing.T) {
 		t.Skipf("SKIP_ADMINISTRATOR_TESTS set, skipping %q", t.Name())
 	}
 
-	t.Logf(os.LookupEnv("SKIP_ADMINISTRATOR_TESTS"))
-
-	name := slugid.Nice()
+	name := "generic-worker-" + slugid.Nice()
 	setupService(t, name)
 
 	// service manager
 	m, err := mgr.Connect()
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	defer m.Disconnect()
 
 	// check for service
 	_, err = m.OpenService(name)
 	if err != nil {
-		t.Errorf("Did not find expected service %q: %v", name, err)
+		t.Fatalf("Did not find expected service %q: %v", name, err)
 	}
 
 	// check for eventlog source
 	elog, err := eventlog.Open(name)
 	if err != nil {
-		t.Errorf("Did not find expected eventlog source %q: %v", name, err)
+		t.Fatalf("Did not find expected eventlog source %q: %v", name, err)
 	}
 	elog.Close()
 
@@ -76,17 +77,18 @@ func TestInstallAndRemoveService(t *testing.T) {
 	// verify service is removed
 	_, err = m.OpenService(name)
 	if err == nil {
-		t.Errorf("Found service %q after it should have been removed: %v", name, err)
+		t.Fatalf("Found service %q after it should have been removed", name)
 	}
 
 	// verify eventlog is removed
 	_, err = eventlog.Open(name)
 	if err == nil {
-		t.Errorf("Found eventlog source %q after it should have been removed: %v", name, err)
+		t.Fatalf("Found eventlog source %q after it should have been removed", name)
 	}
 }
 
 func TestRunServiceWithoutEventlogSource(t *testing.T) {
+	defer setup(t)()
 	defer unprivilegedRecovery(t)
 
 	if !shouldRunAdminTests() {
@@ -99,7 +101,7 @@ func TestRunServiceWithoutEventlogSource(t *testing.T) {
 	// remove eventlog source
 	err := eventlog.Remove(name)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
 	// now we try runService in non-interactive mode
@@ -109,7 +111,7 @@ func TestRunServiceWithoutEventlogSource(t *testing.T) {
 	exitCode := runService(name, false)
 
 	if exitCode != CANT_LOG_PROPERLY {
-		t.Errorf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
+		t.Fatalf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
 	}
 
 	cleanupService(t, name)
@@ -122,6 +124,7 @@ func (w brokenWriter) Write(bs []byte) (int, error) {
 }
 
 func TestRunServiceWithBrokenWriter(t *testing.T) {
+	defer setup(t)()
 	defer unprivilegedRecovery(t)
 
 	if !shouldRunAdminTests() {
@@ -141,8 +144,72 @@ func TestRunServiceWithBrokenWriter(t *testing.T) {
 	exitCode := runService(name, false)
 
 	if exitCode != CANT_LOG_PROPERLY {
-		t.Errorf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
+		t.Fatalf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
 	}
 
 	cleanupService(t, name)
+}
+
+func TestSendWindowsServiceInteraction(t *testing.T) {
+	defer setup(t)()
+
+	// Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (svcSpecificEC bool, exitCode uint32)
+	r := make(chan svc.ChangeRequest, 1)
+	c := make(chan svc.Status, 1)
+
+	s := windowsService{}
+
+	var exitCode uint32
+	go func() {
+		_, exitCode = s.Execute([]string{}, r, c)
+		t.Logf("Got exit code %v from Execute()", exitCode)
+	}()
+
+	var status svc.Status
+	select {
+	case <-time.After(time.Second * 5):
+		t.Fatalf("Timeout waiting for status svc.StartPending")
+	case status = <-c:
+		if status.State != svc.StartPending {
+			t.Fatalf("Expected state svc.StartPending, got status %v", status)
+		}
+	}
+
+	select {
+	case <-time.After(time.Second * 5):
+		t.Fatalf("Timeout waiting for status svc.Running")
+	case status = <-c:
+		if status.State != svc.Running {
+			t.Fatalf("Expected state svc.Running, got status %v", status)
+		}
+	}
+
+	<-time.After(1 * time.Second)
+
+	// send Stop
+	r <- svc.ChangeRequest{Cmd: svc.Stop}
+
+	fmt.Printf("Sent Stop change request")
+
+	select {
+	case <-time.After(time.Second * 5):
+		t.Fatalf("Timeout waiting for status svc.StopPending")
+	case status = <-c:
+		if status.State != svc.StopPending {
+			t.Fatalf("Expected state svc.StopPending, got status %v", status)
+		}
+	}
+
+	select {
+	case <-time.After(time.Second * 5):
+		t.Fatalf("Timeout waiting for status svc.Stopped")
+	case status = <-c:
+		if status.State != svc.Stopped {
+			t.Fatalf("Expected state svc.Stopped, got status %v", status)
+		}
+	}
+
+	if ExitCode(exitCode) != WORKER_STOPPED {
+		t.Fatalf("Expected exit code %v, got: %v", WORKER_STOPPED, exitCode)
+	}
 }

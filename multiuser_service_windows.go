@@ -67,7 +67,7 @@ type windowsService struct{}
 
 // implements Execute for svc.Handler
 func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (svcSpecificEC bool, exitCode uint32) {
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown
 	changes <- svc.Status{State: svc.StartPending}
 
 	// Start worker with interruptChan
@@ -95,19 +95,16 @@ loop:
 				time.Sleep(100 * time.Millisecond)
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
+				changes <- svc.Status{State: svc.StopPending}
 				log.Printf("Shutting down, received %v", c)
 				interruptChan <- os.Interrupt
 				break loop
-			case svc.Pause:
-				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-			case svc.Continue:
-				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 			default:
 				log.Printf("Unexpected control request #%d", c)
 			}
 		}
 	}
-	changes <- svc.Status{State: svc.StopPending}
+	changes <- svc.Status{State: svc.Stopped}
 	return true, exitCode
 }
 
@@ -194,6 +191,12 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 		return err
 	}
 	log.Printf("Successfully installed service %q.", name)
+
+	// start service manually in order to fail fast
+	err = s.Start(args...)
+	if err != nil {
+		return fmt.Errorf("Error starting service %q: %v", name, err)
+	}
 	return nil
 }
 
@@ -238,12 +241,6 @@ func installService(name, exePath string, args []string) error {
 	if err != nil {
 		s.Delete()
 		return fmt.Errorf("Setting up eventlog source failed: %s", err)
-	}
-
-	// start service manually in order to fail fast
-	err = s.Start(args...)
-	if err != nil {
-		return fmt.Errorf("Error starting service %q: %v", name, err)
 	}
 	return nil
 }
