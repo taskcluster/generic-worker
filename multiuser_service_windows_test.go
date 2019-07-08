@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -23,13 +22,19 @@ func unprivilegedRecovery(t *testing.T) {
 	}
 }
 
-func setupService(t *testing.T, name string) {
+func setupService(t *testing.T, name string, configureEventlog bool) {
 	// doesn't have to be real
 	path := os.Args[0]
 	args := []string{}
-	err := installService(name, path, args)
+	err := configureService(name, path, args)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if configureEventlog {
+		err = configureEventlogSource(name, path)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -42,7 +47,7 @@ func cleanupService(t *testing.T, name string) {
 }
 
 // requires elevated privileges
-func TestInstallAndRemoveService(t *testing.T) {
+func TestConfigureAndRemoveService(t *testing.T) {
 	defer unprivilegedRecovery(t)
 
 	if !shouldRunAdminTests() {
@@ -50,7 +55,8 @@ func TestInstallAndRemoveService(t *testing.T) {
 	}
 
 	name := "generic-worker-" + slugid.Nice()
-	setupService(t, name)
+	setupService(t, name, true)
+	defer cleanupService(t, name)
 
 	// service manager
 	m, err := mgr.Connect()
@@ -72,8 +78,6 @@ func TestInstallAndRemoveService(t *testing.T) {
 	}
 	elog.Close()
 
-	cleanupService(t, name)
-
 	// this is unrealistic, usually the service is marked for deletion
 	// but not actually removed until reboot
 
@@ -93,67 +97,94 @@ func TestInstallAndRemoveService(t *testing.T) {
 	// }
 }
 
-func TestRunServiceWithoutEventlogSource(t *testing.T) {
-	defer unprivilegedRecovery(t)
-	defer setup(t)()
-
-	if !shouldRunAdminTests() {
-		t.Skipf("SKIP_ADMINISTRATOR_TESTS set, skipping %q", t.Name())
-	}
-
-	name := "generic-worker-" + slugid.Nice()
-	setupService(t, name)
-
-	// remove eventlog source
-	err := eventlog.Remove(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// now we try runService in non-interactive mode
-	// which should attempt to use eventlog and fail
-	// with CANT_LOG_PROPERLY
-
-	exitCode := runService(name, false)
-
-	if exitCode != CANT_LOG_PROPERLY {
-		t.Fatalf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
-	}
-
-	cleanupService(t, name)
-}
-
 type brokenWriter struct{}
 
 func (w brokenWriter) Write(bs []byte) (int, error) {
 	return -1, fmt.Errorf("broken writer is broken")
 }
 
+// func wrapTest(t *testing.T, name string, errorFunc func(*exec.ExitError)) {
+// if we are running the test
+// as opposed to wrapping the test
+// if os.Getenv(t.Name()) == "1" {
+// 	name := "generic-worker-" + slugid.Nice()
+// 	setupService(t, name, true)
+// 	defer cleanupService(t, name)
+// 	// use brokenWriter
+// 	logWriter = brokenWriter{}
+// 	// now we try runService in non-interactive mode
+// 	// which should attempt to use brokenWriter and fail
+// 	// with CANT_LOG_PROPERLY
+// 	runService(name, false)
+// 	return
+// }
+
+// // wrapping the test
+
+// // exitOnError will be called, so os.Exit() will be called
+// // so we need to run this test in a wrapper
+
+// cmd := exec.Command(os.Args[0], fmt.Sprintf("-test.run=%s", t.Name()))
+// cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", t.Name()))
+// stderrPipe, err := cmd.StderrPipe()
+// if err != nil {
+// 	t.Fatal(err)
+// }
+// stdoutPipe, err := cmd.StdoutPipe()
+// if err != nil {
+// 	t.Fatalf("Error getting StdoutPipe: %v", err)
+// }
+// if err := cmd.Start(); err != nil {
+// 	t.Fatal(err)
+// }
+// stderr, err := ioutil.ReadAll(stderrPipe)
+// if err != nil {
+// 	t.Fatal(err)
+// }
+// stdout, err := ioutil.ReadAll(stdoutPipe)
+// if err != nil {
+// 	t.Fatal(err)
+// }
+// err = cmd.Wait()
+// // if nonzero exit code, castable to ExitError
+// if exitError, ok := err.(*exec.ExitError); ok && err != nil {
+// 	// as expected, there was an error
+// 	exitCode := exitError.ExitCode()
+// 	if exitCode != int(CANT_LOG_PROPERLY) {
+// 		t.Logf("Expected runService() to exit with CANT_LOG_PROPERLY, got: %s", exitError.Error())
+// 		t.Logf("stderr: %s", stderr)
+// 		t.Logf("stdout: %s", stdout)
+// 		t.Fail()
+// 	}
+// } else {
+// 	t.Fatalf("Expected an error from %q: %v", strings.Join(cmd.Args, " "), err)
+// }
+// }
+
 func TestRunServiceWithBrokenWriter(t *testing.T) {
 	defer unprivilegedRecovery(t)
-	defer setup(t)()
 
 	if !shouldRunAdminTests() {
 		t.Skipf("SKIP_ADMINISTRATOR_TESTS set, skipping %q", t.Name())
 	}
 
+	// if we are running the test
+	// as opposed to wrapping the test
 	name := "generic-worker-" + slugid.Nice()
-	setupService(t, name)
+	setupService(t, name, true)
+	defer cleanupService(t, name)
 
-	// add brokenWriter
-	logWriter = io.MultiWriter(logWriter, brokenWriter{})
+	// use brokenWriter
+	logWriter = brokenWriter{}
 
 	// now we try runService in non-interactive mode
 	// which should attempt to use brokenWriter and fail
 	// with CANT_LOG_PROPERLY
-
 	exitCode := runService(name, false)
-
+	// as expected, there was an error
 	if exitCode != CANT_LOG_PROPERLY {
-		t.Fatalf("Expected runService() to exit with CANT_LOG_PROPERLY, got %q", exitCode)
+		t.Fatalf("Expected runService() to exit with CANT_LOG_PROPERLY, got: %v", exitCode)
 	}
-
-	cleanupService(t, name)
 }
 
 func TestWindowsServiceInteraction(t *testing.T) {

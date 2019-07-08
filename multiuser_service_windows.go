@@ -25,13 +25,17 @@ import (
 var logWriter = io.MultiWriter(ioutil.Discard)
 
 func init() {
+	// default for a service is C:\Windows\system32
+	dir := path.Dir(os.Args[0])
+	err := os.Chdir(dir)
+	if err != nil {
+		exitOnError(INTERNAL_ERROR, err, "Unable to chdir to %q", dir)
+	}
 	log.SetOutput(logWriter)
-	manageLogFile()
+	manageLogFile(filepath.Join(path.Dir(os.Args[0]), "generic-worker.log"))
 }
 
-func manageLogFile() {
-	dir := filepath.Dir(os.Args[0])
-	logPath := filepath.Join(dir, "generic-worker.log")
+func manageLogFile(logPath string) {
 	logWriter = io.MultiWriter(
 		logWriter,
 		&lumberjack.Logger{
@@ -120,8 +124,9 @@ func runService(name string, isDebug bool) ExitCode {
 		elog = debug.New(name)
 	} else {
 		elog, err = eventlog.Open(name)
-		if err != nil {
-			exitOnError(CANT_LOG_PROPERLY, err, "Could not open eventlog %q", name)
+		if err != nil || elog == nil {
+			writeCrashFile(CANT_LOG_PROPERLY, err, "Could not open eventlog %q", name)
+			return CANT_LOG_PROPERLY
 		}
 	}
 	logWriter = io.MultiWriter(logWriter, elogWrapper{elog})
@@ -130,15 +135,10 @@ func runService(name string, isDebug bool) ExitCode {
 	// so we aggressively handle that scenario
 	err = log.Output(2, fmt.Sprintf("Wrote to eventlog %q successfully", name))
 	if err != nil {
-		exitOnError(CANT_LOG_PROPERLY, err, "Unable to log to eventlog %q with writer: %v", name, logWriter)
+		writeCrashFile(CANT_LOG_PROPERLY, err, "Unable to log to eventlog %q with writer: %v", name, logWriter)
+		return CANT_LOG_PROPERLY
 	}
 	defer elog.Close()
-
-	dir := path.Dir(os.Args[0])
-	err = os.Chdir(dir)
-	if err != nil {
-		exitOnError(INTERNAL_ERROR, err, "Unable to chdir to %q", dir)
-	}
 
 	log.Printf("Starting service %q", name)
 	run := svc.Run
@@ -147,7 +147,8 @@ func runService(name string, isDebug bool) ExitCode {
 	}
 	err = run(name, &windowsService{})
 	if err != nil {
-		exitOnError(INTERNAL_ERROR, err, "Failed to start service %q", name)
+		writeCrashFile(INTERNAL_ERROR, err, "Failed to start service %q", name)
+		return CANT_LOG_PROPERLY
 	}
 	// use Output to use all configured loggers and handle err
 	// io.MultiWriter fails for _all_ writers if any fail
@@ -155,7 +156,8 @@ func runService(name string, isDebug bool) ExitCode {
 	// silently eat errors
 	err = log.Output(2, fmt.Sprintf("Stopped service %q", name))
 	if err != nil {
-		exitOnError(CANT_LOG_PROPERLY, err, "Unable to log to one or more log outputs, configured writer: %v", logWriter)
+		writeCrashFile(CANT_LOG_PROPERLY, err, "Unable to log to one or more log outputs, configured writer: %v", logWriter)
+		return CANT_LOG_PROPERLY
 	}
 	return 0
 }
@@ -186,11 +188,16 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 	if configureForGCP {
 		args = append(args, "--configure-for-gcp")
 	}
-	err = installService(name, exePath, args)
+	err = configureService(name, exePath, args)
 	if err != nil {
 		return err
 	}
-	log.Printf("Successfully installed service %q.", name)
+	log.Printf("Successfully configured service %q.", name)
+	err = configureEventlogSource(name, exePath)
+	if err != nil {
+		return err
+	}
+	log.Printf("Successfully configured eventlog source %q.", name)
 
 	// start service manually in order to fail fast
 	err = s.Start(args...)
@@ -200,7 +207,7 @@ func deployService(configFile, name, exePath string, configureForAWS bool, confi
 	return nil
 }
 
-func installService(name, exePath string, args []string) error {
+func configureService(name, exePath string, args []string) error {
 	config := mgr.Config{
 		DisplayName: name,
 		Description: "A taskcluster worker that runs on all mainstream platforms",
@@ -209,7 +216,6 @@ func installService(name, exePath string, args []string) error {
 		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS | windows.SERVICE_INTERACTIVE_PROCESS,
 		StartType:        mgr.StartAutomatic,
 	}
-	dir := filepath.Dir(exePath)
 	m, err := mgr.Connect()
 	if err != nil {
 		return err
@@ -227,6 +233,11 @@ func installService(name, exePath string, args []string) error {
 	defer s.Close()
 	log.Printf("Created service %q with exePath %q, and args %v",
 		name, exePath, args)
+	return nil
+}
+
+func configureEventlogSource(name, exePath string) error {
+	dir := filepath.Dir(exePath)
 
 	// minimal eventlog message file
 	// https://docs.microsoft.com/en-us/windows/desktop/eventlog/message-files
@@ -240,7 +251,7 @@ Facility=System
 Language=English`
 
 	eventlogMessageFilepath := filepath.Join(dir, "eventlog-message-file.txt")
-	err = ioutil.WriteFile(eventlogMessageFilepath, []byte(messageFileText), 0644)
+	err := ioutil.WriteFile(eventlogMessageFilepath, []byte(messageFileText), 0644)
 	if err != nil {
 		return fmt.Errorf("Could not write eventlog message file: %s", err)
 	}
@@ -253,7 +264,6 @@ Language=English`
 		eventlog.Error|eventlog.Warning|eventlog.Info,
 	)
 	if err != nil {
-		s.Delete()
 		return fmt.Errorf("Setting up eventlog source failed: %s", err)
 	}
 	return nil

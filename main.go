@@ -1189,19 +1189,23 @@ func RotateTaskEnvironment() (reboot bool) {
 	return false
 }
 
+func writeCrashFile(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
+	// useful for debugging broken logging
+	filename := filepath.Join(
+		filepath.Dir(os.Args[0]),
+		fmt.Sprintf("generic-worker-crash-exit-%d-%d.log", exitCode, time.Now().Unix()),
+	)
+	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf("exited with %d, %q, %#v", exitCode, logMessage, args)+"\n"+err.Error()), 0666)
+	if err != nil {
+		log.Printf("Could not open crash file %q: %v", filename, err)
+	}
+}
+
 func exitOnError(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
 	if err == nil {
 		return
 	}
-	// useful for debugging broken logging
-	filename := filepath.Join(
-		filepath.Dir(os.Args[0]),
-		fmt.Sprintf("generic-worker-crash-%d.log", time.Now().Unix()),
-	)
-	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf(logMessage, args...)+"\n"+err.Error()), 0666)
-	if err != nil {
-		log.Printf("Could not open crash file %q: %v", filename, err)
-	}
+	writeCrashFile(exitCode, err, logMessage, args...)
 	log.Printf(logMessage, args...)
 	log.Printf("%v", err)
 	os.Exit(int(exitCode))
