@@ -196,10 +196,12 @@ func TestWindowsServiceInteraction(t *testing.T) {
 
 	s := windowsService{}
 
-	var exitCode uint32
 	go func() {
-		_, exitCode = s.Execute([]string{}, r, c)
+		_, exitCode := s.Execute([]string{}, r, c)
 		t.Logf("Got exit code %v from Execute()", exitCode)
+		if ExitCode(exitCode) != WORKER_STOPPED {
+			t.Fatalf("Expected exit code %v, got: %v", WORKER_STOPPED, exitCode)
+		}
 	}()
 
 	var status svc.Status
@@ -208,7 +210,7 @@ func TestWindowsServiceInteraction(t *testing.T) {
 		t.Fatalf("Timeout waiting for status svc.StartPending")
 	case status = <-c:
 		if status.State != svc.StartPending {
-			t.Fatalf("Expected state svc.StartPending, got status %v", status)
+			t.Fatalf("Expected state svc.StartPending, got status %#v", status)
 		}
 	}
 
@@ -217,7 +219,7 @@ func TestWindowsServiceInteraction(t *testing.T) {
 		t.Fatalf("Timeout waiting for status svc.Running")
 	case status = <-c:
 		if status.State != svc.Running {
-			t.Fatalf("Expected state svc.Running, got status %v", status)
+			t.Fatalf("Expected state svc.Running, got status %#v", status)
 		}
 	}
 
@@ -226,14 +228,12 @@ func TestWindowsServiceInteraction(t *testing.T) {
 	// send Stop
 	r <- svc.ChangeRequest{Cmd: svc.Stop}
 
-	fmt.Printf("Sent Stop change request")
-
 	select {
 	case <-time.After(time.Second * 5):
 		t.Fatalf("Timeout waiting for status svc.StopPending")
 	case status = <-c:
 		if status.State != svc.StopPending {
-			t.Fatalf("Expected state svc.StopPending, got status %v", status)
+			t.Fatalf("Expected state svc.StopPending, got status %#v", status)
 		}
 	}
 
@@ -242,11 +242,7 @@ func TestWindowsServiceInteraction(t *testing.T) {
 		t.Fatalf("Timeout waiting for status svc.Stopped")
 	case status = <-c:
 		if status.State != svc.Stopped {
-			t.Fatalf("Expected state svc.Stopped, got status %v", status)
+			t.Fatalf("Expected state svc.Stopped, got status %#v", status)
 		}
-	}
-
-	if ExitCode(exitCode) != WORKER_STOPPED {
-		t.Fatalf("Expected exit code %v, got: %v", WORKER_STOPPED, exitCode)
 	}
 }
