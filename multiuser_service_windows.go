@@ -79,10 +79,9 @@ func (*windowsService) Execute(args []string, r <-chan svc.ChangeRequest, change
 	exitChan := make(chan uint32, 1)
 
 	go func() {
-		exitCode = uint32(RunWorker(interruptChan))
+		exitChan <- uint32(RunWorker(interruptChan))
 		// kill the service
 		interruptChan <- os.Interrupt
-		exitChan <- exitCode
 	}()
 
 	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}

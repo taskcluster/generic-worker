@@ -81,8 +81,9 @@ func TestConfigureAndRemoveService(t *testing.T) {
 	// this is unrealistic, usually the service is marked for deletion
 	// but not actually removed until reboot
 
-	// // hopefully service gets removed
-	// <-time.After(2 * time.Second)
+	// TODO
+	// if we dip into the registry to remove the service
+	// we can actually verify it right after removal
 
 	// // verify service is removed
 	// _, err = m.OpenService(name)
@@ -102,64 +103,6 @@ type brokenWriter struct{}
 func (w brokenWriter) Write(bs []byte) (int, error) {
 	return -1, fmt.Errorf("broken writer is broken")
 }
-
-// func wrapTest(t *testing.T, name string, errorFunc func(*exec.ExitError)) {
-// if we are running the test
-// as opposed to wrapping the test
-// if os.Getenv(t.Name()) == "1" {
-// 	name := "generic-worker-" + slugid.Nice()
-// 	setupService(t, name, true)
-// 	defer cleanupService(t, name)
-// 	// use brokenWriter
-// 	logWriter = brokenWriter{}
-// 	// now we try runService in non-interactive mode
-// 	// which should attempt to use brokenWriter and fail
-// 	// with CANT_LOG_PROPERLY
-// 	runService(name, false)
-// 	return
-// }
-
-// // wrapping the test
-
-// // exitOnError will be called, so os.Exit() will be called
-// // so we need to run this test in a wrapper
-
-// cmd := exec.Command(os.Args[0], fmt.Sprintf("-test.run=%s", t.Name()))
-// cmd.Env = append(os.Environ(), fmt.Sprintf("%s=1", t.Name()))
-// stderrPipe, err := cmd.StderrPipe()
-// if err != nil {
-// 	t.Fatal(err)
-// }
-// stdoutPipe, err := cmd.StdoutPipe()
-// if err != nil {
-// 	t.Fatalf("Error getting StdoutPipe: %v", err)
-// }
-// if err := cmd.Start(); err != nil {
-// 	t.Fatal(err)
-// }
-// stderr, err := ioutil.ReadAll(stderrPipe)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-// stdout, err := ioutil.ReadAll(stdoutPipe)
-// if err != nil {
-// 	t.Fatal(err)
-// }
-// err = cmd.Wait()
-// // if nonzero exit code, castable to ExitError
-// if exitError, ok := err.(*exec.ExitError); ok && err != nil {
-// 	// as expected, there was an error
-// 	exitCode := exitError.ExitCode()
-// 	if exitCode != int(CANT_LOG_PROPERLY) {
-// 		t.Logf("Expected runService() to exit with CANT_LOG_PROPERLY, got: %s", exitError.Error())
-// 		t.Logf("stderr: %s", stderr)
-// 		t.Logf("stdout: %s", stdout)
-// 		t.Fail()
-// 	}
-// } else {
-// 	t.Fatalf("Expected an error from %q: %v", strings.Join(cmd.Args, " "), err)
-// }
-// }
 
 func TestRunServiceWithBrokenWriter(t *testing.T) {
 	defer unprivilegedRecovery(t)
@@ -187,6 +130,26 @@ func TestRunServiceWithBrokenWriter(t *testing.T) {
 	}
 }
 
+// https://godoc.org/golang.org/x/sys/windows#SERVICE_STOPPED
+// SERVICE_STOPPED          = 1
+// SERVICE_START_PENDING    = 2
+// SERVICE_STOP_PENDING     = 3
+// SERVICE_RUNNING          = 4
+// SERVICE_CONTINUE_PENDING = 5
+// SERVICE_PAUSE_PENDING    = 6
+// SERVICE_PAUSED           = 7
+// SERVICE_NO_CHANGE        = 0xffffffff
+func receiveStateOrTimeout(t *testing.T, c <-chan svc.Status, expected svc.State) {
+	select {
+	case <-time.After(time.Second * 5):
+		t.Fatalf("Timeout waiting for status %#v", expected)
+	case state := <-c:
+		if state.State != expected {
+			t.Fatalf("Expected state %#v, got Status %#v", expected, state)
+		}
+	}
+}
+
 func TestWindowsServiceInteraction(t *testing.T) {
 	defer setup(t)()
 
@@ -196,53 +159,38 @@ func TestWindowsServiceInteraction(t *testing.T) {
 
 	s := windowsService{}
 
+	exitChan := make(chan ExitCode, 1)
 	go func() {
-		_, exitCode := s.Execute([]string{}, r, c)
-		t.Logf("Got exit code %v from Execute()", exitCode)
-		if ExitCode(exitCode) != WORKER_STOPPED {
-			t.Fatalf("Expected exit code %v, got: %v", WORKER_STOPPED, exitCode)
-		}
+		_, e := s.Execute([]string{}, r, c)
+		exitChan <- ExitCode(e)
 	}()
 
-	var status svc.Status
-	select {
-	case <-time.After(time.Second * 5):
-		t.Fatalf("Timeout waiting for status svc.StartPending")
-	case status = <-c:
-		if status.State != svc.StartPending {
-			t.Fatalf("Expected state svc.StartPending, got status %#v", status)
-		}
-	}
+	receiveStateOrTimeout(t, c, svc.StartPending)
+	receiveStateOrTimeout(t, c, svc.Running)
 
-	select {
-	case <-time.After(time.Second * 5):
-		t.Fatalf("Timeout waiting for status svc.Running")
-	case status = <-c:
-		if status.State != svc.Running {
-			t.Fatalf("Expected state svc.Running, got status %#v", status)
-		}
-	}
+	// send Interrogate
+	r <- svc.ChangeRequest{Cmd: svc.Interrogate}
+	t.Log("Sent Interrogate ChangeRequest to service")
 
-	<-time.After(1 * time.Second)
+	// 0 value, not a real State
+	receiveStateOrTimeout(t, c, svc.State(0))
+	receiveStateOrTimeout(t, c, svc.State(0))
 
 	// send Stop
 	r <- svc.ChangeRequest{Cmd: svc.Stop}
+	t.Log("Sent Stop ChangeRequest to service")
 
-	select {
-	case <-time.After(time.Second * 5):
-		t.Fatalf("Timeout waiting for status svc.StopPending")
-	case status = <-c:
-		if status.State != svc.StopPending {
-			t.Fatalf("Expected state svc.StopPending, got status %#v", status)
-		}
-	}
+	receiveStateOrTimeout(t, c, svc.StopPending)
+	receiveStateOrTimeout(t, c, svc.Stopped)
 
+	t.Log("Waiting for exit code from Execute()")
 	select {
-	case <-time.After(time.Second * 5):
-		t.Fatalf("Timeout waiting for status svc.Stopped")
-	case status = <-c:
-		if status.State != svc.Stopped {
-			t.Fatalf("Expected state svc.Stopped, got status %#v", status)
+	case <-time.After(time.Second * 60):
+		t.Fatalf("Timeout waiting for exit code from Execute()")
+	case exitCode := <-exitChan:
+		t.Logf("Got exit code %v from Execute()", exitCode)
+		if ExitCode(exitCode) != WORKER_STOPPED {
+			t.Fatalf("Expected exit code %v, got: %v", WORKER_STOPPED, exitCode)
 		}
 	}
 }
