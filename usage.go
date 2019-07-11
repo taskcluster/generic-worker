@@ -307,5 +307,6 @@ and reports back results to the queue.
     75     Not able to create an ed25519 key pair.
     76     Not able to save generic-worker config file after fetching it from AWS provisioner
            or Google Cloud metadata.` + exitCode77() + `
-`
+    78     Not able to log properly.
+    79     Not able to remove generic-worker from the system.`
 }

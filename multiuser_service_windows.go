@@ -22,17 +22,18 @@ import (
 )
 
 // stderr handle is invalid when run as service
-var logWriter = io.MultiWriter(ioutil.Discard)
+var logWriter = io.MultiWriter()
 
 func init() {
-	// default for a service is C:\Windows\system32
+	// TODO make this work with --working-directory
+	// default to generic-worker executable parent dir
 	dir := path.Dir(os.Args[0])
 	err := os.Chdir(dir)
 	if err != nil {
 		exitOnError(INTERNAL_ERROR, err, "Unable to chdir to %q", dir)
 	}
 	log.SetOutput(logWriter)
-	manageLogFile(filepath.Join(path.Dir(os.Args[0]), "generic-worker.log"))
+	manageLogFile(filepath.Join(filepath.Dir(os.Args[0]), "generic-worker.log"))
 }
 
 func manageLogFile(logPath string) {
@@ -216,7 +217,8 @@ func configureService(name, exePath string, args []string) error {
 		// run as LocalSystem because we call WTSQueryUserToken
 		ServiceStartName: "LocalSystem",
 		ServiceType:      windows.SERVICE_WIN32_OWN_PROCESS | windows.SERVICE_INTERACTIVE_PROCESS,
-		StartType:        mgr.StartAutomatic,
+		// the service will start by itself whenever the computer reboots
+		StartType: mgr.StartAutomatic,
 	}
 	m, err := mgr.Connect()
 	if err != nil {
@@ -282,6 +284,10 @@ func removeService(name string) error {
 		return fmt.Errorf("service %s is not installed", name)
 	}
 	defer s.Close()
+
+	// ignore error, we're trying to delete
+	_, _ = s.Control(svc.Stop)
+
 	err = s.Delete()
 	if err != nil {
 		return err

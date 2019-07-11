@@ -348,7 +348,7 @@ and reports back results to the queue.
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]
-    generic-worker install service          [--service-name SERVICE-NAME]
+    generic-worker install service          [--service-name   SERVICE-NAME]
                                             [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]
     generic-worker show-payload-schema

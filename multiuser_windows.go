@@ -427,25 +427,32 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 		// platform specific...
 		err := install(arguments)
 		if err != nil {
-			log.Fatalf("failed to install service: %v", err)
+			log.Printf("failed to install service: %v", err)
 			return CANT_INSTALL_GENERIC_WORKER
 		}
 	case arguments["remove"]:
 		err := remove(arguments)
 		if err != nil {
-			log.Fatalf("failed to remove service: %v", err)
+			log.Printf("failed to remove service: %v", err)
 			return CANT_REMOVE_GENERIC_WORKER
 		}
 	case arguments["run-service"]:
-		cwd := convertNilToEmptyString(arguments["--working-directory"])
-		if cwd != "" {
-			os.Chdir(cwd)
+		dir := convertNilToEmptyString(arguments["--working-directory"])
+		// default to generic-worker executable parent dir
+		if dir == "" {
+			dir = filepath.Dir(os.Args[0])
+		}
+		err := os.Chdir(dir)
+		if err != nil {
+			log.Printf("Unable to chdir to %q: %v", dir, err)
+			return INTERNAL_ERROR
 		}
 		handleConfig(arguments)
 		name := convertNilToEmptyString(arguments["--service-name"])
 		isIntSess, err := svc.IsAnInteractiveSession()
 		if err != nil {
-			log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
+			log.Printf("failed to determine if we are running in an interactive session: %v", err)
+			return INTERNAL_ERROR
 		}
 		// debug if interactive session
 		return runService(name, isIntSess)

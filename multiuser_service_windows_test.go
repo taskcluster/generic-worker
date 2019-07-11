@@ -18,7 +18,7 @@ func unprivilegedRecovery(t *testing.T) {
 	if r := recover(); r != nil {
 		t.Log("A panic can occur if tests are run as an unprivileged user.")
 		t.Log("Disable tests that require administrator privileges by setting `SKIP_ADMINISTRATOR_TESTS` in your environment")
-		t.Logf("Caught panic: %v", r)
+		t.Fatalf("Caught panic: %v", r)
 	}
 }
 
@@ -56,7 +56,6 @@ func TestConfigureAndRemoveService(t *testing.T) {
 
 	name := "generic-worker-" + slugid.Nice()
 	setupService(t, name, true)
-	defer cleanupService(t, name)
 
 	// service manager
 	m, err := mgr.Connect()
@@ -78,10 +77,12 @@ func TestConfigureAndRemoveService(t *testing.T) {
 	}
 	elog.Close()
 
-	// this is unrealistic, usually the service is marked for deletion
+	// usually the service is marked for deletion
 	// but not actually removed until reboot
 
-	// TODO
+	cleanupService(t, name)
+
+	// TODO these don't work
 	// if we dip into the registry to remove the service
 	// we can actually verify it right after removal
 
@@ -111,8 +112,6 @@ func TestRunServiceWithBrokenWriter(t *testing.T) {
 		t.Skipf("SKIP_ADMINISTRATOR_TESTS set, skipping %q", t.Name())
 	}
 
-	// if we are running the test
-	// as opposed to wrapping the test
 	name := "generic-worker-" + slugid.Nice()
 	setupService(t, name, true)
 	defer cleanupService(t, name)

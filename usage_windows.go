@@ -18,8 +18,8 @@ func removeServiceSummary() string {
 
 func runServiceSummary() string {
 	return `
-    generic-worker run-service              [--service-name   SERVICE-NAME]
-                                            [--config         CONFIG-FILE]
+    generic-worker run-service              [--service-name       SERVICE-NAME]
+                                            [--config             CONFIG-FILE]
                                             [--working-directory  DIRECTORY]
                                             [--configure-for-aws | --configure-for-gcp]`
 }
@@ -46,7 +46,7 @@ func installServiceDescription() string {
 
 func removeServiceDescription() string {
 	return `
-    remove service                         This will remove the generic worker
+    remove service                          This will remove the generic worker
                                             Windows service.`
 }
 
@@ -62,7 +62,7 @@ func platformCommandLineParameters() string {
     --service-name SERVICE-NAME             The name that the Windows service should be
                                             installed under. [default: Generic Worker]
     --working-directory DIRECTORY           The working directory the Generic Worker
-                                            service will use. [default: C:\Windows\system32]`
+                                            service will use.`
 }
 
 func exitCode74() string {
