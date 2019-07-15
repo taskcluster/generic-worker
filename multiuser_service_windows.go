@@ -285,7 +285,10 @@ func removeService(name string) error {
 	}
 	defer s.Close()
 
-	// ignore error, we're trying to delete
+	// If this fails it's essentially because something went wrong
+	// interacting with the service, i.e. it's not running,
+	// it didn't respond, etc.
+	// We don't care about an error, we're just trying to delete it.
 	_, _ = s.Control(svc.Stop)
 
 	err = s.Delete()
