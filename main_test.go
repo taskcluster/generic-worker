@@ -31,7 +31,8 @@ func TestIdleWithoutCrash(t *testing.T) {
 	testutil.RequireTaskclusterCredentials(t)
 	start := time.Now()
 	config.IdleTimeoutSecs = 7
-	exitCode := RunWorker()
+	interruptChan := make(chan os.Signal, 1)
+	exitCode := RunWorker(interruptChan)
 	end := time.Now()
 	if exitCode != IDLE_TIMEOUT {
 		t.Fatalf("Was expecting exit code %v, but got exit code %v", IDLE_TIMEOUT, exitCode)

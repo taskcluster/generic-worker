@@ -99,6 +99,7 @@ func main() {
 	if revision != "" {
 		versionName += " [ revision: https://github.com/taskcluster/generic-worker/commits/" + revision + " ]"
 	}
+
 	arguments, err := docopt.Parse(usage(versionName), nil, true, versionName, false, true)
 	if err != nil {
 		log.Println("Error parsing command line arguments!")
@@ -108,70 +109,12 @@ func main() {
 	switch {
 	case arguments["show-payload-schema"]:
 		fmt.Println(taskPayloadSchema())
-
 	case arguments["run"]:
-		configureForAWS = arguments["--configure-for-aws"].(bool)
-		configureForGCP = arguments["--configure-for-gcp"].(bool)
-		configFile = arguments["--config"].(string)
-		config, err = loadConfig(configFile, configureForAWS, configureForGCP)
-
-		// We need to persist the generic-worker config file if we fetched it
-		// over the network, for example if the config is fetched from the AWS
-		// Provisioner (--configure-for-aws) or from the Google Cloud service
-		// (--configure-for-gcp). We delete taskcluster credentials from the
-		// AWS provisioner as soon as we've fetched them, so unless we persist
-		// the config on the first run, the worker will not work after reboots.
-		//
-		// We persist the config _before_ checking for an error from the
-		// loadConfig function call, so that if there was an error, we can see
-		// what the processed config looked like before the error occurred.
-		//
-		// Note, we only persist the config file if the file doesn't already
-		// exist. We don't want to overwrite an existing user-provided config.
-		// The full config is logged (with secrets obfuscated) in the server
-		// logs, so this should provide a reliable way to inspect what config
-		// was in the case of an unexpected failure, including default values
-		// for config settings not provided in the user-supplied config file.
-		if _, statError := os.Stat(configFile); os.IsNotExist(statError) && config != nil {
-			err = config.Persist(configFile)
-			exitOnError(CANT_SAVE_CONFIG, err, "Not able to persist config file %v", configFile)
-		}
-		exitOnError(CANT_LOAD_CONFIG, err, "Error loading configuration file %v", configFile)
-
-		// Config known to be loaded successfully at this point...
-
-		// * If running tasks as dedicated OS users, we should take ownership
-		//   of generic-worker config file, and block access to task users, so
-		//   that tasks can't read from or write to it.
-		// * If running tasks under the same user account as the generic-worker
-		//   process, then we can't avoid that tasks can read the config file,
-		//   we can just hope that the config file is at least not writable by
-		//   the current user. In this case we won't change file permissions.
-		secureConfigFile()
-
-		exitCode := RunWorker()
+		handleConfig(arguments)
+		interruptChan := make(chan os.Signal, 1)
+		exitCode := RunWorker(interruptChan)
 		log.Printf("Exiting worker with exit code %v", exitCode)
-		switch exitCode {
-		case REBOOT_REQUIRED:
-			if !config.DisableReboots {
-				immediateReboot()
-			}
-		case IDLE_TIMEOUT:
-			if config.ShutdownMachineOnIdle {
-				immediateShutdown("generic-worker idle timeout")
-			}
-		case INTERNAL_ERROR:
-			if config.ShutdownMachineOnInternalError {
-				immediateShutdown("generic-worker internal error")
-			}
-		case NONCURRENT_DEPLOYMENT_ID:
-			immediateShutdown("generic-worker deploymentId is not latest")
-		}
-		os.Exit(int(exitCode))
-	case arguments["install"]:
-		// platform specific...
-		err := install(arguments)
-		exitOnError(CANT_INSTALL_GENERIC_WORKER, err, "Error installing generic worker")
+		handleExitCode(exitCode)
 	case arguments["new-ed25519-keypair"]:
 		err := generateEd25519Keypair(arguments["--file"].(string))
 		exitOnError(CANT_CREATE_ED25519_KEYPAIR, err, "Error generating ed25519 keypair %v for worker", arguments["--file"].(string))
@@ -179,6 +122,68 @@ func main() {
 		// platform specific...
 		os.Exit(int(platformTargets(arguments)))
 	}
+}
+
+func handleConfig(arguments map[string]interface{}) {
+	configureForAWS = arguments["--configure-for-aws"].(bool)
+	configureForGCP = arguments["--configure-for-gcp"].(bool)
+	configFile = arguments["--config"].(string)
+	// avoid shadowing
+	var err error
+	config, err = loadConfig(configFile, configureForAWS, configureForGCP)
+	exitOnError(CANT_LOAD_CONFIG, err, "Error loading configuration file %v", configFile)
+	// We need to persist the generic-worker config file if we fetched it
+	// over the network, for example if the config is fetched from the AWS
+	// Provisioner (--configure-for-aws) or from the Google Cloud service
+	// (--configure-for-gcp). We delete taskcluster credentials from the
+	// AWS provisioner as soon as we've fetched them, so unless we persist
+	// the config on the first run, the worker will not work after reboots.
+	//
+	// We persist the config _before_ checking for an error from the
+	// loadConfig function call, so that if there was an error, we can see
+	// what the processed config looked like before the error occurred.
+	//
+	// Note, we only persist the config file if the file doesn't already
+	// exist. We don't want to overwrite an existing user-provided config.
+	// The full config is logged (with secrets obfuscated) in the server
+	// logs, so this should provide a reliable way to inspect what config
+	// was in the case of an unexpected failure, including default values
+	// for config settings not provided in the user-supplied config file.
+	if _, statError := os.Stat(configFile); os.IsNotExist(statError) && config != nil {
+		err = config.Persist(configFile)
+		exitOnError(CANT_SAVE_CONFIG, err, "Not able to persist config file %v", configFile)
+	}
+
+	// Config known to be loaded successfully at this point...
+
+	// * If running tasks as dedicated OS users, we should take ownership
+	//   of generic-worker config file, and block access to task users, so
+	//   that tasks can't read from or write to it.
+	// * If running tasks under the same user account as the generic-worker
+	//   process, then we can't avoid that tasks can read the config file,
+	//   we can just hope that the config file is at least not writable by
+	//   the current user. In this case we won't change file permissions.
+	secureConfigFile()
+}
+
+func handleExitCode(exitCode ExitCode) {
+	switch exitCode {
+	case REBOOT_REQUIRED:
+		if !config.DisableReboots {
+			immediateReboot()
+		}
+	case IDLE_TIMEOUT:
+		if config.ShutdownMachineOnIdle {
+			immediateShutdown("generic-worker idle timeout")
+		}
+	case INTERNAL_ERROR:
+		if config.ShutdownMachineOnInternalError {
+			immediateShutdown("generic-worker internal error")
+		}
+	case NONCURRENT_DEPLOYMENT_ID:
+		immediateShutdown("generic-worker deploymentId is not latest")
+	}
+	os.Exit(int(exitCode))
 }
 
 func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (*gwconfig.Config, error) {
@@ -358,7 +363,7 @@ func CwdOrPanic() string {
 	return cwd
 }
 
-func RunWorker() (exitCode ExitCode) {
+func RunWorker(interruptChan chan os.Signal) (exitCode ExitCode) {
 	defer func() {
 		if r := recover(); r != nil {
 			HandleCrash(r)
@@ -415,8 +420,7 @@ func RunWorker() (exitCode ExitCode) {
 	// use zero value, to be sure that a check is made before first task runs
 	lastQueriedProvisioner := time.Time{}
 	lastReportedNoTasks := time.Now()
-	sigInterrupt := make(chan os.Signal, 1)
-	signal.Notify(sigInterrupt, os.Interrupt)
+	signal.Notify(interruptChan, os.Interrupt)
 	if RotateTaskEnvironment() {
 		return REBOOT_REQUIRED
 	}
@@ -514,7 +518,8 @@ func RunWorker() (exitCode ExitCode) {
 		// since a task could complete in less than that amount of time.
 		select {
 		case <-wait5Seconds.C:
-		case <-sigInterrupt:
+		case <-interruptChan:
+			log.Printf("RunWorker received SIGINT")
 			return WORKER_STOPPED
 		}
 	}
@@ -1184,10 +1189,23 @@ func RotateTaskEnvironment() (reboot bool) {
 	return false
 }
 
+func writeCrashFile(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
+	// useful for debugging broken logging
+	filename := filepath.Join(
+		filepath.Dir(os.Args[0]),
+		fmt.Sprintf("generic-worker-crash-exit-%d-%d.log", exitCode, time.Now().Unix()),
+	)
+	err = ioutil.WriteFile(filename, []byte(fmt.Sprintf("exited with %d, %q, %#v", exitCode, logMessage, args)+"\n"+err.Error()), 0666)
+	if err != nil {
+		log.Printf("Could not open crash file %q: %v", filename, err)
+	}
+}
+
 func exitOnError(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
 	if err == nil {
 		return
 	}
+	writeCrashFile(exitCode, err, logMessage, args...)
 	log.Printf(logMessage, args...)
 	log.Printf("%v", err)
 	os.Exit(int(exitCode))

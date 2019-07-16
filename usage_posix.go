@@ -6,11 +6,19 @@ func installServiceSummary() string {
 	return ""
 }
 
+func removeServiceSummary() string {
+	return ""
+}
+
+func runServiceSummary() string {
+	return ""
+}
+
 func customTargetsSummary() string {
 	return ""
 }
 
-func installService() string {
+func installServiceDescription() string {
 	return ""
 }
 

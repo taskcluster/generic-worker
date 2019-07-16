@@ -17,6 +17,8 @@ const (
 	CANT_CREATE_ED25519_KEYPAIR ExitCode = 75
 	CANT_SAVE_CONFIG            ExitCode = 76
 	CANT_SECURE_CONFIG          ExitCode = 77
+	CANT_LOG_PROPERLY           ExitCode = 78
+	CANT_REMOVE_GENERIC_WORKER  ExitCode = 79
 )
 
 func usage(versionName string) string {
@@ -29,7 +31,8 @@ and reports back results to the queue.
 
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
-                                            [--configure-for-aws | --configure-for-gcp]` + installServiceSummary() + `
+                                            [--configure-for-aws | --configure-for-gcp]` +
+		installServiceSummary() + removeServiceSummary() + runServiceSummary() + `
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE` + customTargetsSummary() + `
     generic-worker --help
@@ -42,7 +45,7 @@ and reports back results to the queue.
                                             payload is validated against a json schema baked
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
-                                            worker.` + installService() + `
+                                            worker.` + installServiceDescription() + `
     new-ed25519-keypair                     This will generate a fresh, new ed25519
                                             compliant private/public key pair. The public
                                             key will be written to stdout and the private
@@ -304,5 +307,6 @@ and reports back results to the queue.
     75     Not able to create an ed25519 key pair.
     76     Not able to save generic-worker config file after fetching it from AWS provisioner
            or Google Cloud metadata.` + exitCode77() + `
-`
+    78     Not able to log properly.
+    79     Not able to remove generic-worker from the system.`
 }
