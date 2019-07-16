@@ -693,6 +693,12 @@ Only used in a single __Windows-specific__ test - if you don't have a Z: drive
 setup on your computer, or you do but you also run tests from the Z: drive, you
 can set this env var to a non-empty string to skip this test.
 
+### `GW_SKIP_ADMIN_REQUIRED_TESTS`
+
+This environment variable applies to Windows tests that rely on administrative
+privileges to pass. This includes tests that install and remove Generic Worker
+as a service.
+
 ### `GW_TESTS_RUN_AS_CURRENT_USER`
 
 This environment variable applies only to the __multiuser__ engine.
