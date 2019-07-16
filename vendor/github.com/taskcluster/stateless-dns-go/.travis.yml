@@ -1,0 +1,65 @@
+language: go
+go:
+  - 1.6
+
+env:
+  - "MY_GOOS=linux MY_GOARCH=amd64"
+  - "MY_GOOS=darwin MY_GOARCH=amd64"
+  - "MY_GOOS=windows MY_GOARCH=amd64"
+
+before_install:
+# workaround for travis-ci/gimme#42
+  - curl -o go.tar.gz -sL https://storage.googleapis.com/golang/go1.7.3.linux-amd64.tar.gz
+  - tar -C $HOME -xf go.tar.gz
+  - rm go.tar.gz
+  - export GOROOT="${HOME}/go"
+  - export PATH="${GOROOT}/bin:${PATH}"
+  - export GOOS="${MY_GOOS}"
+  - export GOARCH="${MY_GOARCH}"
+# end of workaround ###
+  - go get github.com/axw/gocov/gocov
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/pierrre/gotestcover
+
+install:
+  - "go get -d -v ./..."
+
+script:
+  - "go install -v ./..."
+  - "if test $GOOS.$GOARCH = linux.amd64; then ${GOPATH}/bin/gotestcover -v -coverprofile=coverage.report ./...; go tool cover -func=coverage.report; fi"
+
+after_script:
+  - "$HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
+
+before_deploy:
+  - "source .travis_rename_releases.sh"
+
+after_script:
+  - "$HOME/gopath/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
+
+notifications:
+  irc:
+    channels:
+      # encrypt the channel name so that user forks don't spam IRC
+      # decrypted version is "irc.mozilla.org#taskcluster-bots"
+      # see https://github.com/travis-ci/travis-ci/issues/1094
+    - secure: "J5xnUC1EGjSyDgklKVOCdd+8jdluyHsegbXjezSqoF2+djGXxZ4gOCciC91WEYop9zG2/dP+dlCEDoHWx/C6oYUqWtHprNRbhm8z6QXU7QedkaPyxAzcudbaQ+KgHVvZNpqHhn4mG2TrjlKPqLOjOxtuoltZQKwZf14NEyfhtnkD2NXAsRFO2twyCxnhC3sEon+HCz5ID9ghCFGYMswD6/Hl2bGLkiexuT0tRKK8t+J4Ci51PXXIPWX1XCNn/UFQVo6b7D50YIPzpXlSLp+lnUB8tQLwIYIYxUbpLgnx4Ow14yEw+P2/c4Mp0juyViRs1v4JOe6Ir2HK3+M4dUBWc2OjMRxb8v/8yjzrgZoLms6ynvYFBc0Is8PT9Y7y2rE6cvRZzL7IwY5UnJUl6zyWmp1Zq2b3ghNN6AuchRmUIOkrX/I8TZm6sv6xE3dgM5p7z0XngRXcA2pwkobf9TfrxqvdHsRCSU0UlzOHSkP7B9aJS4TQ5wR3u7/+aEBGFDXtkW8FniAEiY/lr4/cl2YPLq+0qSkCGfpamvkOpLHvJFsa+9PJBiN1aOGQsKrTFBc+FIrowEgSO2umrSIG/tLacXGZdOjDZiegkUSZg3i7JFmJpmWmLQWuy6z1IB1ZZuAJesyiBF/m03Mr34jQumHrQWBwbBTJUgC9hVgTcm7cqRQ="
+    on_success: change
+    on_failure: always
+    template:
+    - "%{repository}#%{build_number} (%{branch} - %{commit} : %{author}): %{message}"
+    - 'Change view : %{compare_url}'
+    - 'Build details : %{build_url}'
+    - 'Commit message : %{commit_message}'
+
+deploy:
+  provider: releases
+  api_key:
+    secure: mITAVGC6xW6WzuDyhQqGUNL2L7PEhBaljMn3nSij5WYQWNUqAWq4zFW+2V4XAeQsnxX99R807dOHe+gajn1Yug4wWr6ETz2MViZm+pbCjLiw+ludIX5Jk2d33eb+K8e9Sv3w1R35b65qyPFifoPbbopT1RudGLBgUnhHih56NjnopkWWPqiWi0D3n0Jgww/meHnSIZC76mQQSfUOsEXyxrcieojOo3MKld3hwXvz0MWsN9mR4ChcacNM44zZ70ch4C5zk8OZnRZQaTy9A70+aoe9+yy9TEJVqnu0BH1Uffh2Ji+qBBr6ikDphyNLZtDrecVLNEuTkPfXNQjl3kZFA/MXG37cYGz7sPrFVSeiNXIOBvhqEy0jERBPxu38SRjM6OgXEBtMsujDra8JC/5xe6ISQS9ckMruDmdeUE5BZnNY7pC0osidtBNm1o2yQmJa+yDWupBelJe2JyJpkTwElk7xM4IRHMktWT+rtLJGOJd1aZNoCAelg37ycfmC94gtUJ7J6OygxrjkoQikvK2Y6tPDUcw3uGVYW9zoTxQCKPhtRoNojvHJg5h3Hc1SvH8reA7xIzX8GRKnQasfXaJ+ylHrvt5FO+yCXWFAQrHtuGpnD8KHSw5t3ZmvjYKsVFSm82vfiyEyTfWeXBnRfaKzArzEeG7PshvL/dCxf3Zvgrg=
+  file:
+    - "${CREATE_HOSTNAME_RELEASE_FILE}"
+    - "${DECODE_HOSTNAME_RELEASE_FILE}"
+  on:
+    repo: taskcluster/stateless-dns-go
+    tags: true
