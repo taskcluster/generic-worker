@@ -119,6 +119,6 @@ func singleCommandNoArgs(command string) []string {
 
 // this is opt-out so that we don't skip tests by default
 func shouldRunAdminTests() bool {
-	_, ok := os.LookupEnv("SKIP_ADMINISTRATOR_TESTS")
+	_, ok := os.LookupEnv("GW_SKIP_SERVICE_INSTALLATION_TESTS")
 	return !ok
 }
