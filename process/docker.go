@@ -70,7 +70,7 @@ func (c *Command) Execute() (r *Result) {
 	if err != nil {
 		r.SystemError = err
 		if exitError, ok := err.(*exec.ExitError); ok {
-			r.exitCode = int64(exitError.ExitCode())
+			r.exitCode = int64((*exitError).ExitCode())
 		}
 		return
 	}
