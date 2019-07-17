@@ -34,6 +34,7 @@ type Command struct {
 	cmd              []string
 	workingDirectory string
 	env              []string
+	dockerImage      string
 }
 
 func (c *Command) SetEnv(envVar, value string) {
@@ -51,16 +52,19 @@ func (c *Command) String() string {
 func (c *Command) Execute() (r *Result) {
 	r = &Result{}
 
-	// TODO these need to be configurable
+	// TODO should be configurable
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
 		dockerPath = "/usr/bin/docker"
 		log.Printf("Could not find docker in PATH, defaulting to %v", dockerPath)
 	}
-	image := "ubuntu"
+
+	if c.dockerImage == "" {
+		c.dockerImage = "ubuntu"
+	}
 
 	// TODO scary injection potential here
-	cmd := exec.CommandContext(c.ctx, dockerPath, append([]string{"run", image}, c.cmd...)...)
+	cmd := exec.CommandContext(c.ctx, dockerPath, append([]string{"run", c.dockerImage}, c.cmd...)...)
 	// something went horribly wrong
 	if cmd == nil {
 		r.SystemError = fmt.Errorf("nil command")
