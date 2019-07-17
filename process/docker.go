@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/context"
@@ -69,11 +70,14 @@ func (c *Command) Execute() (r *Result) {
 	err := cmd.Run()
 	if err != nil {
 		r.SystemError = err
-		// TODO enable in the future
-		// ExitCode is new in Go 1.12
-		// if e, ok := err.(*exec.ExitError); ok && !e.Success() {
-		// 	r.exitCode = int64(e.ExitCode())
-		// }
+		if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+			// TODO use this in the future
+			// ExitCode is new in Go 1.12
+			// r.exitCode = int64(e.ExitCode())
+			if status, ok := e.Sys().(syscall.WaitStatus); ok {
+				r.exitCode = int64(status.ExitStatus())
+			}
+		}
 		return
 	}
 
