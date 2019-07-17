@@ -52,7 +52,11 @@ func (c *Command) Execute() (r *Result) {
 	r = &Result{}
 
 	// TODO these need to be configurable
-	dockerPath := "/usr/bin/docker"
+	dockerPath, err := exec.LookPath("docker")
+	if err != nil {
+		dockerPath = "/usr/bin/docker"
+		log.Printf("Could not find docker in PATH, defaulting to %v", dockerPath)
+	}
 	image := "ubuntu"
 
 	// TODO scary injection potential here
@@ -71,7 +75,7 @@ func (c *Command) Execute() (r *Result) {
 	startTime := time.Now()
 
 	log.Printf("Running Docker command: %v", c.String())
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		log.Printf("Docker command %v failed: %v", c.String(), err.Error())
 		r.SystemError = err
