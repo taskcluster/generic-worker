@@ -5,6 +5,7 @@ package process
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
@@ -50,10 +51,12 @@ func (c *Command) String() string {
 func (c *Command) Execute() (r *Result) {
 	r = &Result{}
 
+	// TODO these need to be configurable
+	dockerPath := "/usr/bin/docker"
 	image := "ubuntu"
 
 	// TODO scary injection potential here
-	cmd := exec.CommandContext(c.ctx, "/usr/bin/docker", append([]string{"run", image}, c.cmd...)...)
+	cmd := exec.CommandContext(c.ctx, dockerPath, append([]string{"run", image}, c.cmd...)...)
 	// something went horribly wrong
 	if cmd == nil {
 		r.SystemError = fmt.Errorf("nil command")
@@ -67,8 +70,10 @@ func (c *Command) Execute() (r *Result) {
 
 	startTime := time.Now()
 
+	log.Printf("Running Docker command: %v", c.String())
 	err := cmd.Run()
 	if err != nil {
+		log.Printf("Docker command %v failed: %v", c.String(), err.Error())
 		r.SystemError = err
 		if e, ok := err.(*exec.ExitError); ok && !e.Success() {
 			// TODO use this in the future
