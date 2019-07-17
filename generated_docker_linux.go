@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 
 	tcclient "github.com/taskcluster/taskcluster-client-go"
 )
@@ -92,6 +93,9 @@ type (
 		// Max length: 65536
 		Base64 string `json:"base64"`
 	}
+
+	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
+	DockerImageName string
 
 	// By default tasks will be resolved with `state/reasonResolved`: `completed/completed`
 	// if all task commands have a zero exit code, or `failed/failed` if any command has a
@@ -195,6 +199,13 @@ type (
 		// Since: generic-worker 5.3.0
 		Features FeatureFlags `json:"features,omitempty"`
 
+		// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
+		//
+		// One of:
+		//   * DockerImageName
+		//   * NamedDockerImage
+		Image json.RawMessage `json:"image,omitempty"`
+
 		// Maximum time the task container can run in seconds.
 		//
 		// Since: generic-worker 0.0.1
@@ -240,6 +251,22 @@ type (
 		// Since: generic-worker 10.2.2
 		SupersederURL string `json:"supersederUrl,omitempty"`
 	}
+
+	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
+	//
+	// Defined properties:
+	//
+	//  struct {
+	//
+	//  	Name string `json:"name"`
+	//
+	//  	// Possible values:
+	//  	//   * "docker-image"
+	//  	Type string `json:"type"`
+	//  }
+	//
+	// Additional properties allowed
+	NamedDockerImage json.RawMessage
 
 	// Byte-for-byte literal inline content of file/archive, up to 64KB in size.
 	//
@@ -332,6 +359,22 @@ type (
 		Format string `json:"format,omitempty"`
 	}
 )
+
+// MarshalJSON calls json.RawMessage method of the same name. Required since
+// NamedDockerImage is of type json.RawMessage...
+func (this *NamedDockerImage) MarshalJSON() ([]byte, error) {
+	x := json.RawMessage(*this)
+	return (&x).MarshalJSON()
+}
+
+// UnmarshalJSON is a copy of the json.RawMessage implementation.
+func (this *NamedDockerImage) UnmarshalJSON(data []byte) error {
+	if this == nil {
+		return errors.New("NamedDockerImage: UnmarshalJSON on nil pointer")
+	}
+	*this = append((*this)[0:0], data...)
+	return nil
+}
 
 // Returns json schema for the payload part of the task definition. Please
 // note we use a go string and do not load an external file, since we want this
@@ -637,6 +680,35 @@ func taskPayloadSchema() string {
       },
       "title": "Feature flags",
       "type": "object"
+    },
+    "image": {
+      "description": "Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace",
+      "oneOf": [
+        {
+          "title": "Docker image name",
+          "type": "string"
+        },
+        {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "docker-image"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "name"
+          ],
+          "title": "Named docker image",
+          "type": "object"
+        }
+      ],
+      "title": "Docker image."
     },
     "maxRunTime": {
       "description": "Maximum time the task container can run in seconds.\n\nSince: generic-worker 0.0.1",
