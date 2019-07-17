@@ -69,9 +69,11 @@ func (c *Command) Execute() (r *Result) {
 	err := cmd.Run()
 	if err != nil {
 		r.SystemError = err
-		if exitError, ok := err.(*exec.ExitError); ok {
-			r.exitCode = int64((*exitError).ExitCode())
-		}
+		// TODO enable in the future
+		// ExitCode is new in Go 1.12
+		// if e, ok := err.(*exec.ExitError); ok && !e.Success() {
+		// 	r.exitCode = int64(e.ExitCode())
+		// }
 		return
 	}
 
