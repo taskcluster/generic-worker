@@ -221,8 +221,8 @@ properties:
           minimum: 1
   image:
     title: Docker image.
-    description: Image to use for the task.  Images can be specified as an image tag as
-      used by a docker registry, or as an object declaring type and name/namespace
+    description: Image to use for the task.  Images can be specified as an image tag
+      as used by a docker registry, or as an object declaring type and name/namespace
     oneOf:
     - title: Docker image name
       type: string
@@ -238,6 +238,36 @@ properties:
       required:
       - type
       - name
+    - type: object
+      title: Indexed docker image
+      properties:
+        type:
+          type: string
+          enum:
+          - indexed-image
+        namespace:
+          type: string
+        path:
+          type: string
+      required:
+      - type
+      - namespace
+      - path
+    - type: object
+      title: Docker image artifact
+      properties:
+        type:
+          type: string
+          enum:
+          - task-image
+        taskId:
+          type: string
+        path:
+          type: string
+      required:
+      - type
+      - taskId
+      - path
 definitions:
   mount:
     title: Mount

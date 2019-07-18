@@ -95,6 +95,24 @@ type (
 	}
 
 	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
+	//
+	// Defined properties:
+	//
+	//  struct {
+	//
+	//  	Path string `json:"path"`
+	//
+	//  	TaskID string `json:"taskId"`
+	//
+	//  	// Possible values:
+	//  	//   * "task-image"
+	//  	Type string `json:"type"`
+	//  }
+	//
+	// Additional properties allowed
+	DockerImageArtifact json.RawMessage
+
+	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
 	DockerImageName string
 
 	// By default tasks will be resolved with `state/reasonResolved`: `completed/completed`
@@ -204,6 +222,8 @@ type (
 		// One of:
 		//   * DockerImageName
 		//   * NamedDockerImage
+		//   * IndexedDockerImage
+		//   * DockerImageArtifact
 		Image json.RawMessage `json:"image,omitempty"`
 
 		// Maximum time the task container can run in seconds.
@@ -251,6 +271,24 @@ type (
 		// Since: generic-worker 10.2.2
 		SupersederURL string `json:"supersederUrl,omitempty"`
 	}
+
+	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
+	//
+	// Defined properties:
+	//
+	//  struct {
+	//
+	//  	Namespace string `json:"namespace"`
+	//
+	//  	Path string `json:"path"`
+	//
+	//  	// Possible values:
+	//  	//   * "indexed-image"
+	//  	Type string `json:"type"`
+	//  }
+	//
+	// Additional properties allowed
+	IndexedDockerImage json.RawMessage
 
 	// Image to use for the task.  Images can be specified as an image tag as used by a docker registry, or as an object declaring type and name/namespace
 	//
@@ -359,6 +397,38 @@ type (
 		Format string `json:"format,omitempty"`
 	}
 )
+
+// MarshalJSON calls json.RawMessage method of the same name. Required since
+// DockerImageArtifact is of type json.RawMessage...
+func (this *DockerImageArtifact) MarshalJSON() ([]byte, error) {
+	x := json.RawMessage(*this)
+	return (&x).MarshalJSON()
+}
+
+// UnmarshalJSON is a copy of the json.RawMessage implementation.
+func (this *DockerImageArtifact) UnmarshalJSON(data []byte) error {
+	if this == nil {
+		return errors.New("DockerImageArtifact: UnmarshalJSON on nil pointer")
+	}
+	*this = append((*this)[0:0], data...)
+	return nil
+}
+
+// MarshalJSON calls json.RawMessage method of the same name. Required since
+// IndexedDockerImage is of type json.RawMessage...
+func (this *IndexedDockerImage) MarshalJSON() ([]byte, error) {
+	x := json.RawMessage(*this)
+	return (&x).MarshalJSON()
+}
+
+// UnmarshalJSON is a copy of the json.RawMessage implementation.
+func (this *IndexedDockerImage) UnmarshalJSON(data []byte) error {
+	if this == nil {
+		return errors.New("IndexedDockerImage: UnmarshalJSON on nil pointer")
+	}
+	*this = append((*this)[0:0], data...)
+	return nil
+}
 
 // MarshalJSON calls json.RawMessage method of the same name. Required since
 // NamedDockerImage is of type json.RawMessage...
@@ -705,6 +775,52 @@ func taskPayloadSchema() string {
             "name"
           ],
           "title": "Named docker image",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "namespace": {
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "indexed-image"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "namespace",
+            "path"
+          ],
+          "title": "Indexed docker image",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "taskId": {
+              "type": "string"
+            },
+            "type": {
+              "enum": [
+                "task-image"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "taskId",
+            "path"
+          ],
+          "title": "Docker image artifact",
           "type": "object"
         }
       ],

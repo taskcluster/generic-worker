@@ -119,10 +119,11 @@ func (r *Result) Failed() bool {
 	return r.exitCode != 0
 }
 
-func NewCommand(commandLine []string, workingDirectory string, env []string) (*Command, error) {
+func NewDockerCommand(commandLine []string, image string, workingDirectory string, env []string) (*Command, error) {
 	c := &Command{
 		ctx:              context.Background(),
 		writer:           os.Stdout,
+		dockerImage:      image,
 		cmd:              commandLine,
 		workingDirectory: workingDirectory,
 		env:              env,
