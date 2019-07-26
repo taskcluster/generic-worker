@@ -35,12 +35,28 @@ start_time="$(date '+%s')"
 
 retry apt update
 retry apt upgrade -y
-retry apt install -y apt-transport-https ca-certificates curl software-properties-common uidmap
+retry apt install -y apt-transport-https ca-certificates curl software-properties-common
+
+# rootless docker deps
+retry apt install -y uidmap slirp4netns
 
 # install docker as unprivileged ubuntu user
 # FIXME: curl | bash
 retry curl -fsSL https://get.docker.com/rootless -o /home/ubuntu/get-docker.sh
 su ubuntu -c 'cd $HOME && mkdir $HOME/bin && sh get-docker.sh'
+
+# see: https://wiki.archlinux.org/index.php/Systemd/User
+# start user docker service on boot as ubuntu
+loginctl enable-linger ubuntu
+sed -i 's/multi-user.target/default.target/' /home/ubuntu/.config/systemd/user/docker.service
+
+# FIXME is this needed?
+# su ubuntu -c 'systemctl --user enable docker'
+
+# ensure docker in path, configure non-default docker socket
+echo 'export PATH=/home/ubuntu/bin:$PATH
+export DOCKER_HOST=unix:///run/user/1000/docker.sock' > /home/ubuntu/.bashrc
+
 
 # install generic-worker into /home/ubuntu/generic-worker
 mkdir -p /home/ubuntu/generic-worker
