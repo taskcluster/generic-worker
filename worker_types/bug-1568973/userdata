@@ -39,7 +39,8 @@ retry apt install -y apt-transport-https ca-certificates curl software-propertie
 
 # install docker as unprivileged ubuntu user
 # FIXME: curl | bash
-su ubuntu -c 'cd $HOME && mkdir $HOME/bin && retry curl -fsSL https://get.docker.com/rootless -o get-docker.sh && sh get-docker.sh'
+retry curl -fsSL https://get.docker.com/rootless -o /home/ubuntu/get-docker.sh
+su ubuntu -c 'cd $HOME && mkdir $HOME/bin && sh get-docker.sh'
 
 # install generic-worker into /home/ubuntu/generic-worker
 mkdir -p /home/ubuntu/generic-worker
