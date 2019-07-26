@@ -32,7 +32,7 @@ cd "$(dirname "${0}")/${WORKER_TYPE}"
 rm -f *.latest-ami
 
 # generate a random slugid for aws client token...
-go get github.com/taskcluster/slugid-go/slug
+go get github.com/taskcluster/slugid-go/cmd/slug
 go install github.com/taskcluster/generic-worker/update-worker-type
 export SLUGID=$("${GOPATH}/bin/slug")
 
