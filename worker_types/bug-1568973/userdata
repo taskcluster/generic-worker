@@ -38,7 +38,7 @@ retry apt upgrade -y
 retry apt install -y apt-transport-https ca-certificates
 
 # install podman deps
-retry apt install \
+retry apt -y install \
   btrfs-tools \
   git \
   golang-go \
