@@ -52,13 +52,15 @@ retry apt install \
   libgpg-error-dev \
   libostree-dev \
   libprotobuf-dev \
-  libprotobuf-c0-dev \
+  libprotobuf-c-dev \
   libseccomp-dev \
   libselinux1-dev \
   libsystemd-dev \
   pkg-config \
   runc \
   uidmap
+  # appeared to be broken on 19.04
+  # libprotobuf-c0-dev \
 
 # install podman
 retry apt-get install -y software-properties-common uidmap
