@@ -68,6 +68,10 @@ retry add-apt-repository -y ppa:projectatomic/ppa
 retry apt-get update
 retry apt-get -y install podman
 
+# golang exec tries to find a real executable for docker
+# symlink works, shell alias does not
+ln -s $(which podman) /usr/local/bin/docker
+
 # out of the box podman has no configured registries
 sed -i -z "s/\[registries.search\]\nregistries = \[\]/\[registries.search\]\nregistries = \['docker.io', 'quay.io'\]/" /etc/containers/registries.conf
 
