@@ -73,7 +73,11 @@ retry apt-get -y install podman
 ln -s $(which podman) /usr/local/bin/docker
 
 # out of the box podman has no configured registries
-sed -i -z "s/\[registries.search\]\nregistries = \[\]/\[registries.search\]\nregistries = \['docker.io', 'quay.io'\]/" /etc/containers/registries.conf
+if [[ -f "/etc/containers/registries.conf" ]]; then
+  sed -i -z "s/\[registries.search\]\nregistries = \[\]/\[registries.search\]\nregistries = \['docker.io', 'quay.io'\]/" /etc/containers/registries.conf
+else
+  echo -e "[registries.search]\nregistries = ['docker.io', 'quay.io']\n\n[registries.insecure]\nregistries = []\n" > /etc/containers/registries.conf
+fi
 
 # alias docker to podman
 echo "alias docker='podman'" > /etc/profile.d/00-alias-docker.sh
