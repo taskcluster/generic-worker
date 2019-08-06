@@ -94,7 +94,7 @@ func main() {
 			log.Print("Old AMI for worker type " + workerType + " region " + region + ": " + oldAmi)
 			log.Print("New AMI for worker type " + workerType + " region " + region + ": " + newAmi)
 			if oldAmi == newAmi {
-				log.Print("WARNING: No change to AMI used in workert type " + workerType + " for region " + region + " (" + oldAmi + ")")
+				log.Print("WARNING: No change to AMI used in worker type " + workerType + " for region " + region + " (" + oldAmi + ")")
 			} else {
 				log.Print("Worker type " + workerType + " region " + region + " updated to use " + newAmi)
 			}
