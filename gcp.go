@@ -131,7 +131,7 @@ func updateConfigWithGCPSettings(c *gwconfig.Config) error {
 		if err != nil {
 			return err
 		}
-		gcpMetadata[key] = value
+		gcpMetadata[key] = string(value)
 	}
 	c.WorkerTypeMetadata["gcp"] = gcpMetadata
 	c.WorkerID = gcpMetadata["id"].(string)
