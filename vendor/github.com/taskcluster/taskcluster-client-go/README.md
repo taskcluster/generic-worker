@@ -1,6 +1,6 @@
-# taskcluster-client-go
+<img align="right" src="http://media.taskcluster.net/logo/logo-96x120.png" />
 
-[![logo](https://tools.taskcluster.net/b2d854df0391f8b777f39a486ebbc868.png)](https://tools.taskcluster.net/b2d854df0391f8b777f39a486ebbc868.png)
+# taskcluster-client-go
 
 [![Build Status](https://travis-ci.org/taskcluster/taskcluster-client-go.svg?branch=master)](http://travis-ci.org/taskcluster/taskcluster-client-go)
 [![GoDoc](https://godoc.org/github.com/taskcluster/taskcluster-client-go?status.svg)](https://godoc.org/github.com/taskcluster/taskcluster-client-go)
@@ -8,6 +8,19 @@
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
 A go (golang) port of taskcluster-client.
+
+## Deprecated
+
+**NOTE**: This library has been moved into [the main Taskcluster distribution](https://github.com/taskcluster/taskcluster).
+
+To use the new library, change `github.com/taskcluster/taskcluster-client-go` to `github.com/taskcluster/taskcluster/clients/client-go/v14`, substituting the major version of the Taskcluster services deployment you are targeting.
+Omit the version (`/v14`) if not using Go modules.
+
+This library will continue to be updated with changes as observed on https://taskcluster-staging.net, but that may lag or lead landed changes somewhat, and the resulting library is unversioned with respect to Taskcluster services.
+At some point, these updates will cease, and this repository will remain as an archive.
+We recommend all consumers of this library upgrade to the newer path as soon as possible.
+
+## Documentation
 
 Complete godoc documentation [here](https://godoc.org/github.com/taskcluster/taskcluster-client-go).
 
