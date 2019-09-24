@@ -1,7 +1,10 @@
-//go:generate gw-codegen file://docker_linux.yml          generated_docker_linux.go dockerEngine
-//go:generate gw-codegen file://native_all-unix-style.yml generated_native_linux.go nativeEngine
-//go:generate gw-codegen file://native_all-unix-style.yml generated_darwin.go       nativeEngine
-//go:generate gw-codegen file://native_windows.yml        generated_windows.go      nativeEngine
+//go:generate gw-codegen file://docker_posix.yml       generated_docker_linux.go        docker
+//go:generate gw-codegen file://docker_posix.yml       generated_docker_darwin.go       docker
+//go:generate gw-codegen file://simple_posix.yml       generated_simple_linux.go        simple
+//go:generate gw-codegen file://simple_posix.yml       generated_simple_darwin.go       simple
+//go:generate gw-codegen file://multiuser_posix.yml    generated_multiuser_darwin.go    multiuser
+//go:generate gw-codegen file://multiuser_posix.yml    generated_multiuser_linux.go     multiuser
+//go:generate gw-codegen file://multiuser_windows.yml  generated_multiuser_windows.go   multiuser
 // //go:generate gw-codegen https://raw.githubusercontent.com/taskcluster/docker-worker/66dfa0ec97602285fa5f05c2d8cbf487f52c7e27/schemas/payload.json dockerworker/payload.go
 
 package main
@@ -24,8 +27,8 @@ import (
 
 	docopt "github.com/docopt/docopt-go"
 	"github.com/taskcluster/generic-worker/expose"
-	"github.com/taskcluster/generic-worker/fileutil"
 	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/host"
 	"github.com/taskcluster/generic-worker/process"
 	gwruntime "github.com/taskcluster/generic-worker/runtime"
 	"github.com/taskcluster/taskcluster-base-go/scopes"
@@ -56,28 +59,8 @@ var (
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
 
-	version  = "14.1.1"
+	version  = "16.1.0"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
-)
-
-type ExitCode int
-
-// These constants represent all possible exit codes from the generic-worker process.
-const (
-	TASKS_COMPLETE                           ExitCode = 0
-	CANT_LOAD_CONFIG                         ExitCode = 64
-	CANT_INSTALL_GENERIC_WORKER              ExitCode = 65
-	REBOOT_REQUIRED                          ExitCode = 67
-	IDLE_TIMEOUT                             ExitCode = 68
-	INTERNAL_ERROR                           ExitCode = 69
-	NONCURRENT_DEPLOYMENT_ID                 ExitCode = 70
-	WORKER_STOPPED                           ExitCode = 71
-	WORKER_SHUTDOWN                          ExitCode = 72
-	INVALID_CONFIG                           ExitCode = 73
-	CANT_GRANT_CONTROL_OF_WINSTA_AND_DESKTOP ExitCode = 74
-	CANT_CREATE_ED25519_KEYPAIR              ExitCode = 75
-	CANT_SAVE_CONFIG                         ExitCode = 76
-	CANT_SECURE_CONFIG                       ExitCode = 77
 )
 
 func persistFeaturesState() (err error) {
@@ -99,12 +82,6 @@ func initialiseFeatures() (err error) {
 		&SupersedeFeature{},
 	}
 	Features = append(Features, platformFeatures()...)
-	Features = append(Features,
-		// keep chain of trust as low down as possible, as it checks permissions
-		// of signing key file, and a feature could change them, so we want these
-		// checks as late as possible
-		&ChainOfTrustFeature{},
-	)
 	for _, feature := range Features {
 		log.Printf("Initialising task feature %v...", feature.Name())
 		err := feature.Initialise()
@@ -117,9 +94,13 @@ func initialiseFeatures() (err error) {
 	return nil
 }
 
+func init() {
+	InitialiseLogger()
+}
+
 // Entry point into the generic worker...
 func main() {
-	versionName := "generic-worker " + version
+	versionName := "generic-worker (" + engine + " engine) " + version
 	if revision != "" {
 		versionName += " [ revision: https://github.com/taskcluster/generic-worker/commits/" + revision + " ]"
 	}
@@ -158,14 +139,9 @@ func main() {
 		// for config settings not provided in the user-supplied config file.
 		if _, statError := os.Stat(configFile); os.IsNotExist(statError) && config != nil {
 			err = config.Persist(configFile)
-			if err != nil {
-				os.Exit(int(CANT_SAVE_CONFIG))
-			}
+			exitOnError(CANT_SAVE_CONFIG, err, "Not able to persist config file %v", configFile)
 		}
-		if err != nil {
-			log.Printf("Error loading configuration: %v", err)
-			os.Exit(int(CANT_LOAD_CONFIG))
-		}
+		exitOnError(CANT_LOAD_CONFIG, err, "Error loading configuration file %v", configFile)
 
 		// Config known to be loaded successfully at this point...
 
@@ -176,55 +152,37 @@ func main() {
 		//   process, then we can't avoid that tasks can read the config file,
 		//   we can just hope that the config file is at least not writable by
 		//   the current user. In this case we won't change file permissions.
-		if !config.RunTasksAsCurrentUser {
-			secureError := fileutil.SecureFiles([]string{configFile})
-			if secureError != nil {
-				os.Exit(int(CANT_SECURE_CONFIG))
-			}
-		}
+		secureConfigFile()
 
 		exitCode := RunWorker()
 		log.Printf("Exiting worker with exit code %v", exitCode)
 		switch exitCode {
 		case REBOOT_REQUIRED:
 			if !config.DisableReboots {
-				immediateReboot()
+				host.ImmediateReboot()
 			}
 		case IDLE_TIMEOUT:
 			if config.ShutdownMachineOnIdle {
-				immediateShutdown("generic-worker idle timeout")
+				host.ImmediateShutdown("generic-worker idle timeout")
 			}
 		case INTERNAL_ERROR:
 			if config.ShutdownMachineOnInternalError {
-				immediateShutdown("generic-worker internal error")
+				host.ImmediateShutdown("generic-worker internal error")
 			}
 		case NONCURRENT_DEPLOYMENT_ID:
-			immediateShutdown("generic-worker deploymentId is not latest")
+			host.ImmediateShutdown("generic-worker deploymentId is not latest")
 		}
 		os.Exit(int(exitCode))
 	case arguments["install"]:
 		// platform specific...
 		err := install(arguments)
-		if err != nil {
-			log.Println("Error installing generic worker:")
-			log.Printf("%#v\n", err)
-			os.Exit(int(CANT_INSTALL_GENERIC_WORKER))
-		}
+		exitOnError(CANT_INSTALL_GENERIC_WORKER, err, "Error installing generic worker")
 	case arguments["new-ed25519-keypair"]:
 		err := generateEd25519Keypair(arguments["--file"].(string))
-		if err != nil {
-			log.Println("Error generating ed25519 keypair for worker:")
-			log.Printf("%#v\n", err)
-			os.Exit(int(CANT_CREATE_ED25519_KEYPAIR))
-		}
-	case arguments["grant-winsta-access"]:
-		sid := arguments["--sid"].(string)
-		err := GrantSIDFullControlOfInteractiveWindowsStationAndDesktop(sid)
-		if err != nil {
-			log.Printf("Error granting %v full control of interactive windows station and desktop:", sid)
-			log.Printf("%v", err)
-			os.Exit(int(CANT_GRANT_CONTROL_OF_WINSTA_AND_DESKTOP))
-		}
+		exitOnError(CANT_CREATE_ED25519_KEYPAIR, err, "Error generating ed25519 keypair %v for worker", arguments["--file"].(string))
+	default:
+		// platform specific...
+		os.Exit(int(platformTargets(arguments)))
 	}
 }
 
@@ -253,9 +211,8 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			RequiredDiskSpaceMegabytes:     10240,
 			RootURL:                        "",
 			RunAfterUserCreation:           "",
-			RunTasksAsCurrentUser:          runtime.GOOS != "windows",
 			SecretsBaseURL:                 "",
-			SentryProject:                  "",
+			SentryProject:                  "generic-worker",
 			ShutdownMachineOnIdle:          false,
 			ShutdownMachineOnInternalError: false,
 			Subdomain:                      "taskcluster-worker.net",
@@ -263,6 +220,7 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			TaskclusterProxyPort:           80,
 			TasksDir:                       defaultTasksDir(),
 			WorkerGroup:                    "test-worker-group",
+			WorkerManagerBaseURL:           "",
 			WorkerTypeMetadata:             map[string]interface{}{},
 		},
 	}
@@ -310,8 +268,7 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 
 	// Add any useful worker config to worker metadata
 	c.WorkerTypeMetadata["config"] = map[string]interface{}{
-		"runTasksAsCurrentUser": c.RunTasksAsCurrentUser,
-		"deploymentId":          c.DeploymentID,
+		"deploymentId": c.DeploymentID,
 	}
 	gwMetadata := map[string]interface{}{
 		"go-arch":    runtime.GOARCH,
@@ -319,6 +276,7 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 		"go-version": runtime.Version(),
 		"release":    "https://github.com/taskcluster/generic-worker/releases/tag/v" + version,
 		"version":    version,
+		"engine":     engine,
 	}
 	if revision != "" {
 		gwMetadata["revision"] = revision
@@ -423,6 +381,7 @@ func RunWorker() (exitCode ExitCode) {
 	// This *DOESN'T* output secret fields, so is SAFE
 	log.Printf("Config: %v", config)
 	log.Printf("Detected %s platform", runtime.GOOS)
+	log.Printf("Detected %s engine", engine)
 
 	err = setupExposer()
 	if err != nil {
@@ -464,18 +423,10 @@ func RunWorker() (exitCode ExitCode) {
 	lastReportedNoTasks := time.Now()
 	sigInterrupt := make(chan os.Signal, 1)
 	signal.Notify(sigInterrupt, os.Interrupt)
+	if RotateTaskEnvironment() {
+		return REBOOT_REQUIRED
+	}
 	for {
-
-		reboot := PrepareTaskEnvironment()
-		if reboot {
-			return REBOOT_REQUIRED
-		}
-
-		err = purgeOldTasks()
-		// errors are not fatal
-		if err != nil {
-			log.Printf("WARNING: failed to remove old task directories/users: %v", err)
-		}
 
 		// See https://bugzil.la/1298010 - routinely check if this worker type is
 		// outdated, and shut down if a new deployment is required.
@@ -530,8 +481,11 @@ func RunWorker() (exitCode ExitCode) {
 				}
 				return TASKS_COMPLETE
 			}
-			lastActive = time.Now()
 			if rebootBetweenTasks() {
+				return REBOOT_REQUIRED
+			}
+			lastActive = time.Now()
+			if RotateTaskEnvironment() {
 				return REBOOT_REQUIRED
 			}
 		} else {
@@ -628,11 +582,6 @@ func ClaimWork() *TaskRun {
 			LocalClaimTime: localClaimTime,
 		}
 		task.StatusManager = NewTaskStatusManager(task)
-		var err error
-		task.PlatformData, err = task.NewPlatformData()
-		if err != nil {
-			panic(err)
-		}
 		return task
 	}
 }
@@ -894,7 +843,7 @@ func (task *TaskRun) kill() {
 			task.Info(string(output))
 		}
 		if err != nil {
-			log.Printf("WARNING - %v", err)
+			log.Printf("WARNING: %v", err)
 			task.Warnf("%v", err)
 		}
 	}
@@ -1159,17 +1108,16 @@ func convertNilToEmptyString(val interface{}) string {
 
 func PrepareTaskEnvironment() (reboot bool) {
 	taskDirName := "task_" + strconv.Itoa(int(time.Now().Unix()))
-	reboot = PlatformTaskEnvironmentSetup(taskDirName)
-	if reboot {
-		return
+	if PlatformTaskEnvironmentSetup(taskDirName) {
+		return true
 	}
 	logDir := filepath.Join(taskContext.TaskDir, filepath.Dir(logPath))
-	err := os.MkdirAll(logDir, 0777)
+	err := os.MkdirAll(logDir, 0700)
 	if err != nil {
 		panic(err)
 	}
 	log.Printf("Created dir: %v", logDir)
-	return
+	return false
 }
 
 func taskDirsIn(parentDir string) ([]string, error) {
@@ -1196,21 +1144,22 @@ func taskDirsIn(parentDir string) ([]string, error) {
 }
 
 func (task *TaskRun) ReleaseResources() error {
-	return task.PlatformData.ReleaseResources()
+	return taskContext.pd.ReleaseResources()
 }
 
 type TaskContext struct {
 	TaskDir string
 	User    *gwruntime.OSUser
+	pd      *process.PlatformData
 }
 
 // deleteTaskDirs deletes all task directories (directories whose name starts
 // with `task_`) inside directory parentDir, except those whose names are in
 // skipNames
-func deleteTaskDirs(parentDir string, skipNames ...string) error {
+func deleteTaskDirs(parentDir string, skipNames ...string) {
 	taskDirs, err := taskDirsIn(parentDir)
 	if err != nil {
-		return err
+		return
 	}
 outer:
 	for _, taskDir := range taskDirs {
@@ -1222,8 +1171,30 @@ outer:
 		}
 		err = deleteDir(taskDir)
 		if err != nil {
-			return err
+			log.Printf("WARNING: Could not delete task directory %v: %v", taskDir, err)
 		}
 	}
-	return nil
+}
+
+// RotateTaskEnvironment creates a new task environment (for the next task),
+// and purges existing used task environments.
+func RotateTaskEnvironment() (reboot bool) {
+	if PrepareTaskEnvironment() {
+		return true
+	}
+	err := purgeOldTasks()
+	// errors are not fatal
+	if err != nil {
+		log.Printf("WARNING: failed to remove old task directories/users: %v", err)
+	}
+	return false
+}
+
+func exitOnError(exitCode ExitCode, err error, logMessage string, args ...interface{}) {
+	if err == nil {
+		return
+	}
+	log.Printf(logMessage, args...)
+	log.Printf("%v", err)
+	os.Exit(int(exitCode))
 }

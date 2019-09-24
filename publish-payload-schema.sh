@@ -13,10 +13,10 @@ function pub {
 cd "$(dirname "${0}")"
 go get github.com/taskcluster/generic-worker/yamltojson
 
-pub docker_linux.json   docker_linux.yml
-pub native_linux.json   native_all-unix-style.yml
-pub native_windows.json native_windows.yml
-pub native_darwin.json  native_all-unix-style.yml
+pub docker_posix.json       docker_posix.yml
+pub multiuser_posix.json    multiuser_posix.yml
+pub multiuser_windows.json  multiuser_windows.yml
+pub simple_posix.json       simple_posix.yml
 
 echo
 echo "Schema updated - check out https://docs.taskcluster.net/reference/workers/generic-worker/payload"

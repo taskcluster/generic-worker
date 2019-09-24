@@ -13,12 +13,13 @@ import (
 
 type (
 	OCCManifest struct {
-		Components []Component
+		Components               []Component `json:"Components"`
+		ProvisionerConfiguration interface{} `json:"ProvisionerConfiguration"`
 	}
 	Component struct {
 		ComponentKey
 		Action      string         `json:"Action"`
-		Arguments   []string       `json:"Arguments"`
+		Arguments   interface{}    `json:"Arguments"`
 		Command     string         `json:"Command"`
 		Comment     string         `json:"Comment"`
 		DependsOn   []ComponentKey `json:"DependsOn"`
@@ -28,16 +29,21 @@ type (
 		Key         string         `json:"Key"`
 		Link        string         `json:"Link"`
 		LocalPort   uint           `json:"LocalPort"`
+		Match       interface{}    `json:"Match"`
 		Name        string         `json:"Name"`
 		Path        string         `json:"Path"`
 		ProductID   string         `json:"ProductId"`
 		Protocol    string         `json:"Protocol"`
+		Replace     interface{}    `json:"Replace"`
+		SetOwner    interface{}    `json:"SetOwner"`
 		SHA512      string         `json:"sha512"`
 		Source      string         `json:"Source"`
 		StartupType string         `json:"StartupType"`
 		State       string         `json:"State"`
 		Target      string         `json:"Target"`
+		Timeout     uint           `json:"Timeout"`
 		URL         string         `json:"Url"`
+		Validate    interface{}    `json:"Validate"`
 		Value       string         `json:"Value"`
 		// Using 'string' type for ValueData is broken for win10 worker types
 		// at the moment which are sometimes storing an int rather than a
@@ -79,7 +85,8 @@ func main() {
 	workerType := os.Args[1]
 	log.SetFlags(0)
 	log.SetPrefix("ERROR: " + workerType + ": ")
-	resp, err := http.Get("https://raw.githubusercontent.com/mozilla-releng/OpenCloudConfig/master/userdata/Manifest/" + workerType + ".json")
+	manifestURL := "https://raw.githubusercontent.com/mozilla-releng/OpenCloudConfig/master/userdata/Manifest/" + workerType + ".json"
+	resp, err := http.Get(manifestURL)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -97,7 +104,15 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	fmt.Println(`<powershell>`)
+	fmt.Println(`###################################################################################`)
+	fmt.Println(`# Note, this powershell script is an *APPROXIMATION ONLY* to the steps that are run`)
+	fmt.Println(`# to build the AMIs for aws-provisioner-v1/` + workerType + `.`)
+	fmt.Println(`#`)
+	fmt.Println(`# The authoratative host definition can be found at:`)
+	fmt.Println(`#`)
+	fmt.Println(`#   * ` + manifestURL)
+	fmt.Println(`#`)
+	fmt.Println(`###################################################################################`)
 	fmt.Println(``)
 	fmt.Println(`# use TLS 1.2 (see bug 1443595)`)
 	fmt.Println(`[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`)
@@ -134,7 +149,18 @@ func main() {
 		case "ChecksumFileDownload":
 			fmt.Printf(`$client.DownloadFile("%s", "%s")`+"\n", c.Source, c.Target)
 		case "CommandRun":
-			fmt.Printf(`Start-Process "%s" -ArgumentList "%s" -Wait -NoNewWindow`+"\n", c.Command, PSEscape(strings.Join(c.Arguments, " ")))
+			switch cc := c.Arguments.(type) {
+			case string:
+				fmt.Println(strings.Replace(`Start-Process "`+c.Command+`" -ArgumentList "`+PSEscape(cc)+`" -Wait -NoNewWindow`, "--configure-for-aws", "--configure-for-%MY_CLOUD%", -1))
+			case []interface{}:
+				a := []string{}
+				for _, x := range cc {
+					a = append(a, x.(string))
+				}
+				fmt.Println(strings.Replace(`Start-Process "`+c.Command+`" -ArgumentList "`+PSEscape(strings.Join(a, " "))+`" -Wait -NoNewWindow`, "--configure-for-aws", "--configure-for-%MY_CLOUD%", -1))
+			default:
+				log.Printf("Got type %T", cc)
+			}
 		case "DirectoryCreate":
 			fmt.Printf(`md "%s"`+"\n", c.Path)
 		case "DisableIndexing":
@@ -146,7 +172,18 @@ func main() {
 		case "ExeInstall":
 			filename := FilenameFromURL(c.URL, ".exe")
 			fmt.Printf(`$client.DownloadFile("%s", "C:\binaries\%v")`+"\n", c.URL, filename)
-			fmt.Printf(`Start-Process "C:\binaries\%v" -ArgumentList "%s" -Wait -NoNewWindow`+"\n", filename, PSEscape(strings.Join(c.Arguments, " ")))
+			switch cc := c.Arguments.(type) {
+			case string:
+				fmt.Printf(`Start-Process "C:\binaries\%v" -ArgumentList "%s" -Wait -NoNewWindow`+"\n", filename, PSEscape(cc))
+			case []interface{}:
+				a := []string{}
+				for _, x := range cc {
+					a = append(a, x.(string))
+				}
+				fmt.Printf(`Start-Process "C:\binaries\%v" -ArgumentList "%s" -Wait -NoNewWindow`+"\n", filename, PSEscape(strings.Join(a, " ")))
+			default:
+				log.Printf("Got type %T", cc)
+			}
 		case "FileDownload":
 			fmt.Printf(`$client.DownloadFile("%s", "%s")`+"\n", c.Source, c.Target)
 		case "FirewallRule":
@@ -173,6 +210,10 @@ func main() {
 			filename := FilenameFromURL(c.URL, ".zip")
 			fmt.Printf(`New-Item -ItemType Directory -Force -Path "%v"`+"\n", c.Destination)
 			fmt.Printf(`Extract-ZIPFile -File "C:\binaries\%v" -Destination "%v" -Url "%v"`+"\n", filename, c.Destination, c.URL)
+		case "ReplaceInFile":
+			log.Printf("Skipping ReplaceInFile")
+		case "EnvironmentVariableUniqueAppend":
+			log.Printf("Skipping EnvironmentVariableUniqueAppend")
 		default:
 			log.Fatalf("Do not know how to convert component type '%v' into raw powershell code", c.ComponentType)
 		}
@@ -184,8 +225,6 @@ func main() {
 	fmt.Println("#   * https://support.microsoft.com/en-in/help/4014551/description-of-the-security-and-quality-rollup-for-the-net-framework-4")
 	fmt.Println("#   * https://support.microsoft.com/en-us/help/4020459")
 	fmt.Println("shutdown -s")
-	fmt.Println("")
-	fmt.Println("</powershell>")
 }
 
 func FilenameFromURL(url string, extension string) (filename string) {
@@ -219,10 +258,11 @@ func FilenameFromURL(url string, extension string) (filename string) {
 			return nil
 		},
 	}
-	_, err := client.Head(url)
+	resp, err := client.Head(url)
 	if err != nil {
 		log.Fatal("Could not reach URL " + url)
 	}
+	defer resp.Body.Close()
 	if filename == "" {
 		log.Fatalf("FAIL: Got empty filename for content from url %v with extension %v - cannot proceed!", url, extension)
 	}

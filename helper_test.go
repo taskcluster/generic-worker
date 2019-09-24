@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/taskcluster/generic-worker/gwconfig"
+	"github.com/taskcluster/generic-worker/testutil"
 	"github.com/taskcluster/httpbackoff"
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
@@ -136,7 +137,6 @@ func setup(t *testing.T) (teardown func()) {
 			RequiredDiskSpaceMegabytes:     16,
 			RootURL:                        os.Getenv("TASKCLUSTER_ROOT_URL"),
 			RunAfterUserCreation:           "",
-			RunTasksAsCurrentUser:          os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
 			SentryProject:                  "generic-worker-tests",
 			ShutdownMachineOnIdle:          false,
 			ShutdownMachineOnInternalError: false,
@@ -146,7 +146,7 @@ func setup(t *testing.T) (teardown func()) {
 			TasksDir:                       testDir,
 			WorkerGroup:                    "test-worker-group",
 			WorkerID:                       "test-worker-id",
-			WorkerType:                     slugid.Nice(),
+			WorkerType:                     testWorkerType(),
 			WorkerTypeMetadata: map[string]interface{}{
 				"aws": map[string]string{
 					"ami-id":            "test-ami",
@@ -170,16 +170,20 @@ func setup(t *testing.T) (teardown func()) {
 			},
 		},
 	}
+	setConfigRunTasksAsCurrentUser()
 	return teardown
 }
 
+// testWorkerType returns a fake workerType identifier that conforms to
+// workerType naming restrictions.
+//
+// See https://bugzil.la/1553953
+func testWorkerType() string {
+	return "test-" + strings.ToLower(strings.Replace(slugid.Nice(), "_", "", -1)) + "-a"
+}
+
 func NewQueue(t *testing.T) *tcqueue.Queue {
-	// check we have all the env vars we need to run this test
-	if os.Getenv("TASKCLUSTER_CLIENT_ID") == "" ||
-		os.Getenv("TASKCLUSTER_ACCESS_TOKEN") == "" ||
-		os.Getenv("TASKCLUSTER_ROOT_URL") == "" {
-		t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
-	}
+	testutil.RequireTaskclusterCredentials(t)
 	// BaseURL shouldn't be proxy otherwise requests will use CI clientId
 	// rather than env var TASKCLUSTER_CLIENT_ID
 	return tcqueue.New(tcclient.CredentialsFromEnvVars(), os.Getenv("TASKCLUSTER_ROOT_URL"))
@@ -325,6 +329,7 @@ func (expectedArtifacts ExpectedArtifacts) Validate(t *testing.T, taskID string,
 			t.Errorf("Artifact '%s' not created", artifact)
 		}
 		b, rawResp, resp, url := getArtifactContent(t, taskID, artifact)
+		defer resp.Body.Close()
 		for _, requiredSubstring := range expected.Extracts {
 			if strings.Index(string(b), requiredSubstring) < 0 {
 				t.Errorf("Artifact '%s': Could not find substring %q in '%s'", artifact, requiredSubstring, string(b))
@@ -387,23 +392,6 @@ func submitAndAssert(t *testing.T, td *tcqueue.TaskDefinitionRequest, payload Ge
 	return taskID
 }
 
-func expectChainOfTrustKeyNotSecureMessage(t *testing.T, td *tcqueue.TaskDefinitionRequest, payload GenericWorkerPayload) {
-	taskID := submitAndAssert(t, td, payload, "exception", "malformed-payload")
-
-	expectedArtifacts := ExpectedArtifacts{
-		"public/logs/live_backing.log": {
-			Extracts: []string{
-				ChainOfTrustKeyNotSecureMessage,
-			},
-			ContentType:     "text/plain; charset=utf-8",
-			ContentEncoding: "gzip",
-		},
-	}
-
-	expectedArtifacts.Validate(t, taskID, 0)
-	return
-}
-
 func checkSHA256OfFile(t *testing.T, path string, SHA256 string) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -438,8 +426,10 @@ func toMountArray(t *testing.T, x interface{}) []json.RawMessage {
 }
 
 func cancelTask(t *testing.T) (td *tcqueue.TaskDefinitionRequest, payload GenericWorkerPayload) {
+	command := goGet("github.com/taskcluster/taskcluster-client-go")
+	command = append(command, goRun("resolvetask.go")...)
 	payload = GenericWorkerPayload{
-		Command:    goRun("resolvetask.go"),
+		Command:    command,
 		MaxRunTime: 120,
 		Artifacts: []Artifact{
 			{
@@ -454,11 +444,15 @@ func cancelTask(t *testing.T) (td *tcqueue.TaskDefinitionRequest, payload Generi
 		ClientID:    config.ClientID,
 		Certificate: config.Certificate,
 	}
-	if fullCreds.AccessToken == "" || fullCreds.ClientID == "" || fullCreds.Certificate != "" {
-		t.Skip("Skipping since I need permanent TC credentials for this test")
+	if os.Getenv("GW_SKIP_PERMA_CREDS_TESTS") != "" {
+		t.Skip("Skipping since GW_SKIP_PERMA_CREDS_TESTS env var is set")
+	}
+	testutil.RequireTaskclusterCredentials(t)
+	if fullCreds.Certificate != "" {
+		t.Fatal("Skipping since I need permanent TC credentials for this test and only have temp creds - set GW_SKIP_PERMA_CREDS_TESTS or GW_SKIP_INTEGRATION_TESTS env var to something to skip this test, or change your TASKCLUSTER_* env vars to a permanent client instead of a temporary client")
 	}
 	td = testTask(t)
-	tempCreds, err := fullCreds.CreateNamedTemporaryCredentials("project/taskcluster:generic-worker-tester/TestResolveResolvedTask", time.Minute, "queue:cancel-task:"+td.SchedulerID+"/"+td.TaskGroupID+"/*")
+	tempCreds, err := fullCreds.CreateNamedTemporaryCredentials("project/taskcluster:generic-worker-tester/"+t.Name(), time.Minute, "queue:cancel-task:"+td.SchedulerID+"/"+td.TaskGroupID+"/*")
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/taskcluster/slugid-go/slugid"
 	"github.com/taskcluster/taskcluster-client-go/tcpurgecache"
 	"github.com/taskcluster/taskcluster-client-go/tcqueue"
 )
@@ -33,7 +31,7 @@ type MockAWSProvisionedEnvironment struct {
 }
 
 func (m *MockAWSProvisionedEnvironment) ValidPublicConfig(t *testing.T) map[string]interface{} {
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		// Need common caches directory across tests, since files
 		// directory-caches.json and file-caches.json are not per-test.
 		"cachesDir":       filepath.Join(cwd, "caches"),
@@ -50,7 +48,6 @@ func (m *MockAWSProvisionedEnvironment) ValidPublicConfig(t *testing.T) map[stri
 		"queueBaseURL":               tcqueue.New(nil, os.Getenv("TASKCLUSTER_ROOT_URL")).BaseURL,
 		"purgeCacheBaseURL":          tcpurgecache.New(nil, os.Getenv("TASKCLUSTER_ROOT_URL")).BaseURL,
 		"requiredDiskSpaceMegabytes": 16,
-		"runTasksAsCurrentUser":      os.Getenv("GW_TESTS_RUN_AS_TASK_USER") == "",
 		// "secretsBaseURL":                 "http://localhost:13243/secrets",
 		"sentryProject":                  "generic-worker-tests",
 		"shutdownMachineOnIdle":          false,
@@ -64,6 +61,8 @@ func (m *MockAWSProvisionedEnvironment) ValidPublicConfig(t *testing.T) map[stri
 			},
 		},
 	}
+	EngineTestSettings(result)
+	return result
 }
 
 func (m *MockAWSProvisionedEnvironment) ValidPrivateConfig(t *testing.T) map[string]interface{} {
@@ -177,7 +176,7 @@ func (m *MockAWSProvisionedEnvironment) PrivateHostSetup(t *testing.T) interface
 
 func (m *MockAWSProvisionedEnvironment) Setup(t *testing.T) (teardown func(), err error) {
 	td := setupEnvironment(t)
-	workerType := slugid.Nice()
+	workerType := testWorkerType()
 	configureForAWS = true
 	oldEC2MetadataBaseURL := EC2MetadataBaseURL
 	EC2MetadataBaseURL = "http://localhost:13243/latest"
@@ -233,8 +232,6 @@ func (m *MockAWSProvisionedEnvironment) Setup(t *testing.T) (teardown func(), er
 		default:
 			w.WriteHeader(400)
 			fmt.Fprintf(w, "Cannot serve URL %v", req.URL)
-			log.Printf("Cannot serve URL %v", req.URL)
-			t.Fatalf("Cannot serve URL %v", req.URL)
 		}
 	})
 

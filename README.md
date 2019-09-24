@@ -8,7 +8,8 @@
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
 
-# Table of Contents
+Table of Contents
+=================
 
    * [Introdution](#introdution)
       * [Imperative task payloads](#imperative-task-payloads)
@@ -179,29 +180,6 @@ the task.
 All task commands run as the task user. After the task has completed, the user
 is deleted, together with any files it has created.
 
-In order for tasks to have access to a graphical logon session, the host is
-configured to logon on boot as the new task user, and the
-machine is rebooted.
-
-By default the generated users are standard (non-admin) OS users.
-
-### Task user lifecycle
-The worker configures the machine to automatically log
-in as the newly created task user, and then triggers the machine to reboot.
-Once the machine reboots, the worker running in the Windows Service waits until
-it detects that the Operating System [winlogon
-module](https://docs.microsoft.com/en-us/windows/desktop/secauthn/winlogon-and-credential-providers)
-has completed the interactive logon of the task user. At this point it polls
-the taskcluster Queue to fetch a task to execute, and when it is given one, it
-executes this task in the interactive logon session of the logged-in user,
-running processes using the auth token obtained from the interactive desktop
-session.
-
-After the task completes, the home directory of the task user, and the task
-directory (if different to the home directory of the task user) are erased, a
-new task user is created, the machine is rebooted, and the former task user is
-purged.
-=======
 In order for tasks to have access to a graphical logon session, the new task
 user is created, the host is configured to logon on boot as the new task user,
 and then the machine is rebooted. The worker, running as a Windows Service, is
@@ -313,348 +291,6 @@ task has completed, all trace of the changes made by the task user should be
 gone, and the machine's state should be reset to the state it had before the
 task was run. If the host environment is sufficiently locked down, the task
 user should not have been able to apply any state-change to the host
-environment. Please note that the worker has limited control to affect
-system-wide policy, so for example if a host allows arbtirary users to write to
-a system folder location, the worker is not able to prevent a task doing so.
-Therefore it is up to the machine provider to ensure that the host is
-sufficiently locked-down. Host environments for long-lived workers that are to
-run untrusted tasks should be secured carefully, to prevent that tasks may
-interfere with system state or persist changes across task runs that may affect
-the reproducibility of a task, or worse, introduce a security vulnerability.
-
-
-
-
-
-
-## Linux
-
-There is no native sandbox support currently on Linux. Currently the worker
-will execute tasks as the same user that the worker runs as. Use at your own
-risk!
-
-Work is [underway](https://github.com/taskcluster/generic-worker/pull/62) to
-provide support for running generic-worker tasks inside a docker container
-isolated from the host environment. However until this work is complete, please
-see [docker-worker](https://github.com/taskcluster/docker-worker) for achieving
-this.
-
-We may, at some point, provide OS-user sandboxing, akin to the Windows
-implementation.
-
-
-## macOS
-
-There is no native sandbox support currently on macOS. Currently the worker
-will execute tasks as the same user that the worker runs as. Use at your own
-risk!
-
-We intend to provide OS-user sandboxing, akin to the Windows implementation, at
-some point in the future.
-
-# Operating System integration
-
-## Windows
-
-### Creating a task user
-
-The generic-worker creates non-privileged task users, with username
-`task_<current-unix-timestamp>` and a random password. Task users are created
-with the command:
-
-```
-net user "<username>" "<userpassword>" /add /expires:never /passwordchg:no /y
-```
-
-See [net
-user](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-xp/bb490718%28v%253dtechnet.10%29)
-for more information.
-
-### Setting Known Folder locations
-
-It may be desirable for the task directory to be in a different location to the
-home directory of the generated user. The location of the home directory is
-determined based on system settings defined at installation time of the
-operating system, and therefore may not be ideal, especially if the host image
-is provided by an external party.
-
-For example, perhaps the user home directory is `C:\Users\task_<timestamp>` but
-for performance reasons, we wish the task directory to be located on a
-different physical drive at `Z:\task_<timestamp>`.
-
-It is possible to configure the location for the task directories (in the above
-case, `Z:\`) via the `tasksDir` property of the generic-worker configuration
-file. However, this would not affect the location of the [AppData
-folder](https://www.howtogeek.com/318177/what-is-the-appdata-folder-in-windows/)
-used by Windows applications, which would still be located under the user's
-home directory.
-
-Since it is usually preferable for all user data to be written
-to the the task directory, and it isn't trivial to move the user home directory
-to an alternative location after the operating system has already been
-installed, the worker configures the user account to store the AppData folder
-under the task directory.
-
-It does this as follows:
-
-1) Calling
-[LogonUserW](https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-logonuserw)
-to get a logon handle for the new user.
-
-2) Calling
-[LoadUserProfileW](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-loaduserprofilew)
-to load the user profile.
-
-3) Calling
-[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
-with `KNOWNFOLDERID`
-[FOLDERID_RoamingAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
-to set the location of `AppData\Roaming` to under the task directory.
-
-4) Calling
-[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
-with
-[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
-in order to create `AppData\Roaming` folder.
-
-5) Calling [CoTaskMemFree](CoTaskMemFree) to release resources from
-`SHGETKnownFolderPath` call in step 4.
-
-6) Calling
-[SHSetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shsetknownfolderpath)
-with `KNOWNFOLDERID`
-[FOLDERID_LocalAppData](https://docs.microsoft.com/en-us/windows/desktop/shell/knownfolderid)
-to set the location of `AppData\Local` to under the task directory.
-
-7) Calling
-[SHGetKnownFolderPath](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath)
-with
-[KF_FLAG_CREATE](https://docs.microsoft.com/en-us/windows/desktop/api/shlobj_core/ne-shlobj_core-known_folder_flag)
-in order to create `AppData\Local` folder.
-
-8) Calling [CoTaskMemFree](CoTaskMemFree) to release resources from
-`SHGETKnownFolderPath` call in step 7.
-
-9) Calling
-[UnloadUserProfile](https://docs.microsoft.com/en-us/windows/desktop/api/userenv/nf-userenv-unloaduserprofile)
-to release resources from `LoadUserProfileW` call in step 2.
-
-10) Calling
-[CloseHandle](https://msdn.microsoft.com/en-us/library/windows/desktop/ms724211%28v=vs.85%29.aspx?f=255&MSPPError=-2147217396)
-to release resources from `LogonUserW` call in step 1.
-
-
-### Configuring auto-logon of task user
-
-After the task user has been created, the Windows registry is updated so that
-after rebooting, the task user will be automatically logged in.
-
-This is achieved by configuring the registry key values:
-
-* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon = 1`
-* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultUserName = <task user username>`
-* `\HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\DefaultPassword = <task user password>`
-
-See [Automatic
-Logon](https://docs.microsoft.com/en-us/windows/desktop/secauthn/msgina-dll-features)
-for more detailed information about these settings.
-
-### Rebooting
-
-Rebooting is achieved by executing:
-
-```
-C:\Windows\System32\shutdown.exe /r /t 3 /c "generic-worker requested reboot"
-```
-
-Please note, automatic reboots can be disabled (see `generic-worker --help` for
-more information).
-
-### Executing task commands
-
-The Windows Command Shell does not have a setting to enable exit-on-fail
-semantics. Execution of a batch script continues if a command fails. To cause
-a batch script to exit after a failed command, the exit code of every command
-needs to be checked, or commands need to be chained together with `&&`.
-
-Since this is cumbersome or error-prone, generic-worker accepts task payloads
-with multiple commands. It will execute them in sequence with exit-on-fail
-semantics. Each command is implicitly executed with `cmd.exe`, which means that
-commands may contain any valid [command shell syntax](https://ss64.com/nt/).
-
-Other workers (such as docker worker) accept only a single task command. If a
-task wishes to execute multiple commands, it will usually specify a single
-shell command to execute them. This approach works well when the shell supports
-exit-on-fail semantics, but not so well when it doesn't, which is why a
-different approach was chosen for generic-worker.
-
-Generic worker generates a wrapper batch script for each command it runs, which
-initialises environment variables, sets the working directory, executes the
-task command, and then if more commands are to follow, captures the working
-directory and environment variables for the next command.
-
-
-
-# Payload format
-
-Each taskcluster task definition contains a top level property `payload` which
-is a json object. The format of this object is specific to the worker
-implementation. For generic-worker, this is then also further specific to the
-platform (Linux/Windows/macOS).
-
-The per-platform payload formats are described in json schema, and can be found
-in the top level `schemas` subdirectory of this repository. These schemas are
-also published to the [generic-worker
-page](https://docs.taskcluster.net/docs/reference/workers/generic-worker/docs/payload)
-of the taskcluster docs site.
-
-# Redeployability
-
-# Integrating with AWS / GCE
-
-# Config bootstrapping
-
-# Bring your own worker
-
-This section explains how to configure and run your own generic-worker workers
-to talk to an existing taskcluster deployment.
-
-## Windows
-### Installing
-## Mac
-### Installing
-
-There currently is no `install` target for macOS, like there is for Windows.
-
-For our own dedicated macOS workers, we install generic-worker using [this
-puppet
-module](https://wiki.mozilla.org/ReleaseEngineering/PuppetAgain/Modules/generic_worker).
-
-You can install generic-worker as a Launch Agent as follows:
-
-1) Create a regular unprivileged user account on your Mac to run the worker
-(e.g. with name `genericworker`) and log into that user account.
-
-2) Download or build generic-worker, so that you have a native darwin binary,
-move it to `/usr/local/bin/generic-worker`, and make sure it is executable for
-your new user (`chmod u+x /usr/local/bin/generic-worker`).
-
-3) Create a signing key in the user home directory by running:
-
-```
-/usr/local/bin/generic-worker new-openpgp-keypair --file .signingkey
-```
-
-3) Create `/Library/LaunchAgents/net.generic.worker.plist` with content:
-
-```
-<%# This Source Code Form is subject to the terms of the Mozilla Public
-<%# License, v. 2.0. If a copy of the MPL was not distributed with this
-<%# file, You can obtain one at http://mozilla.org/MPL/2.0/. -%>
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>net.generic.worker</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/local/bin/generic-worker</string>
-        <string>run</string>
-        <string>--config</string>
-        <string>/etc/generic-worker.config</string>
-    </array>
-    <key>WorkingDirectory</key>
-    <string><-YOUR-NEW-USER-HOME-DIRECTORY-></string>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-```
-
-4) Create `/etc/generic-worker.config` with content:
-
-```
-{
-  "accessToken": "<-YOUR-TASKCLUSTER-ACCESS-TOKEN->",
-  "clientId": "<-YOUR-TASKCLUSTER-CLIENT-ID->",
-  "idleTimeoutSecs": 0,
-  "livelogSecret": "<-RANDOM-SHORT-STRING-HERE->",
-  "provisionerId": "<-YOUR-PROVISIONER-ID->",
-  "publicIP": "<-MAKE-UP-AN-IPv4-ADDRESS-IF-YOU-DON'T-HAVE-ONE->",
-  "signingKeyLocation": ".signingkey",
-  "tasksDir": "tasks",
-  "workerGroup": "<-CHOOSE-A-WORKER-GROUP->",
-  "workerId": "<-CHOOSE-A-WORKER-ID->",
-  "workerType": "<-YOUR-WORKER-TYPE->",
-  "workerTypeMetadata": {
-	<--- add a json blob here with information about you, how you set up the
-         worker type, etc, so people know how it is configured and maintained,
-         and who to go to in case of problems --->
-  }
-}
-```
-
-## Linux - Docker
-## Linux - Native
-### Installing
-# Administrative tools
-## Displaying workers
-# Worker Type Host Definitions
-## Updating existing definitions
-## Modifying definitions
-## Creating your own AWS workers outside of this repo
-## Puppet
-# Developing Generic Worker
-## Fetching source
-## Credentials
-## Running unit tests
-## Writing unit tests
-## Including bug numbers in comments
-
-# Releasing Generic Worker
-## Release script
-## Publishing schemas
-## Testing in Staging
-## Rolling out to Production
-## Writing release notes (README.md, release page, ...)
-# Repository layout
-
-```
-├── aws
-│   ├── cmd
-│   │   ├── download-aws-worker-type-definitions
-│   │   ├── gw-workers
-│   │   ├── update-ssl-creds
-│   │   └── update-worker-type
-│   ├── scripts
-│   └── update-worker-types
-├── cmd
-│   ├── generic-worker
-│   ├── gw-codegen
-│   ├── inspect-worker-types
-│   ├── list-worker-types
-│   └── yamltojson
-├── docs
-├── lib
-├── mozilla
-│   ├── OpenCloudConfig
-│   │   ├── occ-workers
-│   │   ├── refresh-gw-configs
-│   │   └── transform-occ
-│   ├── gecko
-│   ├── nss
-│   └── worker-type-host-definitions
-│       └── aws-provisioner-v1
-│           ├── <worker type>
-│           ├── <worker type>
-│           └── ...
-├── schemas
-└── scripts
-```
-
-
-=======
 environment.
 
 ### Caveats
@@ -990,9 +626,64 @@ TODO: document layout of this repository...
 
 # Downloading generic-worker binary release
 
+## Simple engine
+
+This was the first engine to be written, and is, pretty simple. It executes
+processes as child processes of the generic-worker process, under the same user
+account that the generic-worker process runs as. Note, this means that anything
+that the worker has access to, the tasks will also have access to.
+
+This is therefore a pretty insecure engine (tasks can read generic-worker
+config file and thus access taskcluster credentials for claiming work from the
+Queue).
+
+Also it is impossible for the worker to guarantee a clean task environment
+between task runs, since any task can potentially soil the environment by
+changing user settings or for example, leaving files around.
+
+## Multiuser engine
+
+This was the next engine to be written, and solves the problem of task
+isolation by creating unique OS user accounts for each task that is to be run.
+Each task user account (by default) is unprivileged, much like a guest user
+account. Once the task has completed, the task user account is purged, and
+there should be no further trace of the task on the system. The task user does
+not have permission to alter system-wide settings, so after the user account is
+purged, the host environment should be restored to a pristine state.
+
+Since the generic-worker process runs under a different user account to the
+task processes, taskcluster credentials, signing keys, and other private matter
+can be protected from task access. Note, it is the responsibility of the host
+owner to lock down resources as necessary, to ensure that an unprivleged
+account does not have access to anything private on the machine.
+
+Since tasks run on the host of the worker (without any container technology or
+virtualisation technology), toolchains that need to be installed as an
+Administrator typically need to be installed on the host environment.
+Toolchains that do not require Administrator privileges to be installed can be
+installed as task steps.
+
+## Docker engine
+
+Work has started to provide a docker engine, that allows tasks to be executed
+in the context of a docker container running on the host system. This has
+similar benefits as the multiuser engine (task isolation, protection of host
+secrets) but additionally has the advantage that the target execution
+environment can be defined in a docker image, varying significantly from the
+host environment. This makes it possible to have arbitrary toolchains available
+to a task, without needing to roll new host environments, and also allows tasks
+to run task steps as the root user, without impacting the security of the host
+environment.
+
+At the moment there is only elementary support for running tasks inside a
+docker container, and this should not be used in production. The features are
+being implemented in [bug 1499055](https://bugzil.la/1499055).
+
+# Obtain prebuilt release
+
 * Download the latest release for your platform from https://github.com/taskcluster/generic-worker/releases
-* Download the latest release of livelog for your platform from https://github.com/taskcluster/livelog/releases
 * Download the latest release of taskcluster-proxy for your platform from https://github.com/taskcluster/taskcluster-proxy/releases
+* Download the latest release of livelog for your platform from https://github.com/taskcluster/livelog/releases
 * For darwin/linux, make the binaries executable: `chmod a+x {generic-worker,livelog,taskcluster-proxy}*`
 
 # Building generic-worker from source
@@ -1004,13 +695,313 @@ If you prefer not to use a prepackaged binary, or want to have the latest unrele
 * Run `go get github.com/taskcluster/livelog`
 * Run `go get github.com/taskcluster/taskcluster-proxy`
 
-Run `go get -tags nativeEngine github.com/taskcluster/generic-worker` (all platforms) and/or `go get -tags dockerEngine github.com/taskcluster/generic-worker` (linux only). This should also build binaries for your platform.
+Run `go get -tags multiuser github.com/taskcluster/generic-worker` (windows/darwin) and/or `go get -tags simple github.com/taskcluster/generic-worker` (linux/darwin) and/or `go get -tags docker github.com/taskcluster/generic-worker` (linux). This should also build binaries for your platform.
 
 Run `./build.sh` to check go version, generate code, build binaries, compile (but not run) tests, perform linting, and ensure there are no ineffective assignments in go code.
 
 `./build.sh` takes optional arguments, `-a` to build all platforms, and `-t` to run tests. By default tests are not run and only the current platform is built.
 
-All being well, the binaries will be built under `${GOPATH}/bin`.
+All being well, the binaries will be built in the directory you executed the `build.sh` script from.
+
+# Guide to installation on worker machines
+
+The following instructions should be considered more as a guide rather than
+concrete requirements.
+
+They document _possible_ (and simple) ways to install and run generic-worker on
+various platforms. Real life production deployments may be integrated quite
+differently.
+
+Each installation guide provides a bootstrap script to runs the generic-worker
+binary. The bootstrapping script can be easily customised (for example, to deal
+with automatic quarantining of workers, waiting for custom events, etc).
+
+## Windows - multiuser build
+
+1. Build or download a `generic-worker.exe` windows multiuser binary.
+
+2. Run the following command to generate an ed25519 private key for signing
+   artifacts:
+
+   * `generic-worker.exe new-ed25519-keypair --file C:\generic-worker\ed25519_key`
+
+   The private key will be written to the file `C:\generic-worker\ed25519_key`,
+   and the public key will be written to standard out. Keep a copy of the
+   public key if you wish to validate artifact signatures.
+
+3. Download NSSM 2.24 from https://nssm.cc/release/nssm-2.24.zip and extract it
+   under `C:\`.
+
+4. Install generic-worker as a Windows service running under the `LocalSystem`
+   account, by running the following command as an `Administrator`:
+
+   * `generic-worker.exe install service` (see `generic-worker.exe --help` to
+     apply non-default configuration settings)
+
+5. Download livelog from https://github.com/taskcluster/livelog/releases and
+   place it in `C:\generic-worker\livelog.exe`.
+
+6. Download taskcluster proxy from
+   https://github.com/taskcluster/taskcluster-proxy/releases and place it in
+   `C:\generic-worker\taskcluster-proxy.exe`.
+
+7. Create `C:\generic-worker\generic-worker.config` with appopriate values.
+
+8. Edit file `C:\generic-worker\generic-worker.config` with appropriate
+   settings (see `generic-worker.exe --help` for information).
+
+9. Reboot the machine, and the worker should be running. Check logs under
+   `C:\generic-worker\generic-worker.log`.
+
+
+## macOS - multiuser/simple build
+
+__These instructions require macOS Mojave version 10.14.x__
+
+ 1. Log into target user account:
+
+    __Simple build__: Create user account `genericworker` to run the worker
+	under, and log in as `genericworker` in a shell.
+
+    __Multiuser build__: Log in as _root_ (`sudo su -`) in a shell.
+
+ 2. __Multiuser build only__
+
+    Disable wizards/warning pop ups on first-login to user accounts:
+
+    * `git clone git@github.com:rtrouton/profiles.git`
+    * `git -C profiles checkout f23bc6146ca570108dbaa9e3cb8da954ce325002` (just because this is the version I tested, later versions may also be fine)
+    * `profiles install -path=profiles/SkipSiriSetup/SkipSiriSetup.mobileconfig`
+    * `profiles install -path=profiles/SkipDarkorLightAppearance/SkipDarkorLightAppearance.mobileconfig`
+    * `profiles install -path=profiles/Disable32BitApplicationWarning/10.14/Disable32BitApplicationWarning.mobileconfig`
+    * `profiles install -path=profiles/SkipDataAndPrivacy/SkipDataAndPrivacy.mobileconfig`
+    * `profiles install -path=profiles/SkipiCloudSetup/SkipiCloudSetup.mobileconfig`
+
+ 3. Download `generic-worker` from
+    https://github.com/taskcluster/generic-worker/releases and place it in
+    `/usr/local/bin/generic-worker`.
+
+ 4. Download livelog from https://github.com/taskcluster/livelog/releases and
+    place it in `/usr/local/bin/livelog`.
+
+ 5. Download taskcluster proxy from
+    https://github.com/taskcluster/taskcluster-proxy/releases and place it in
+    `/usr/local/bin/taskcluster-proxy`.
+
+ 6. Make `generic-worker`, `taskcluster-proxy`, `livelog` binaries executable:
+
+    * `chmod a+x /usr/local/bin/{generic-worker,taskcluster-proxy,livelog}`
+
+ 7. Generate a key for signing artifacts:
+
+    * `sudo mkdir /etc/generic-worker`
+
+    * __Simple build only__: `sudo chown genericworker:staff /etc/generic-worker`
+
+    * `/usr/local/bin/generic-worker new-ed25519-keypair --file /etc/generic-worker/ed25519_key`
+
+    The private key will be written to the file
+    `/etc/generic-worker/ed25519_key`, and the public key will be written to
+    standard out. Keep a copy of the public key if you wish to validate artifact
+    signatures.
+
+ 8. Create the file `/usr/local/bin/run-generic-worker.sh` with the following content:
+
+    ```
+    #!/bin/bash
+
+    . /etc/rc.common
+
+    CheckForNetwork
+
+    while [ "${NETWORKUP}" != "-YES-" ]
+    do
+      sleep 5
+      NETWORKUP=
+      CheckForNetwork
+    done
+
+    /usr/local/bin/generic-worker run --config /etc/generic-worker/config
+    ```
+
+ 9. Run the following to make the `run-generic-worker.sh` script executable:
+
+    * `chmod a+x /usr/local/bin/run-generic-worker.sh`
+
+10. Create `/etc/generic-worker/config` with appropriate configuration settings
+    (see `generic-worker --help` for details). Something like this:
+
+    ```
+    {
+      "accessToken": "********************************************",
+      "cachesDir": "/Library/Caches/generic-worker/caches",
+      "cleanUpTaskDirs": true,
+      "clientId": "project/foo/bar/my/client",
+      "disableReboots": false,
+      "downloadsDir": "/Library/Caches/generic-worker/downloads",
+      "ed25519SigningKeyLocation": "/etc/generic-worker/ed25519_key",
+      "provisionerId": "my-dear-provisioner",
+      "publicIP": "1.2.3.4",
+      "requiredDiskSpaceMegabytes": 2048,
+      "rootURL": "https://my-root-url.com",
+      "sentryProject": "generic-worker",
+      "shutdownMachineOnIdle": false,
+      "shutdownMachineOnInternalError": false,
+      "subdomain": "taskcluster-worker.net",
+      "taskclusterProxyPort": 8080,
+      "tasksDir": "/Users",
+      "workerGroup": "my-worker-group",
+      "workerId": "my-lovely-computer",
+      "workerType": "my-special-worker-type",
+      "wstAudience": "taskcluster-net",
+      "wstServerURL": "https://websocktunnel.tasks.build"
+    }
+    ```
+
+11. Create launch daemon:
+
+    Create the file `/Library/LaunchDaemons/com.mozilla.genericworker.plist`
+    with the following content:
+
+    ```
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+        <dict>
+            <key>Label</key>
+            <string>com.mozilla.genericworker</string>
+            <key>Program</key>
+            <string>/usr/local/bin/run-generic-worker.sh</string>
+            <key>StandardOutPath</key>
+            <string>/var/log/genericworker/stdout.log</string>
+            <key>StandardErrorPath</key>
+            <string>/var/log/genericworker/stderr.log</string>
+            <key>RunAtLoad</key>
+            <true/>
+            <key>UserName</key>
+            <string>root</string> <----------- (for multiuser build)
+            <string>genericworker</string> <----------- (for simple build)
+        </dict>
+    </plist>
+    ```
+
+12. Install launch daemon:
+
+    * `sudo launchctl load -w /Library/LaunchDaemons/com.mozilla.genericworker.plist`
+
+13. Watch for logs in `/var/log/generic-worker/`.
+
+
+## Linux simple/multiuser/docker build
+
+ 1. Make sure your system is up-to-date. For example, on ubuntu:
+
+    ```
+    apt update
+    DEBIAN_FRONTEND=noninteractive apt upgrade -yq
+    ```
+
+ 2. Install curl (needed for later). For example, on ubuntu:
+
+    ```
+    apt install -y curl
+    ```
+
+ 3. For _multiuser_ ensure Gnome Desktop 3 is installed:
+
+    ```
+    apt install -y ubuntu-desktop ubuntu-gnome-desktop
+    ```
+
+ 4. For _docker_ engine, _or_ if tasks require Docker, install it. For example,
+	on ubuntu bionic:
+
+    ```
+    apt install -y apt-transport-https ca-certificates software-properties-common
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+    add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable"
+    apt update
+    apt-cache policy docker-ce | grep -qF download.docker.com
+    apt install -y docker-ce
+    sleep 5
+    systemctl status docker | grep "Started Docker Application Container Engine"
+    usermod -aG docker ubuntu
+    ```
+
+ 5. Download `generic-worker`, `taskcluster-proxy` and `livelog` to `/usr/local/bin`:
+
+    ```
+    cd /usr/local/bin
+    curl -L "https://github.com/taskcluster/generic-worker/releases/download/<GENERIC_WORKER_VERSION>/generic-worker-multiuser-linux-amd64" > generic-worker
+    curl -L "https://github.com/taskcluster/livelog/releases/download/<LIVELOG_VERSION>/livelog-linux-amd64" > livelog
+    curl -L "https://github.com/taskcluster/taskcluster-proxy/releases/download/<TASKCLUSTER_PROXY_VERSION>/taskcluster-proxy-linux-amd64" > taskcluster-proxy
+    ```
+
+ 6. Make binaries executable:
+
+    ```
+    chmod a+x /usr/local/bin/{generic-worker,taskcluster-proxy,livelog}
+    ```
+
+ 7. Create directories required by generic-worker:
+
+    ```
+    mkdir -p /etc/generic-worker /var/local/generic-worker
+    ```
+
+ 8. Check generic-worker works and has correct version:
+
+    ```
+    /usr/local/bin/generic-worker --version
+    ```
+
+ 9. Generate a key for signing artifacts:
+
+    ```
+    /usr/local/bin/generic-worker new-ed25519-keypair --file /etc/generic-worker/ed25519_key
+    ```
+
+    The private key will be written to the file
+    `/etc/generic-worker/ed25519_key`, and the public key will be written to
+    standard out. Keep a copy of the public key if you wish to validate artifact
+    signatures.
+
+10. Ensure host 'taskcluster' resolves to localhost:
+
+    ```
+    echo 127.0.1.1 taskcluster >> /etc/hosts
+    ```
+
+11. __AWS workers only__: configure generic-worker to run on boot with
+	dynamically provided config from AWS Provisioner:
+
+    ```
+    echo '@reboot cd /var/local/generic-worker && PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/generic-worker run --configure-for-aws --config /etc/generic-worker/config >> /var/log/generic-worker.log 2>&1' | crontab -
+    ```
+
+	Make sure netplan network renderer takes precendence over eni network
+	renderer. See [bug 1499054 comment
+    12](https://bugzilla.mozilla.org/show_bug.cgi?id=1499054#c12) for an
+    explanation.
+
+    ```
+    cat > /etc/cloud/cloud.cfg.d/01_network_renderer_policy.cfg << EOF
+    system_info:
+        network:
+          renderers: [ 'netplan', 'eni', 'sysconfig' ]
+    EOF
+    ```
+
+12. __Non-AWS workers only__: configure generic-worker to run on boot with
+	a static local config file:
+
+    ```
+    echo '@reboot cd /var/local/generic-worker && PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin /usr/local/bin/generic-worker run --config /etc/generic-worker/config >> /var/log/generic-worker.log 2>&1' | crontab -
+    ```
+
+    Create `/etc/generic-worker/config` with appropriate configuration settings
+    (see `generic-worker --help` for details).
+
 
 # Acquire taskcluster credentials for running tests
 
@@ -1070,7 +1061,7 @@ Once you have been granted the above scope:
 To see a full description of all the config options available to you, run `generic-worker --help`:
 
 ```
-generic-worker 14.1.1
+generic-worker (multiuser engine) 16.1.0
 
 generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
 See http://taskcluster.github.io/generic-worker/ for more details. Essentially, the worker is
@@ -1080,13 +1071,8 @@ and reports back results to the queue.
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]
-    generic-worker install service          [--nssm           NSSM-EXE]
-                                            [--service-name   SERVICE-NAME]
-                                            [--config         CONFIG-FILE]
-                                            [--configure-for-aws | --configure-for-gcp]
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE
-    generic-worker grant-winsta-access      --sid SID
     generic-worker --help
     generic-worker --version
 
@@ -1098,24 +1084,10 @@ and reports back results to the queue.
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
                                             worker.
-    install service                         This will install the generic worker as a
-                                            Windows service running under the Local System
-                                            account. This is the preferred way to run the
-                                            worker under Windows. Note, the service will
-                                            be configured to start automatically. If you
-                                            wish the service only to run when certain
-                                            preconditions have been met, it is recommended
-                                            to disable the automatic start of the service,
-                                            after you have installed the service, and
-                                            instead explicitly start the service when the
-                                            preconditions have been met.
     new-ed25519-keypair                     This will generate a fresh, new ed25519
                                             compliant private/public key pair. The public
                                             key will be written to stdout and the private
                                             key will be written to the specified file.
-    grant-winsta-access                     Windows only. Used internally by generic-
-                                            worker to grant a logon SID full control of the
-                                            interactive windows station and desktop.
 
   Options:
     --config CONFIG-FILE                    Json configuration file to use. See
@@ -1135,18 +1107,10 @@ and reports back results to the queue.
     --configure-for-gcp                     This will create the CONFIG-FILE for a GCP
                                             installation by querying the GCP environment
                                             and setting appropriate values.
-    --nssm NSSM-EXE                         The full path to nssm.exe to use for installing
-                                            the service.
-                                            [default: C:\nssm-2.24\win64\nssm.exe]
-    --service-name SERVICE-NAME             The name that the Windows service should be
-                                            installed under. [default: Generic Worker]
     --file PRIVATE-KEY-FILE                 The path to the file to write the private key
                                             to. The parent directory must already exist.
                                             If the file exists it will be overwritten,
                                             otherwise it will be created.
-    --sid SID                               A SID to be granted full control of the
-                                            interactive windows station and desktop, for
-                                            example: 'S-1-5-5-0-41431533'.
     --help                                  Display this help text.
     --version                               The release version of the generic-worker.
 
@@ -1286,9 +1250,12 @@ and reports back results to the queue.
                                             should apply to all generated users (and thus all
                                             tasks) and be run as the task user itself. This
                                             option does *not* support running a command as
-                                            Administrator.
+                                            Administrator. Furthermore, even if
+                                            runTasksAsCurrentUser is true, the script will still
+                                            be executed as the task user, rather than the
+                                            current user (that runs the generic-worker process).
           runTasksAsCurrentUser             If true, users will not be created for tasks, but
-                                            the current OS user will be used. [default: true]
+                                            the current OS user will be used. [default: false]
           secretsBaseURL                    The base URL for taskcluster secrets API calls.
                                             If not provided, the base URL for API calls is
                                             instead derived from rootURL setting as follows:
@@ -1302,6 +1269,7 @@ and reports back results to the queue.
                                             posses this scope, no crash reports will be sent.
                                             Similarly, if this property is not specified or
                                             is the empty string, no reports will be sent.
+                                            [default: generic-worker]
           shutdownMachineOnIdle             If true, when the worker is deemed to have been
                                             idle for enough time (see idleTimeoutSecs) the
                                             worker will issue an OS shutdown command. If false,
@@ -1329,6 +1297,11 @@ and reports back results to the queue.
                                             identifier to uniquely identify which pool of
                                             workers this worker logically belongs to.
                                             [default: test-worker-group]
+          workerManagerBaseURL              The base URL for taskcluster worker-manager API calls.
+                                            If not provided, the base URL for API calls is
+                                            instead derived from rootURL setting as follows:
+                                              * https://worker-manager.taskcluster.net/v1 for rootURL https://taskcluster.net
+                                              * <rootURL>/api/worker-manager/v1 for all other rootURLs
           workerTypeMetaData                This arbitrary json blob will be included at the
                                             top of each task log. Providing information here,
                                             such as a URL to the code/config used to set up the
@@ -1376,8 +1349,6 @@ and reports back results to the queue.
     72     The worker is running on spot infrastructure in AWS EC2 and has been served a
            spot termination notice, and therefore has shut down.
     73     The config provided to the worker is invalid.
-    74     Could not grant provided SID full control of interactive windows stations and
-           desktop.
     75     Not able to create an ed25519 key pair.
     76     Not able to save generic-worker config file after fetching it from AWS provisioner
            or Google Cloud metadata.
@@ -1420,12 +1391,55 @@ Then cd into the source directory, and run:
 go test -v ./...
 ```
 
+There are a few environment variables that you can set to influence the tests:
+
+### `GW_SKIP_INTEGRATION_TESTS`
+
+Set to a non-empty string if you wish to skip all tests that submit tasks to a
+real taskcluster Queue service.
+
+Otherwise you'll need to configure the taskcluster credentials for talking to
+the taskcluster Queue service:
+
+* `TASKCLUSTER_CLIENT_ID`
+* `TASKCLUSTER_ACCESS_TOKEN`
+* `TASKCLUSTER_ROOT_URL`
+* `TASKCLUSTER_CERTIFICATE` (only if using temp credentials)
+
+### `GW_SKIP_PERMA_CREDS_TESTS`
+
+Set to a non-empty string if you wish to skip tests that require permanent
+taskcluster credentials (e.g. if you only have temp credentials, and don't feel
+like creating a permanent client, or don't have the scopes to do so).
+
+### `GW_SKIP_Z_DRIVE_TESTS`
+
+Only used in a single __Windows-specific__ test - if you don't have a Z: drive
+setup on your computer, or you do but you also run tests from the Z: drive, you
+can set this env var to a non-empty string to skip this test.
+
+### `GW_TESTS_RUN_AS_CURRENT_USER`
+
+This environment variable applies only to the __multiuser__ engine.
+
+If `GW_TESTS_RUN_AS_CURRENT_USER` is not set, generic-worker will be tested
+running in its normal operational mode, i.e. running tasks as task users
+(config setting `runTasksAsCurrentUser` will be `false`).
+
+If `GW_TESTS_RUN_AS_CURRENT_USER` is a non-empty string, generic-worker will be
+tested running tasks as the same user that runs `go test` (config setting
+`runTasksAsCurrentUser` will be `true`). This is how the CI multiuser workers
+are configured, in order that the generic-worker under test has the required
+privileges to function correctly. Set this environment variable to ensure that
+the generic-worker under test will function correctly as a generic-worker CI
+worker.
+
 # Making a new generic worker release
 
 Run the `release.sh` script like so:
 
 ```
-$ ./release.sh 14.1.1
+$ ./release.sh 16.1.0
 ```
 
 This will perform some checks, tag the repo, push the tag to github, which will then trigger travis-ci to run tests, and publish the new release.
@@ -1436,8 +1450,93 @@ See [worker_types README.md](https://github.com/taskcluster/generic-worker/blob/
 
 # Release notes
 
+In v16.1.0 since v16.0.0
+========================
+
+* [Bug 1578264 - Support deployments in GCP](https://bugzil.la/1578264)
+
+In v16.0.0 since v15.1.5
+========================
+
+This major release includes support for multiuser on linux. There are no
+changes to the other platforms.
+
+[Installation
+instructions](https://github.com/taskcluster/generic-worker#linux-simplemultiuserdocker-build)
+for multiuser engine on linux have been added.
+
+* [Bug 1499054 - Run tasks under unique OS user accounts on Linux](https://bugzil.la/1499054)
+
+In v15.1.5 since v15.1.4
+========================
+
+* [Bug 1565215 - generic-worker: include timezone in log messages, and make sure it is UTC](https://bugzil.la/1565215)
+
+In v15.1.4 since v15.1.3
+========================
+
+* [Bug 1567632 - generic-worker: circa 8 second startup cost in CI tasks on darwin multiuser](https://bugzil.la/1567632)
+* [Bug 1568471 - generic-worker: close those http response bodies!](https://bugzil.la/1568471)
+* [Bug 1568782 - generic-worker: error artifacts do not have a contentType](https://bugzil.la/1568782)
+
+In v15.1.3 since v15.1.2
+========================
+
+* [Bug 1563220 - generic-worker: switch to using docker client CLI instead of importing native docker client library](https://bugzil.la/1563220)
+* [Bug 1567073 - generic-worker: consistently log executed commands and output / exit code from failed commands](https://bugzil.la/1567073)
+
+In v15.1.2 since v15.1.1
+========================
+
+* [Bug 1566159 - generic-worker: user: Current not implemented on darwin/amd64](https://bugzil.la/1566159)
+
+In v15.1.1 since v15.1.0
+========================
+
+* [Bug 1382668 - generic-worker: document the env vars that the worker implicitly sets in the task commands it runs](https://bugzil.la/1382668)
+* [Bug 1562964 - generic-worker: log HTTP response body when getting a bad HTTP response code from the queue when uploading artifacts](https://bugzil.la/1562964)
+* [Bug 1564354 - generic-worker: use generic-worker sentry project by default](https://bugzil.la/1564354)
+* [Bug 1564361 - generic-worker: log system failures when checking if chain of trust key is readable](https://bugzil.la/1564361)
+
+In v15.1.0 since v15.0.1
+========================
+
+* [Bug 1560388 - generic-worker: macOS multiuser engine - autologin sometimes not successful](https://bugzil.la/1560388)
+
+In v15.0.1 since v15.0.0
+========================
+
+* [Bug 1559210 - generic-worker: runAfterUserCreation to run as task user even if runTasksAsCurrentUser is true](https://bugzil.la/1559210)
+
+In v15.0.0 since v14.1.2
+========================
+
+With this release of generic-worker, we now have three unique engines:
+
+* simple
+* multiuser
+* docker
+
+The generic-worker source code `README.md` provides information about these
+different engines, together with updated installation instructions.
+
+This should mostly be a no-op change for Windows/Linux, but due to the large
+codebase refactoring and internal reorganisation of code, the major version
+number has been bumped to 15.
+
+### Changes
+
+* [Bug 1499051 - Run tasks under unique OS user accounts on darwin (macOS)](https://bugzil.la/1499051)
+
+In v14.1.2 since v14.1.1
+========================
+
+* [Bug 1552465 - generic-worker: only prepare new task environment when task has been claimed](https://bugzil.la/1552465)
+
 In v14.1.1 since v14.1.0
 ========================
+
+__Please don't use release v14.1.1 on any platform due to [bug 1552465](https://bugzil.la/1552465) which will be fixed in v14.1.2__
 
 * [Bug 1548829 - generic-worker: log header should mention provisionerId](https://bugzil.la/1548829)
 * [Bug 1551164 - [mounts] Not able to rename dir caches/*** as tasks/task_***/***: rename caches/*** tasks/task_***/***: file exists](https://bugzil.la/1551164)
@@ -1492,7 +1591,7 @@ allowed in the generic-worker config file:
 openpgpSigningKeyLocation
 ```
 
-**Please note, you need to remove this config property from your config file, if it exists, in order to 
+**Please note, you need to remove this config property from your config file, if it exists, in order to
 work with generic-worker 14 onwards.**
 
 * [Bug 1436195 - Deploy websocktunnel on generic-worker](https://bugzil.la/1436195)

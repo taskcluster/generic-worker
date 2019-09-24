@@ -62,11 +62,12 @@ func TestFileArtifactWithNames(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/build/firefox.exe",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "public/build/firefox.exe",
+					Expires: inAnHour,
 				},
-				Path: "SampleArtifacts/_/X.txt",
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            "SampleArtifacts/_/X.txt",
 			},
 		})
 }
@@ -91,11 +92,12 @@ func TestFileArtifactWithContentType(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/build/firefox.exe",
-					Expires:     inAnHour,
-					ContentType: "application/octet-stream",
+					Name:    "public/build/firefox.exe",
+					Expires: inAnHour,
 				},
-				Path: "SampleArtifacts/_/X.txt",
+				ContentType:     "application/octet-stream",
+				ContentEncoding: "gzip",
+				Path:            "SampleArtifacts/_/X.txt",
 			},
 		})
 }
@@ -119,27 +121,30 @@ func TestDirectoryArtifactWithNames(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/%%%/v/X",
-					Expires:     inAnHour,
-					ContentType: "application/octet-stream",
+					Name:    "public/b/c/%%%/v/X",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "%%%", "v", "X"),
+				ContentType:     "application/octet-stream",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "%%%", "v", "X"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/_/X.txt",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "public/b/c/_/X.txt",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "_", "X.txt"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "_", "X.txt"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/b/c/d.jpg",
-					Expires:     inAnHour,
-					ContentType: "image/jpeg",
+					Name:    "public/b/c/b/c/d.jpg",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
+				ContentType:     "image/jpeg",
+				ContentEncoding: "",
+				Path:            filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
 }
@@ -164,27 +169,30 @@ func TestDirectoryArtifactWithContentType(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/%%%/v/X",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "public/b/c/%%%/v/X",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "%%%", "v", "X"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "%%%", "v", "X"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/_/X.txt",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "public/b/c/_/X.txt",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "_", "X.txt"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "_", "X.txt"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "public/b/c/b/c/d.jpg",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "public/b/c/b/c/d.jpg",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "",
+				Path:            filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
 }
@@ -209,27 +217,30 @@ func TestDirectoryArtifacts(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "SampleArtifacts/%%%/v/X",
-					Expires:     inAnHour,
-					ContentType: "application/octet-stream",
+					Name:    "SampleArtifacts/%%%/v/X",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "%%%", "v", "X"),
+				ContentType:     "application/octet-stream",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "%%%", "v", "X"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "SampleArtifacts/_/X.txt",
-					Expires:     inAnHour,
-					ContentType: "text/plain; charset=utf-8",
+					Name:    "SampleArtifacts/_/X.txt",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "_", "X.txt"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "_", "X.txt"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "SampleArtifacts/b/c/d.jpg",
-					Expires:     inAnHour,
-					ContentType: "image/jpeg",
+					Name:    "SampleArtifacts/b/c/d.jpg",
+					Expires: inAnHour,
 				},
-				Path: filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
+				ContentType:     "image/jpeg",
+				ContentEncoding: "",
+				Path:            filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
 }
@@ -243,7 +254,7 @@ func TestMissingFileArtifact(t *testing.T) {
 		// what appears in task payload
 		[]Artifact{{
 			Expires: inAnHour,
-			Path:    "TestMissingFileArtifact/no_such_file",
+			Path:    t.Name() + "/no_such_file",
 			Type:    "file",
 		}},
 
@@ -251,11 +262,11 @@ func TestMissingFileArtifact(t *testing.T) {
 		[]TaskArtifact{
 			&ErrorArtifact{
 				BaseArtifact: &BaseArtifact{
-					Name:    "TestMissingFileArtifact/no_such_file",
+					Name:    t.Name() + "/no_such_file",
 					Expires: inAnHour,
 				},
-				Path:    "TestMissingFileArtifact/no_such_file",
-				Message: "Could not read file '" + filepath.Join(taskContext.TaskDir, "TestMissingFileArtifact", "no_such_file") + "'",
+				Path:    t.Name() + "/no_such_file",
+				Message: "Could not read file '" + filepath.Join(taskContext.TaskDir, t.Name(), "no_such_file") + "'",
 				Reason:  "file-missing-on-worker",
 			},
 		})
@@ -270,7 +281,7 @@ func TestMissingDirectoryArtifact(t *testing.T) {
 		// what appears in task payload
 		[]Artifact{{
 			Expires: inAnHour,
-			Path:    "TestMissingDirectoryArtifact/no_such_dir",
+			Path:    t.Name() + "/no_such_dir",
 			Type:    "directory",
 		}},
 
@@ -278,11 +289,11 @@ func TestMissingDirectoryArtifact(t *testing.T) {
 		[]TaskArtifact{
 			&ErrorArtifact{
 				BaseArtifact: &BaseArtifact{
-					Name:    "TestMissingDirectoryArtifact/no_such_dir",
+					Name:    t.Name() + "/no_such_dir",
 					Expires: inAnHour,
 				},
-				Path:    "TestMissingDirectoryArtifact/no_such_dir",
-				Message: "Could not read directory '" + filepath.Join(taskContext.TaskDir, "TestMissingDirectoryArtifact", "no_such_dir") + "'",
+				Path:    t.Name() + "/no_such_dir",
+				Message: "Could not read directory '" + filepath.Join(taskContext.TaskDir, t.Name(), "no_such_dir") + "'",
 				Reason:  "file-missing-on-worker",
 			},
 		})
@@ -331,11 +342,12 @@ func TestDefaultArtifactExpiry(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
-					Name:        "SampleArtifacts/b/c/d.jpg",
-					Expires:     inAnHour,
-					ContentType: "image/jpeg",
+					Name:    "SampleArtifacts/b/c/d.jpg",
+					Expires: inAnHour,
 				},
-				Path: "SampleArtifacts/b/c/d.jpg",
+				ContentType:     "image/jpeg",
+				ContentEncoding: "",
+				Path:            "SampleArtifacts/b/c/d.jpg",
 			},
 		},
 	)

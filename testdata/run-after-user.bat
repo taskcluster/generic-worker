@@ -1,1 +1,1 @@
-echo run-after-user > run-after-user.txt
+whoami > run-after-user.txt

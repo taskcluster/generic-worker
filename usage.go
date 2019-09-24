@@ -1,8 +1,22 @@
 package main
 
-import (
-	"runtime"
-	"strconv"
+type ExitCode int
+
+// These constants represent all possible exit codes from the generic-worker process.
+const (
+	TASKS_COMPLETE              ExitCode = 0
+	CANT_LOAD_CONFIG            ExitCode = 64
+	CANT_INSTALL_GENERIC_WORKER ExitCode = 65
+	REBOOT_REQUIRED             ExitCode = 67
+	IDLE_TIMEOUT                ExitCode = 68
+	INTERNAL_ERROR              ExitCode = 69
+	NONCURRENT_DEPLOYMENT_ID    ExitCode = 70
+	WORKER_STOPPED              ExitCode = 71
+	WORKER_SHUTDOWN             ExitCode = 72
+	INVALID_CONFIG              ExitCode = 73
+	CANT_CREATE_ED25519_KEYPAIR ExitCode = 75
+	CANT_SAVE_CONFIG            ExitCode = 76
+	CANT_SECURE_CONFIG          ExitCode = 77
 )
 
 func usage(versionName string) string {
@@ -15,14 +29,9 @@ and reports back results to the queue.
 
   Usage:
     generic-worker run                      [--config         CONFIG-FILE]
-                                            [--configure-for-aws | --configure-for-gcp]
-    generic-worker install service          [--nssm           NSSM-EXE]
-                                            [--service-name   SERVICE-NAME]
-                                            [--config         CONFIG-FILE]
-                                            [--configure-for-aws | --configure-for-gcp]
+                                            [--configure-for-aws | --configure-for-gcp]` + installServiceSummary() + `
     generic-worker show-payload-schema
-    generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE
-    generic-worker grant-winsta-access      --sid SID
+    generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE` + customTargetsSummary() + `
     generic-worker --help
     generic-worker --version
 
@@ -33,25 +42,11 @@ and reports back results to the queue.
                                             payload is validated against a json schema baked
                                             into the release. This option outputs the json
                                             schema used in this version of the generic
-                                            worker.
-    install service                         This will install the generic worker as a
-                                            Windows service running under the Local System
-                                            account. This is the preferred way to run the
-                                            worker under Windows. Note, the service will
-                                            be configured to start automatically. If you
-                                            wish the service only to run when certain
-                                            preconditions have been met, it is recommended
-                                            to disable the automatic start of the service,
-                                            after you have installed the service, and
-                                            instead explicitly start the service when the
-                                            preconditions have been met.
+                                            worker.` + installService() + `
     new-ed25519-keypair                     This will generate a fresh, new ed25519
                                             compliant private/public key pair. The public
                                             key will be written to stdout and the private
-                                            key will be written to the specified file.
-    grant-winsta-access                     Windows only. Used internally by generic-
-                                            worker to grant a logon SID full control of the
-                                            interactive windows station and desktop.
+                                            key will be written to the specified file.` + customTargets() + `
 
   Options:
     --config CONFIG-FILE                    Json configuration file to use. See
@@ -70,19 +65,11 @@ and reports back results to the queue.
                                             that the provisioner holds for the worker type.
     --configure-for-gcp                     This will create the CONFIG-FILE for a GCP
                                             installation by querying the GCP environment
-                                            and setting appropriate values.
-    --nssm NSSM-EXE                         The full path to nssm.exe to use for installing
-                                            the service.
-                                            [default: C:\nssm-2.24\win64\nssm.exe]
-    --service-name SERVICE-NAME             The name that the Windows service should be
-                                            installed under. [default: Generic Worker]
+                                            and setting appropriate values.` + platformCommandLineParameters() + `
     --file PRIVATE-KEY-FILE                 The path to the file to write the private key
                                             to. The parent directory must already exist.
                                             If the file exists it will be overwritten,
-                                            otherwise it will be created.
-    --sid SID                               A SID to be granted full control of the
-                                            interactive windows station and desktop, for
-                                            example: 'S-1-5-5-0-41431533'.
+                                            otherwise it will be created.` + sidSID() + `
     --help                                  Display this help text.
     --version                               The release version of the generic-worker.
 
@@ -222,9 +209,10 @@ and reports back results to the queue.
                                             should apply to all generated users (and thus all
                                             tasks) and be run as the task user itself. This
                                             option does *not* support running a command as
-                                            Administrator.
-          runTasksAsCurrentUser             If true, users will not be created for tasks, but
-                                            the current OS user will be used. [default: ` + strconv.FormatBool(runtime.GOOS != "windows") + `]
+                                            Administrator. Furthermore, even if
+                                            runTasksAsCurrentUser is true, the script will still
+                                            be executed as the task user, rather than the
+                                            current user (that runs the generic-worker process).` + runTasksAsCurrentUserUsage() + `
           secretsBaseURL                    The base URL for taskcluster secrets API calls.
                                             If not provided, the base URL for API calls is
                                             instead derived from rootURL setting as follows:
@@ -238,6 +226,7 @@ and reports back results to the queue.
                                             posses this scope, no crash reports will be sent.
                                             Similarly, if this property is not specified or
                                             is the empty string, no reports will be sent.
+                                            [default: generic-worker]
           shutdownMachineOnIdle             If true, when the worker is deemed to have been
                                             idle for enough time (see idleTimeoutSecs) the
                                             worker will issue an OS shutdown command. If false,
@@ -265,6 +254,11 @@ and reports back results to the queue.
                                             identifier to uniquely identify which pool of
                                             workers this worker logically belongs to.
                                             [default: test-worker-group]
+          workerManagerBaseURL              The base URL for taskcluster worker-manager API calls.
+                                            If not provided, the base URL for API calls is
+                                            instead derived from rootURL setting as follows:
+                                              * https://worker-manager.taskcluster.net/v1 for rootURL https://taskcluster.net
+                                              * <rootURL>/api/worker-manager/v1 for all other rootURLs
           workerTypeMetaData                This arbitrary json blob will be included at the
                                             top of each task log. Providing information here,
                                             such as a URL to the code/config used to set up the
@@ -311,13 +305,9 @@ and reports back results to the queue.
     71     The worker was terminated via an interrupt signal (e.g. Ctrl-C pressed).
     72     The worker is running on spot infrastructure in AWS EC2 and has been served a
            spot termination notice, and therefore has shut down.
-    73     The config provided to the worker is invalid.
-    74     Could not grant provided SID full control of interactive windows stations and
-           desktop.
+    73     The config provided to the worker is invalid.` + exitCode74() + `
     75     Not able to create an ed25519 key pair.
     76     Not able to save generic-worker config file after fetching it from AWS provisioner
-           or Google Cloud metadata.
-    77     Not able to apply required file access permissions to the generic-worker config
-           file so that task users can't read from or write to it.
+           or Google Cloud metadata.` + exitCode77() + `
 `
 }

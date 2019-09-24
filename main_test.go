@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/taskcluster/generic-worker/testutil"
 )
 
 // Test failure should resolve as "failed"
@@ -26,9 +28,7 @@ func TestFailureResolvesAsFailure(t *testing.T) {
 
 func TestIdleWithoutCrash(t *testing.T) {
 	defer setup(t)()
-	if config.ClientID == "" || config.AccessToken == "" || config.RootURL == "" {
-		t.Skip("Skipping test since TASKCLUSTER_{CLIENT_ID,ACCESS_TOKEN,ROOT_URL} env vars not set")
-	}
+	testutil.RequireTaskclusterCredentials(t)
 	start := time.Now()
 	config.IdleTimeoutSecs = 7
 	exitCode := RunWorker()
@@ -159,14 +159,14 @@ func TestNonExecutableBinaryFailsTask(t *testing.T) {
 // calls removeTaskDirs(tempDir), and tests that only folders that started with
 // 'task_' were deleted and that the other files and folders were not.
 func TestRemoveTaskDirs(t *testing.T) {
-	d, err := ioutil.TempDir("", "TestRemoveTaskDirs")
+	d, err := ioutil.TempDir("", t.Name())
 	if err != nil {
 		t.Fatalf("Could not create temp directory: %v", err)
 	}
 	defer func() {
 		err := os.RemoveAll(d)
 		if err != nil {
-			t.Fatalf("Could not remove temp dir TestRemoveTaskDirs: %v", err)
+			t.Fatalf("Could not remove temp dir %v: %v", d, err)
 		}
 	}()
 	for _, dir := range []string{
@@ -194,10 +194,7 @@ func TestRemoveTaskDirs(t *testing.T) {
 			t.Fatalf("Could not write %v file: %v", file, err)
 		}
 	}
-	err = deleteTaskDirs(d, "task_1234561234")
-	if err != nil {
-		t.Fatalf("Could not remove task directories: %v", err)
-	}
+	deleteTaskDirs(d, "task_1234561234")
 	taskDirsParent, err := os.Open(d)
 	if err != nil {
 		t.Fatalf("Could not open %v directory: %v", d, err)
