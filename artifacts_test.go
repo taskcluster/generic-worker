@@ -139,7 +139,7 @@ func TestFileArtifactWithoutContentEncodingBlacklisted(t *testing.T) {
 		[]Artifact{
 			{
 				Expires:	inAnHour,
-				Path:		"SampleArtifacts/c/c/d.jpg",
+				Path:		"SampleArtifacts/b/c/d.jpg",
 				Type:		"file",
 				Name:		"public/b/c/d.jpg",
 				ContentType:	"image/jpeg",
@@ -395,13 +395,13 @@ func TestDirectoryArtifactWithIdentityContentEncoding(t *testing.T) {
 		// what we expect to discover on file system
 		[]TaskArtifact{
 			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/b/c/b/c/d.jpg",
-					Expires:	inAnHour,
+				BaseArtifact: &BaseArtifact{
+					Name:    "public/b/c/%%%/v/X",
+					Expires: inAnHour,
 				},
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"identity",
-				Path:			filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "identity",
+				Path:            filepath.Join("SampleArtifacts", "%%%", "v", "X"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
@@ -411,6 +411,15 @@ func TestDirectoryArtifactWithIdentityContentEncoding(t *testing.T) {
 				ContentType:     "text/plain; charset=utf-8",
 				ContentEncoding: "identity",
 				Path:            filepath.Join("SampleArtifacts", "_", "X.txt"),
+			},
+			&S3Artifact{
+				BaseArtifact:		&BaseArtifact{
+					Name:		"public/b/c/b/c/d.jpg",
+					Expires:	inAnHour,
+				},
+				ContentType:		"text/plain; charset=utf-8",
+				ContentEncoding:	"identity",
+				Path:			filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
 }
@@ -435,13 +444,13 @@ func TestDirectoryArtifactWithGzipContentEncoding(t *testing.T) {
 		// what we expect to discover on file system
 		[]TaskArtifact{
 			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/b/c/b/c/d.jpg",
-					Expires:	inAnHour,
+				BaseArtifact: &BaseArtifact{
+					Name:    "public/b/c/%%%/v/X",
+					Expires: inAnHour,
 				},
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"gzip",
-				Path:			filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
+				ContentType:     "text/plain; charset=utf-8",
+				ContentEncoding: "gzip",
+				Path:            filepath.Join("SampleArtifacts", "%%%", "v", "X"),
 			},
 			&S3Artifact{
 				BaseArtifact: &BaseArtifact{
@@ -451,6 +460,15 @@ func TestDirectoryArtifactWithGzipContentEncoding(t *testing.T) {
 				ContentType:     "text/plain; charset=utf-8",
 				ContentEncoding: "gzip",
 				Path:            filepath.Join("SampleArtifacts", "_", "X.txt"),
+			},
+			&S3Artifact{
+				BaseArtifact:		&BaseArtifact{
+					Name:		"public/b/c/b/c/d.jpg",
+					Expires:	inAnHour,
+				},
+				ContentType:		"text/plain; charset=utf-8",
+				ContentEncoding:	"gzip",
+				Path:			filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
 }
@@ -497,7 +515,7 @@ func TestDirectoryArtifacts(t *testing.T) {
 					Expires: inAnHour,
 				},
 				ContentType:     "image/jpeg",
-				ContentEncoding: "",
+				ContentEncoding: "identity",
 				Path:            filepath.Join("SampleArtifacts", "b", "c", "d.jpg"),
 			},
 		})
@@ -604,7 +622,7 @@ func TestDefaultArtifactExpiry(t *testing.T) {
 					Expires: inAnHour,
 				},
 				ContentType:     "image/jpeg",
-				ContentEncoding: "",
+				ContentEncoding: "identity",
 				Path:            "SampleArtifacts/b/c/d.jpg",
 			},
 		},
@@ -710,33 +728,6 @@ func TestInvalidContentEncodingBlacklisted(t *testing.T) {
 				Name:			"public/b/c/d.jpg",
 				ContentType:		"image/jpeg",
 				ContentEncoding:	"jpg",
-			},
-		},
-	}
-	td := testTask(t)
-
-	_ = submitAndAssert(t, td, payload, "exception", "malformed-payload")
-}
-
-func TestEmptyContentEncoding(t *testing.T) {
-
-	defer setup(t)()
-
-	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
-	command := helloGoodbye()
-	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
-
-	payload := GenericWorkerPayload{
-		Command:	command,
-		MaxRunTime:	30,
-		Artifacts:	[]Artifact{
-			{
-				Path:			"SampleArtifacts/b/c/d.jpg",
-				Expires:		expires,
-				Type:			"file",
-				Name:			"public/b/c/d.jpg",
-				ContentType:		"image/jpeg",
-				ContentEncoding:	"",
 			},
 		},
 	}
