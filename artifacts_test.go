@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"testing"
 	"time"
+	"encoding/json"
 
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
@@ -102,7 +103,7 @@ func TestFileArtifactWithContentType(t *testing.T) {
 		})
 }
 
-func TestFileArtifactWithoutContentEncodingNonBlacklisted(t *testing.T) {
+func TestFileArtifactWithContentEncoding(t *testing.T) {
 	defer setup(t)()
 	validateArtifacts(t,
 
@@ -115,28 +116,6 @@ func TestFileArtifactWithoutContentEncodingNonBlacklisted(t *testing.T) {
 				Name:		"public/_/X.txt",
 				ContentType:	"text/plain; charset=utf-8",
 			},
-		},
-
-		// what we expect to discover on file system
-		[]TaskArtifact{
-			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/_/X.txt",
-					Expires:	inAnHour,
-				},
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"gzip",
-				Path:			"SampleArtifacts/_/X.txt",
-			},
-		})
-}
-
-func TestFileArtifactWithoutContentEncodingBlacklisted(t *testing.T) {
-	defer setup(t)()
-	validateArtifacts(t,
-
-		// what appears in task payload
-		[]Artifact{
 			{
 				Expires:	inAnHour,
 				Path:		"SampleArtifacts/b/c/d.jpg",
@@ -144,88 +123,22 @@ func TestFileArtifactWithoutContentEncodingBlacklisted(t *testing.T) {
 				Name:		"public/b/c/d.jpg",
 				ContentType:	"image/jpeg",
 			},
-		},
-
-		// what we expect to discover on file system
-		[]TaskArtifact{
-			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/b/c/d.jpg",
-					Expires:	inAnHour,
-				},
+			{
+				Expires:		inAnHour,
+				Path:			"SampleArtifacts/_/X.txt",
+				Type:			"file",
+				Name:			"public/_/X.txt",
+				ContentType:		"text/plain; charset=utf-8",
+				ContentEncoding:	"identity",
+			},
+			{
+				Expires:		inAnHour,
+				Path:			"SampleArtifacts/b/c/d.jpg",
+				Type:			"file",
+				Name:			"public/b/c/d.jpg",
 				ContentType:		"image/jpeg",
 				ContentEncoding:	"identity",
-				Path:			"SampleArtifacts/b/c/d.jpg",
 			},
-		})
-}
-
-func TestFileArtifactWithIdentityContentEncodingNonBlacklisted(t *testing.T) {
-	defer setup(t)()
-	validateArtifacts(t,
-
-		// what appears in task payload
-		[]Artifact{
-			{
-				Expires:		inAnHour,
-				Path:			"SampleArtifacts/_/X.txt",
-				Type:			"file",
-				Name:			"public/_/X.txt",
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"identity",
-			},
-		},
-
-		// what we expect to discover on file system
-		[]TaskArtifact{
-			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/_/X.txt",
-					Expires:	inAnHour,
-				},
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"identity",
-				Path:			"SampleArtifacts/_/X.txt",
-			},
-		})
-}
-
-func TestFileArtifactWithGzipContentEncodingNonBlacklisted(t *testing.T) {
-	defer setup(t)()
-	validateArtifacts(t,
-
-		// what appears in task payload
-		[]Artifact{
-			{
-				Expires:		inAnHour,
-				Path:			"SampleArtifacts/_/X.txt",
-				Type:			"file",
-				Name:			"public/_/X.txt",
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"gzip",
-			},
-		},
-
-		// what we expect to discover on file system
-		[]TaskArtifact{
-			&S3Artifact{
-				BaseArtifact:		&BaseArtifact{
-					Name:		"public/_/X.txt",
-					Expires:	inAnHour,
-				},
-				ContentType:		"text/plain; charset=utf-8",
-				ContentEncoding:	"gzip",
-				Path:			"SampleArtifacts/_/X.txt",
-			},
-		})
-}
-
-func TestFileArtifactWithIdentityContentEncodingBlacklisted(t *testing.T) {
-	defer setup(t)()
-	validateArtifacts(t,
-
-		// what appears in task payload
-		[]Artifact{
 			{
 				Expires:		inAnHour,
 				Path:			"SampleArtifacts/b/c/d.jpg",
@@ -240,6 +153,15 @@ func TestFileArtifactWithIdentityContentEncodingBlacklisted(t *testing.T) {
 		[]TaskArtifact{
 			&S3Artifact{
 				BaseArtifact:		&BaseArtifact{
+					Name:		"public/_/X.txt",
+					Expires:	inAnHour,
+				},
+				ContentType:		"text/plain; charset=utf-8",
+				ContentEncoding:	"gzip",
+				Path:			"SampleArtifacts/_/X.txt",
+			},
+			&S3Artifact{
+				BaseArtifact:		&BaseArtifact{
 					Name:		"public/b/c/d.jpg",
 					Expires:	inAnHour,
 				},
@@ -247,27 +169,24 @@ func TestFileArtifactWithIdentityContentEncodingBlacklisted(t *testing.T) {
 				ContentEncoding:	"identity",
 				Path:			"SampleArtifacts/b/c/d.jpg",
 			},
-		})
-}
-
-func TestFileArtifactWithGzipContentEncodingBlacklisted(t *testing.T) {
-	defer setup(t)()
-	validateArtifacts(t,
-
-		// what appears in task payload
-		[]Artifact{
-			{
-				Expires:		inAnHour,
-				Path:			"SampleArtifacts/b/c/d.jpg",
-				Type:			"file",
-				Name:			"public/b/c/d.jpg",
-				ContentType:		"image/jpeg",
-				ContentEncoding:	"gzip",
+			&S3Artifact{
+				BaseArtifact:		&BaseArtifact{
+					Name:		"public/_/X.txt",
+					Expires:	inAnHour,
+				},
+				ContentType:		"text/plain; charset=utf-8",
+				ContentEncoding:	"identity",
+				Path:			"SampleArtifacts/_/X.txt",
 			},
-		},
-
-		// what we expect to discover on file system
-		[]TaskArtifact{
+			&S3Artifact{
+				BaseArtifact:		&BaseArtifact{
+					Name:		"public/b/c/d.jpg",
+					Expires:	inAnHour,
+				},
+				ContentType:		"image/jpeg",
+				ContentEncoding:	"identity",
+				Path:			"SampleArtifacts/b/c/d.jpg",
+			},
 			&S3Artifact{
 				BaseArtifact:		&BaseArtifact{
 					Name:		"public/b/c/d.jpg",
@@ -680,19 +599,28 @@ func TestMissingArtifactFailsTest(t *testing.T) {
 	_ = submitAndAssert(t, td, payload, "failed", "failed")
 }
 
-func TestInvalidContentEncodingNonBlacklisted(t *testing.T) {
+func TestInvalidContentEncoding(t *testing.T) {
 
 	defer setup(t)()
 
 	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
 
 	command := helloGoodbye()
+	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
 	command = append(command, copyTestdataFile("SampleArtifacts/_/X.txt")...)
 
 	payload := GenericWorkerPayload{
 		Command:	command,
 		MaxRunTime:	30,
 		Artifacts:	[]Artifact{
+			{
+				Path:			"SampleArtifacts/b/c/d.jpg",
+				Expires:		expires,
+				Type:			"file",
+				Name:			"public/b/c/d.jpg",
+				ContentType:		"image/jpeg",
+				ContentEncoding:	"jpg",
+			},
 			{
 				Path:			"SampleArtifacts/_/X.txt",
 				Expires:		expires,
@@ -708,30 +636,31 @@ func TestInvalidContentEncodingNonBlacklisted(t *testing.T) {
 	_ = submitAndAssert(t, td, payload, "exception", "malformed-payload")
 }
 
-func TestInvalidContentEncodingBlacklisted(t *testing.T) {
+func TestMissingContentEncoding(t *testing.T){
 
 	defer setup(t)()
 
-	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
-
-	command := helloGoodbye()
-	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
-
-	payload := GenericWorkerPayload{
-		Command:	command,
-		MaxRunTime:	30,
-		Artifacts:	[]Artifact{
-			{
-				Path:			"SampleArtifacts/b/c/d.jpg",
-				Expires:		expires,
-				Type:			"file",
-				Name:			"public/b/c/d.jpg",
-				ContentType:		"image/jpeg",
-				ContentEncoding:	"jpg",
-			},
-		},
-	}
 	td := testTask(t)
+	td.Payload = json.RawMessage(`{
+		"command": [
+			"hello world!",
+            		"echo goodbye world!",
+			"if not exist \"SampleArtifacts\\b\\c\" mkdir \"SampleArtifacts\\b\\c\"",
+			"copy \"Z:\\task_1569505291\\gopath1.10.8\\src\\github.com\\taskcluster\\generic-worker\\testdata\\SampleArtifacts\\b\\c\\d.jpg\" \"SampleArtifacts\\b\\c\\d.jpg\""
+		],
+		"maxRunTime": 30,
+		"artifacts": [
+			{
+				"path": "SampleArtifacts/b/c/d.jpg",
+				"expires": "` + tcclient.Time(time.Now().Add(time.Minute * 30)).String() + `",
+				"type": "file",
+				"name": "public/b/c/d.jpg",
+				"ContentType": "image/jpeg"
+				"ContentEncoding": ""
+			}
 
-	_ = submitAndAssert(t, td, payload, "exception", "malformed-payload")
+		]
+	}`)
+
+	_ = submitAndAssert(t, td, GenericWorkerPayload{}, "exception", "malformed-payload")
 }
