@@ -136,7 +136,7 @@ properties:
 
             Since: generic-worker 10.4.0
         contentEncoding:
-          title: Content-Encoding option for encoding the artifact.
+          title: Content-Encoding header when serving artifact over HTTP.
           type: string
           enum:
             - identity
@@ -164,7 +164,9 @@ properties:
             * woff
             * woff2
 
-            Since: generic-worker 15.2.0
+            Note, setting `contentEncoding` on a directory artifact will apply the same content
+            encoding to all the files contained in the directory.
+            Since: generic-worker 16.2.0
       required:
       - type
       - path

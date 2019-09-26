@@ -409,11 +409,10 @@ func resolve(base *BaseArtifact, artifactType string, path string, contentType s
 			".woff":  true,
 			".woff2": true,
 		}
+		// When the file extension is blacklisted in SkipCompressionExtensions then "identity" should be used, otherwise "gzip".
 		if SkipCompressionExtensions[extension] {
-			// fallback to encoding specified by file extension
-			contentEncoding = strings.Trim(extension, ".")
+			contentEncoding = "identity"
 		} else {
-			// lastly, fallback to standard gzip
 			contentEncoding = "gzip"
 		}
 	}
