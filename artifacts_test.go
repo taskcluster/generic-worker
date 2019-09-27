@@ -637,7 +637,7 @@ func TestInvalidContentEncoding(t *testing.T) {
 		t.Fatalf("Error when trying to read log file: %v", err)
 	}
 	logtext := string(bytes)
-	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+	if !strings.Contains(logtext, "[taskcluster:error] - artifacts.0.contentEncoding: artifacts.0.contentEncoding must be one of the following: \"identity\", \"gzip\"") {
 		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
 	}
 }
@@ -675,7 +675,7 @@ func TestInvalidContentEncodingBlacklisted(t *testing.T) {
 		t.Fatalf("Error when trying to read log file: %v", err)
 	}
 	logtext := string(bytes)
-	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+	if !strings.Contains(logtext, "[taskcluster:error] - artifacts.0.contentEncoding: artifacts.0.contentEncoding must be one of the following: \"identity\", \"gzip\"") {
 		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
 	}
 }
@@ -711,7 +711,7 @@ func TestMissingContentEncoding(t *testing.T){
 		t.Fatalf("Error when trying to read log file: %v", err)
 	}
 	logtext := string(bytes)
-	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+	if !strings.Contains(logtext, "[taskcluster:error] - artifacts.0.contentEncoding: artifacts.0.contentEncoding must be one of the following: \"identity\", \"gzip\"") {
 		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
 	}
 }

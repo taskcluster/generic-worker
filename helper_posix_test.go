@@ -146,18 +146,7 @@ func copyTestdataFileTo(src, dest string) [][]string {
 
 func rawCopyTestdataFileTo(src, dest string) string {
 	sourcePath := filepath.Join(testdataDir, src)
-	return `"command": [
-    [
-      "mkdir",
-      "-p",
-      "`+ filepath.Dir(dest) +`"
-    ],
-    [
-      "cp",
-      "`+ sourcePath +`",
-      "`+ dest +`"
-    ]
-  ]`
+	return `["mkdir", "-p", "`+ filepath.Dir(dest) +`"], ["cp", "`+ sourcePath +`", "`+ dest +`"]`
 }
 
 func singleCommandNoArgs(command string) [][]string {
