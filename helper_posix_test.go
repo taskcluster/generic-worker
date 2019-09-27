@@ -23,16 +23,7 @@ func helloGoodbye() [][]string {
 }
 
 func rawHelloGoodbye() string {
-	return `"command": [
-    [
-      "echo",
-      "hello world!"
-    ],
-    [
-      "echo",
-      "goodbye world!"
-    ]
-  ]`
+	return `["echo", "hello world!"], ["echo", "goodbye world!"]`
 }
 
 func checkSHASums() [][]string {
@@ -133,6 +124,10 @@ func copyTestdataFile(path string) [][]string {
 	return copyTestdataFileTo(path, path)
 }
 
+func rawCopyTestdataFile(path string) string {
+	return rawCopyTestdataFileTo(path, path)
+}
+
 func copyTestdataFileTo(src, dest string) [][]string {
 	sourcePath := filepath.Join(testdataDir, src)
 	return [][]string{
@@ -147,6 +142,22 @@ func copyTestdataFileTo(src, dest string) [][]string {
 			dest,
 		},
 	}
+}
+
+func rawCopyTestdataFileTo(src, dest string) string {
+	sourcePath := filepath.Join(testdataDir, src)
+	return `"command": [
+    [
+      "mkdir",
+      "-p",
+      "`+ filepath.Dir(dest) +`"
+    ],
+    [
+      "cp",
+      "`+ sourcePath +`",
+      "`+ dest +`"
+    ]
+  ]`
 }
 
 func singleCommandNoArgs(command string) [][]string {

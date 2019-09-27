@@ -163,6 +163,7 @@ properties:
 
             Note, setting `contentEncoding` on a directory artifact will apply the same content
             encoding to all the files contained in the directory.
+
             Since: generic-worker 16.2.0
       required:
       - type

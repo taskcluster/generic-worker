@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 	"encoding/json"
+	"io/ioutil"
+	"strings"
 
 	"github.com/taskcluster/slugid-go/slugid"
 	tcclient "github.com/taskcluster/taskcluster-client-go"
@@ -609,21 +611,12 @@ func TestInvalidContentEncoding(t *testing.T) {
 	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
 
 	command := helloGoodbye()
-	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
 	command = append(command, copyTestdataFile("SampleArtifacts/_/X.txt")...)
 
 	payload := GenericWorkerPayload{
 		Command:	command,
 		MaxRunTime:	30,
 		Artifacts:	[]Artifact{
-			{
-				Path:			"SampleArtifacts/b/c/d.jpg",
-				Expires:		expires,
-				Type:			"file",
-				Name:			"public/b/c/d.jpg",
-				ContentType:		"image/jpeg",
-				ContentEncoding:	"jpg",
-			},
 			{
 				Path:			"SampleArtifacts/_/X.txt",
 				Expires:		expires,
@@ -637,6 +630,54 @@ func TestInvalidContentEncoding(t *testing.T) {
 	td := testTask(t)
 
 	_ = submitAndAssert(t, td, payload, "exception", "malformed-payload")
+
+	// check log mentions contentEncoding invalid
+	bytes, err := ioutil.ReadFile(filepath.Join(taskContext.TaskDir, logPath))
+	if err != nil {
+		t.Fatalf("Error when trying to read log file: %v", err)
+	}
+	logtext := string(bytes)
+	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
+	}
+}
+
+func TestInvalidContentEncodingBlacklisted(t *testing.T) {
+
+	defer setup(t)()
+
+	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
+
+	command := helloGoodbye()
+	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
+
+	payload := GenericWorkerPayload{
+		Command:	command,
+		MaxRunTime:	30,
+		Artifacts:	[]Artifact{
+			{
+				Path:			"SampleArtifacts/b/c/d.jpg",
+				Expires:		expires,
+				Type:			"file",
+				Name:			"public/b/c/d.jpg",
+				ContentType:		"image/jpeg",
+				ContentEncoding:	"jpg",
+			},
+		},
+	}
+	td := testTask(t)
+
+	_ = submitAndAssert(t, td, payload, "exception", "malformed-payload")
+
+	// check log mentions contentEncoding invalid
+	bytes, err := ioutil.ReadFile(filepath.Join(taskContext.TaskDir, logPath))
+	if err != nil {
+		t.Fatalf("Error when trying to read log file: %v", err)
+	}
+	logtext := string(bytes)
+	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
+	}
 }
 
 func TestMissingContentEncoding(t *testing.T){
@@ -647,12 +688,7 @@ func TestMissingContentEncoding(t *testing.T){
 	td.Payload = json.RawMessage(`
 {
   "command": [
-    [
-      "hello world!",
-      "echo goodbye world!",
-      "if not exist \"SampleArtifacts\\b\\c\" mkdir \"SampleArtifacts\\b\\c\"",
-      "copy \"Z:\\task_1569505291\\gopath1.10.8\\src\\github.com\\taskcluster\\generic-worker\\testdata\\SampleArtifacts\\b\\c\\d.jpg\" \"SampleArtifacts\\b\\c\\d.jpg\""
-    ]
+    [`+ rawHelloGoodbye() + `,` + rawCopyTestdataFile("SampleArtifacts/b/c/d.jpg") + `]
   ],
   "maxRunTime": 30,
   "artifacts": [
@@ -661,11 +697,21 @@ func TestMissingContentEncoding(t *testing.T){
       "expires": "` + tcclient.Time(time.Now().Add(time.Minute * 30)).String() + `",
       "type": "file",
       "name": "public/b/c/d.jpg",
-      "ContentType": "image/jpeg",
-      "ContentEncoding": ""
+      "contentType": "image/jpeg",
+      "contentEncoding": ""
     }
   ]
 }`)
 
 	_ = submitAndAssert(t, td, GenericWorkerPayload{}, "exception", "malformed-payload")
+
+	// check log mentions contentEncoding invalid
+	bytes, err := ioutil.ReadFile(filepath.Join(taskContext.TaskDir, logPath))
+	if err != nil {
+		t.Fatalf("Error when trying to read log file: %v", err)
+	}
+	logtext := string(bytes)
+	if !strings.Contains(logtext, "akjfhaslkdjfhadsdkfjhadskfjhasdfkhasgkjhsglqiuhfkjvbaöguhWEÖJBVALIUQÖVKJBaöfvbb") {
+		t.Fatalf("Was expecting log file to explain that contentEncoding was invalid, but it doesn't: \n%v", logtext)
+	}
 }
