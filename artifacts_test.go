@@ -611,7 +611,6 @@ func TestInvalidContentEncoding(t *testing.T) {
 	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
 
 	command := helloGoodbye()
-	command = append(command, copyTestdataFile("SampleArtifacts/_/X.txt")...)
 
 	payload := GenericWorkerPayload{
 		Command:	command,
@@ -649,7 +648,6 @@ func TestInvalidContentEncodingBlacklisted(t *testing.T) {
 	expires := tcclient.Time(time.Now().Add(time.Minute * 30))
 
 	command := helloGoodbye()
-	command = append(command, copyTestdataFile("SampleArtifacts/b/c/d.jpg")...)
 
 	payload := GenericWorkerPayload{
 		Command:	command,
@@ -687,9 +685,7 @@ func TestMissingContentEncoding(t *testing.T){
 	td := testTask(t)
 	td.Payload = json.RawMessage(`
 {
-  "command": [
-    [`+ rawHelloGoodbye() + `,` + rawCopyTestdataFile("SampleArtifacts/b/c/d.jpg") + `]
-  ],
+  "command": [`+ rawHelloGoodbye() +`],
   "maxRunTime": 30,
   "artifacts": [
     {

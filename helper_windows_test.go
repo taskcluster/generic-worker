@@ -101,10 +101,6 @@ func copyTestdataFile(path string) []string {
 	return copyTestdataFileTo(path, path)
 }
 
-func rawCopyTestdataFile(path string) string {
-	return rawCopyTestdataFileTo(path, path)
-}
-
 func copyTestdataFileTo(src, dest string) []string {
 	destFile := strings.Replace(dest, "/", "\\", -1)
 	sourceFile := filepath.Join(testdataDir, strings.Replace(src, "/", "\\", -1))
@@ -112,12 +108,6 @@ func copyTestdataFileTo(src, dest string) []string {
 		"if not exist \"" + filepath.Dir(destFile) + "\" mkdir \"" + filepath.Dir(destFile) + "\"",
 		"copy \"" + sourceFile + "\" \"" + destFile + "\"",
 	}
-}
-
-func rawCopyTestdataFileTo(src, dest string) string {
-	destFile := strings.Replace(dest, "/", "\\", -1)
-	sourceFile := filepath.Join(testdataDir, strings.Replace(src, "/", "\\", -1))
-	return `"if not exist \"`+ filepath.Dir(destFile) +`\" mkdir \"`+ filepath.Dir(destFile) +`\"", "copy \"`+ sourceFile +`\" \"`+ destFile +`\""`
 }
 
 func singleCommandNoArgs(command string) []string {
