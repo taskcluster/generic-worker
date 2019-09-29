@@ -678,7 +678,7 @@ func TestInvalidContentEncodingBlacklisted(t *testing.T) {
 	}
 }
 
-func TestMissingContentEncoding(t *testing.T){
+func TestEmptyContentEncoding(t *testing.T){
 
 	defer setup(t)()
 
