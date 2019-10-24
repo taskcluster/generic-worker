@@ -2,39 +2,42 @@
 version: 1
 policy:
   pullRequest: public
-# Top level metadata is always required
-#metadata:
-#  name: Taskcluster Generic Worker Tests
-#  description: These tests should ensure that any new commits against generic worker codebase are tested across all supported worker types in gekco.
-#  owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-#  source: ${event.head.repo.url}  # the repo where the pr came from will be inserted here
+
+##############
+# Taskcluster Generic Worker Tests
+#
+# These tests should ensure that any new commits against generic worker
+# codebase are tested across all supported worker types in gecko.
+# 
+##############
+
 tasks:
   $let:
     owner: "taskcluster-internal@mozilla.com" # the user who sent the pr/push e-mail will be inserted here
-    repo:
+    repository:
       $if: 'tasks_for == "github-pull_request" && event["action"] in ["opened", "synchronize"]'
-      then:
-        url: ${event.pull_request.head.repo.clone_url}
-        ref: ${event.pull_request.head.ref}
-        after: ${event.pull_request.head.sha}
-      else:
-        url: ${event.repository.clone_url}
-        ref: ${event.ref}
-        after: ${event.after}
-
+      then: ${event.pull_request.head.repo.clone_url}
+      else: ${event.repository.clone_url}
+    ref:
+      $if: 'tasks_for == "github-pull_request" && event["action"] in ["opened", "synchronize"]'
+      then: ${event.pull_request.head.ref}
+      else: ${event.ref}
+    after:
+      $if: 'tasks_for == "github-pull_request" && event["action"] in ["opened", "synchronize"]'
+      then: ${event.pull_request.head.sha}
+      else: ${event.after}
   in:
     ##########################################################
     ######### Windows Server 2012 R2 Multiuser Build #########
     ##########################################################
     - provisionerId: pmoore-test
       workerType: win2012r2-cu
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: Build/test 64 bit generic-worker (multiuser engine) on Windows Server 2012 R2
         description: This builds and tests the 64 bit Windows version of generic-worker (multiuser engine) on Windows Server 2012 R2
         owner: ${owner} #the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url}  # the repo where the pr came from will be inserted here
+        source: ${repository}  # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -42,75 +45,75 @@ tasks:
         features:
           taskclusterProxy: true
         maxRunTime: 3600
-      command:
-        - >-
-          C:\cygwin\bin\wget.exe -q -O-
-          %TASKCLUSTER_PROXY_URL%/secrets/v1/secret/repo:github.com/taskcluster/generic-worker
-          | C:\cygwin\bin\sed.exe -n 's/.*"b64_encoded_credentials_batch_script":
-          "\(.*\)".*/\1/p' | C:\cygwin\bin\base64.exe -d > tc-creds.bat
-        - call tc-creds.bat 2>&1
-        - set CGO_ENABLED=0
-        - set GOPATH=%CD%\gopath1.10.8
-        - set GOROOT=%CD%\go1.10.8\go
-        - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
-        - git config --global core.autocrlf false
-        - go version
-        - go env
-        - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
-        - 'cd "%GOPATH%\src\github.com\taskcluster"'
-        - 'if not exist generic-worker git clone ${repo.url} generic-worker'
-        - 'cd generic-worker'
-        - 'git fetch ${repo.url} "+${repo.ref}:refs/heads/X%TASK_ID%"'
-        - 'git checkout -f "X%TASK_ID%"'
-        - 'git reset --hard ${repo.after} '
-        - 'git clean -fdx'
-        - 'git checkout -B tmp -t "X%TASK_ID%"'
-        - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
-        - cd gw-codegen
-        - go get -v
-        - cd ..
-        - go generate
-        - |
-          :: this counts the number of lines returned by git status
-          :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
-          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
-          set /P lines=<..\tmp1.txt
-          :: this checks that if more than 0 lines are returned, we fail
-          if %lines% gtr 0 exit /b 64
-          :: find.exe will have exited with exit code 1, so need to explicitly exit with 0
-          exit /b 0
-        - git rev-parse HEAD > revision.txt
-        - set /p revision=< revision.txt
-        - go install -tags multiuser -v -ldflags "-X main.revision=%revision%" ./...
-        - set CGO_ENABLED=1
-        - set GORACE=history_size=7
-        - copy "%TASK_USER_CREDENTIALS%" "%CD%\next-task-user.json"
-        # We must set here since this worker does not have a Z: drive
-        - set GW_SKIP_Z_DRIVE_TESTS=true
-        - 'go test -tags multiuser -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race ./...'
-        - set GW_TESTS_RUN_AS_CURRENT_USER=true
-        - 'go test -tags multiuser -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race'
-        - ineffassign .
-      artifacts:
-        - name: public/build/generic-worker-windows-amd64.exe
-          path: gopath1.10.8\bin\generic-worker.exe
-          expires: {
-              $fromNow: "2 weeks"
-            }
-          type: file
-      mounts:
-        - cacheName: generic-worker-checkout
-          directory: gopath1.10.8\src
-        - content:
-            url: https://storage.googleapis.com/golang/go1.10.8.windows-amd64.zip
-            sha256: ab63b55c349f75cce4b93aefa9b52828f50ebafb302da5057db0e686d7873d7a
-          directory: go1.10.8
-          format: zip
-        - content:
-            url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
-            sha256: 65c12e4959b8874187b68ec37e532fe7fc526e10f6f0f29e699fa1d2449e7d92
-          directory: git
-          format: zip
+        command:
+          - >-
+            C:\cygwin\bin\wget.exe -q -O-
+            %TASKCLUSTER_PROXY_URL%/secrets/v1/secret/repo:github.com/taskcluster/generic-worker
+            | C:\cygwin\bin\sed.exe -n 's/.*"b64_encoded_credentials_batch_script":
+            "\(.*\)".*/\1/p' | C:\cygwin\bin\base64.exe -d > tc-creds.bat
+          - call tc-creds.bat 2>&1
+          - set CGO_ENABLED=0
+          - set GOPATH=%CD%\gopath1.10.8
+          - set GOROOT=%CD%\go1.10.8\go
+          - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
+          - git config --global core.autocrlf false
+          - go version
+          - go env
+          - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
+          - 'cd "%GOPATH%\src\github.com\taskcluster"'
+          - 'if not exist generic-worker git clone ${repository} generic-worker'
+          - 'cd generic-worker'
+          - 'git fetch ${repository} "+${ref}:refs/heads/X%TASK_ID%"'
+          - 'git checkout -f "X%TASK_ID%"'
+          - 'git reset --hard ${after} '
+          - 'git clean -fdx'
+          - 'git checkout -B tmp -t "X%TASK_ID%"'
+          - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
+          - cd gw-codegen
+          - go get -v
+          - cd ..
+          - go generate
+          - |
+            :: this counts the number of lines returned by git status
+            :: dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
+            git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
+            set /P lines=<..\tmp1.txt
+            :: this checks that if more than 0 lines are returned, we fail
+            if %lines% gtr 0 exit /b 64
+            :: find.exe will have exited with exit code 1, so need to explicitly exit with 0
+            exit /b 0
+          - git rev-parse HEAD > revision.txt
+          - set /p revision=< revision.txt
+          - go install -tags multiuser -v -ldflags "-X main.revision=%revision%" ./...
+          - set CGO_ENABLED=1
+          - set GORACE=history_size=7
+          - copy "%TASK_USER_CREDENTIALS%" "%CD%\next-task-user.json"
+          # We must set here since this worker does not have a Z: drive
+          - set GW_SKIP_Z_DRIVE_TESTS=true
+          - 'go test -tags multiuser -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race ./...'
+          - set GW_TESTS_RUN_AS_CURRENT_USER=true
+          - 'go test -tags multiuser -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%revision%" -v -race'
+          - ineffassign .
+        artifacts:
+          - name: public/build/generic-worker-windows-amd64.exe
+            path: gopath1.10.8\bin\generic-worker.exe
+            expires: {
+                $fromNow: "2 weeks"
+              }
+            type: file
+        mounts:
+          - cacheName: generic-worker-checkout
+            directory: gopath1.10.8\src
+          - content:
+              url: https://storage.googleapis.com/golang/go1.10.8.windows-amd64.zip
+              sha256: ab63b55c349f75cce4b93aefa9b52828f50ebafb302da5057db0e686d7873d7a
+            directory: go1.10.8
+            format: zip
+          - content:
+              url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
+              sha256: 65c12e4959b8874187b68ec37e532fe7fc526e10f6f0f29e699fa1d2449e7d92
+            directory: git
+            format: zip
 
 
     ##########################################################
@@ -119,13 +122,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gecko-t-win7-32-cu
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 32 bit generic-worker (multiuser engine) on Windows 7"
         description: "This builds and tests the 32 bit Windows version of generic-worker (multiuser engine) on Windows 7"
         owner: ${owner}  # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url}   # the repo where the pr came from will be inserted here
+        source: ${repository}   # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -155,11 +157,11 @@ tasks:
           - go env
           - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
           - 'cd "%GOPATH%\src\github.com\taskcluster"'
-          - 'if not exist generic-worker git clone ${repo.url}  generic-worker'
+          - 'if not exist generic-worker git clone ${repository}  generic-worker'
           - 'cd generic-worker'
-          - 'git fetch ${repo.url}  "+${repo.ref} :refs/heads/X%TASK_ID%"'
+          - 'git fetch ${repository}  "+${ref} :refs/heads/X%TASK_ID%"'
           - 'git checkout -f "X%TASK_ID%"'
-          - 'git reset --hard ${repo.after} '
+          - 'git reset --hard ${after} '
           - 'git clean -fdx'
           - 'git checkout -B tmp -t "X%TASK_ID%"'
           - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -167,7 +169,7 @@ tasks:
           - go get -v
           - cd ..
           - go generate
-          - set revision=${repo.after} 
+          - set revision=${after}
           - go install -tags multiuser -v -ldflags "-X main.revision=%revision%" ./...
           - set GORACE=history_size=7
           - copy "%TASK_USER_CREDENTIALS%" "%CD%\next-task-user.json"
@@ -205,13 +207,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gecko-t-win10-64-cu
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 64 bit generic-worker (multiuser engine) on Windows 10"
         description: "This builds and tests the 64 bit Windows version of generic-worker (multiuser engine) on Windows 10"
         owner: ${owner}  # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url}   # the repo where the pr came from will be inserted here
+        source: ${repository}   # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -236,11 +237,11 @@ tasks:
           - go env
           - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
           - 'cd "%GOPATH%\src\github.com\taskcluster"'
-          - 'if not exist generic-worker git clone ${repo.url}  generic-worker'
+          - 'if not exist generic-worker git clone ${repository}  generic-worker'
           - 'cd generic-worker'
-          - 'git fetch ${repo.url}  "+${repo.ref} :refs/heads/X%TASK_ID%"'
+          - 'git fetch ${repository}  "+${ref} :refs/heads/X%TASK_ID%"'
           - 'git checkout -f "X%TASK_ID%"'
-          - 'git reset --hard ${repo.after} '
+          - 'git reset --hard ${after} '
           - 'git clean -fdx'
           - 'git checkout -B tmp -t "X%TASK_ID%"'
           - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -259,11 +260,11 @@ tasks:
             source tc-creds.sh
             mkdir -p "${GOPATH}/src/github.com/taskcluster"
             cd "${GOPATH}/src/github.com/taskcluster"
-            if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+            if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
             cd 'generic-worker'
-            git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+            git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
             git checkout -f "X${TASK_ID}"
-            git reset --hard '${repo.after}'
+            git reset --hard '${after}'
             git clean -fdx
             git checkout -B tmp -t "X${TASK_ID}"
             go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -276,19 +277,19 @@ tasks:
             test $(git status --porcelain | wc -l) == 0
             GORACE=history_size=7 CGO_ENABLED=1 go test -tags simple -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=$(git rev-parse HEAD)" -v -race ./...
             ineffassign .
-      artifacts:
-        - name: public/build/generic-worker-darwin-amd64
-          path: gopath1.10.8/bin/generic-worker
-          expires: {$fromNow: "2 weeks"}
-          type: file
-      mounts:
-#       - cacheName: generic-worker-checkout
-#         directory: gopath1.10.8/src
-        - content:
-            url: https://storage.googleapis.com/golang/go1.10.8.darwin-amd64.tar.gz
-            sha256: f41bc914a721ac98a187df824b3b40f0a7f35bfb3c6d31221bdd940d537d3c28
-          directory: go1.10.8
-          format: tar.gz
+        artifacts:
+          - name: public/build/generic-worker-darwin-amd64
+            path: gopath1.10.8/bin/generic-worker
+            expires: {$fromNow: "2 weeks"}
+            type: file
+        mounts:
+  #       - cacheName: generic-worker-checkout
+  #         directory: gopath1.10.8/src
+          - content:
+              url: https://storage.googleapis.com/golang/go1.10.8.darwin-amd64.tar.gz
+              sha256: f41bc914a721ac98a187df824b3b40f0a7f35bfb3c6d31221bdd940d537d3c28
+            directory: go1.10.8
+            format: tar.gz
 
 
   ##########################################################
@@ -297,13 +298,12 @@ tasks:
 
     - provisionerId: pmoore-manual
       workerType: mac-os-x
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 64 bit generic-worker (multiuser engine) on macOS Mojave 10.14"
         description: "This builds the 64 bit macOS version of generic-worker (multiuser engine)"
         owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url} # the repo where the pr came from will be inserted here
+        source: ${repository} # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -326,11 +326,11 @@ tasks:
               source tc-creds.sh
               mkdir -p "${GOPATH}/src/github.com/taskcluster"
               cd "${GOPATH}/src/github.com/taskcluster"
-              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
               cd 'generic-worker'
-              git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+              git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
               git checkout -f "X${TASK_ID}"
-              git reset --hard '${repo.after}'
+              git reset --hard '${after}'
               git clean -fdx
               git checkout -B tmp -t "X${TASK_ID}"
               go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -378,7 +378,7 @@ tasks:
     #     name: "Build/test ARM6 generic-worker (simple engine) on Linux (Raspberry Pi)"
     #     description: "This builds the ARM6 Linux version of generic-worker (simple engine)"
     #     owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-    #     source: ${repo.url} # the repo where the pr came from will be inserted here
+    #     source: ${repository} # the repo where the pr came from will be inserted here
     #   scopes:
     #     - generic-worker:cache:generic-worker-checkout
     #     - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -401,11 +401,11 @@ tasks:
     #           source tc-creds.sh
     #           mkdir -p "${GOPATH}/src/github.com/taskcluster"
     #           cd "${GOPATH}/src/github.com/taskcluster"
-    #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+    #           if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
     #           cd 'generic-worker'
-    #           git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+    #           git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
     #           git checkout -f "X${TASK_ID}"
-    #           git reset --hard '${repo.after}'
+    #           git reset --hard '${after}'
     #           git clean -fdx
     #           git checkout -B tmp -t "X${TASK_ID}"
     #           go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -438,13 +438,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gwci-linux
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 64 bit generic-worker (multiuser engine) on Ubuntu 17.04 VM"
         description: "This builds the 64 bit linux version of generic-worker (multiuser engine)"
         owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url} # the repo where the pr came from will be inserted here
+        source: ${repository} # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -467,11 +466,11 @@ tasks:
               source tc-creds.sh
               mkdir -p "${GOPATH}/src/github.com/taskcluster"
               cd "${GOPATH}/src/github.com/taskcluster"
-              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
               cd 'generic-worker'
-              git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+              git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
               git checkout -f "X${TASK_ID}"
-              git reset --hard '${repo.after}'
+              git reset --hard '${after}'
               git clean -fdx
               git checkout -B tmp -t "X${TASK_ID}"
               go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -508,13 +507,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gwci-linux
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 64 bit generic-worker (simple engine) on Ubuntu 17.04 VM"
         description: "This builds the 64 bit linux version of generic-worker (simple engine)"
         owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url} # the repo where the pr came from will be inserted here
+        source: ${repository} # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -537,11 +535,11 @@ tasks:
               source tc-creds.sh
               mkdir -p "${GOPATH}/src/github.com/taskcluster"
               cd "${GOPATH}/src/github.com/taskcluster"
-              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
               cd 'generic-worker'
-              git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+              git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
               git checkout -f "X${TASK_ID}"
-              git reset --hard '${repo.after}'
+              git reset --hard '${after}'
               git clean -fdx
               git checkout -B tmp -t "X${TASK_ID}"
               go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -574,13 +572,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gwci-linux
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Build/test 64 bit generic-worker (docker engine) on Ubuntu 17.04 VM"
         description: "This builds the 64 bit linux version of generic-worker (docker engine)"
         owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url} # the repo where the pr came from will be inserted here
+        source: ${repository} # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
         - secrets:get:repo:github.com/taskcluster/generic-worker
@@ -603,11 +600,11 @@ tasks:
               source tc-creds.sh
               mkdir -p "${GOPATH}/src/github.com/taskcluster"
               cd "${GOPATH}/src/github.com/taskcluster"
-              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
               cd 'generic-worker'
-              git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+              git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
               git checkout -f "X${TASK_ID}"
-              git reset --hard '${repo.after}'
+              git reset --hard '${after}'
               git clean -fdx
               git checkout -B tmp -t "X${TASK_ID}"
               go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
@@ -640,13 +637,12 @@ tasks:
 
     - provisionerId: aws-provisioner-v1
       workerType: gwci-linux
-      created: {$fromNow: ""}
       deadline: {$fromNow: "24 hours"}
       metadata:
         name: "Run 'dep check' to ensure dependencies are up to date"
         description: "Run 'dep check' to ensure dependencies are up to date"
         owner: ${owner} # the user who sent the pr/push e-mail will be inserted here
-        source: ${repo.url} # the repo where the pr came from will be inserted here
+        source: ${repository} # the repo where the pr came from will be inserted here
       scopes:
         - generic-worker:cache:generic-worker-checkout
       payload:
@@ -663,11 +659,11 @@ tasks:
               go env
               mkdir -p "${GOPATH}/src/github.com/taskcluster"
               cd "${GOPATH}/src/github.com/taskcluster"
-              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repo.url}' 'generic-worker'; fi
+              if [ ! -d generic-worker/.git ]; then rm -rf generic-worker; git clone '${repository}' 'generic-worker'; fi
               cd 'generic-worker'
-              git fetch '${repo.url}' "+${repo.ref}:refs/heads/X${TASK_ID}"
+              git fetch '${repository}' "+${ref}:refs/heads/X${TASK_ID}"
               git checkout -f "X${TASK_ID}"
-              git reset --hard '${repo.after}'
+              git reset --hard '${after}'
               git clean -fdx
               git checkout -B tmp -t "X${TASK_ID}"
               mkdir -p "${GOPATH}/bin"
