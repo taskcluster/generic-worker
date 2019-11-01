@@ -35,7 +35,7 @@ $client.DownloadFile("http://download.microsoft.com/download/A/E/7/AE743F1F-632B
 Install-WindowsFeature NET-Framework-Core
 
 # now run DirectX SDK installer
-Start-Process C:\DXSDK_Jun10.exe -ArgumentList "/U" -wait -NoNewWindow -PassThru -RedirectStandardOutput C:\directx_sdk_install.log -RedirectStandardError C:\directx_sdk_install.err
+Start-Process C:\DXSDK_Jun10.exe -ArgumentList "/U" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\directx_sdk_install.log -RedirectStandardError C:\directx_sdk_install.err
 
 # install rustc dependencies (32 bit)
 $client.DownloadFile("http://download.microsoft.com/download/2/E/6/2E61CFA4-993B-4DD4-91DA-3737CD5CD6E3/vcredist_x86.exe", "C:\vcredist_x86-vs2013.exe")
@@ -82,7 +82,7 @@ Expand-ZIPFile -File "C:\nssm-2.24.zip" -Destination "C:\" -Url "http://www.nssm
 
 # download generic-worker
 md C:\generic-worker
-$client.DownloadFile("https://github.com/taskcluster/generic-worker/releases/download/v16.4.0/generic-worker-multiuser-windows-amd64.exe", "C:\generic-worker\generic-worker.exe")
+$client.DownloadFile("https://github.com/taskcluster/generic-worker/releases/download/v16.5.2/generic-worker-multiuser-windows-amd64.exe", "C:\generic-worker\generic-worker.exe")
 
 # download livelog
 $client.DownloadFile("https://github.com/taskcluster/livelog/releases/download/v1.1.0/livelog-windows-amd64.exe", "C:\generic-worker\livelog.exe")
@@ -97,7 +97,6 @@ Set-Content -Path "C:\Windows\System32\drivers\etc\hosts" -Value $HostsFile_Cont
 
 # install generic-worker
 Start-Process C:\generic-worker\generic-worker.exe -ArgumentList "install service --configure-for-%MY_CLOUD% --nssm C:\nssm-2.24\win64\nssm.exe --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\generic-worker\install.log -RedirectStandardError C:\generic-worker\install.err
-# Start-Process C:\generic-worker\generic-worker.exe -ArgumentList "install startup --config C:\generic-worker\generic-worker.config" -Wait -NoNewWindow -PassThru -RedirectStandardOutput C:\generic-worker\install.log -RedirectStandardError C:\generic-worker\install.err
 
 # initial clone of mozilla-central
 # Start-Process "C:\mozilla-build\python\python.exe" -ArgumentList "C:\mozilla-build\python\Scripts\hg clone -u null https://hg.mozilla.org/mozilla-central C:\gecko" -Wait -NoNewWindow -PassThru -RedirectStandardOutput "C:\hg_initial_clone.log" -RedirectStandardError "C:\hg_initial_clone.err"
@@ -196,6 +195,15 @@ Expand-ZIPFile -File "C:\ProcessExplorer.zip" -Destination "C:\ProcessExplorer" 
 # install ProcessMonitor (useful utility for troubleshooting, not required)
 md "C:\ProcessMonitor"
 Expand-ZIPFile -File "C:\ProcessMonitor.zip" -Destination "C:\ProcessMonitor" -Url "https://download.sysinternals.com/files/ProcessMonitor.zip"
+
+# Download and install Unity and Visual Studio.
+$client.DownloadFile("https://beta.unity3d.com/download/b073d123dd5d/Windows64EditorInstaller/UnitySetup64.exe", "UnitySetup64.exe")
+$client.DownloadFile("https://beta.unity3d.com/download/b073d123dd5d/TargetSupportInstaller/UnitySetup-Windows-IL2CPP-Support-for-Editor-2019.3.0a12.exe", "UnitySetup-Windows-IL2CPP-Support-for-Editor-2019.3.0a12.exe")
+# The Visual Studio download page  https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=16 generates the download URL via Javascript.
+$client.DownloadFile("https://download.visualstudio.microsoft.com/download/pr/f4e14058-49e0-457c-b3cf-f14e6f2f073e/7ba06b42c1d24060787dc2e7171e08ad964e47eccb30dabbfd791d56d086fca2/vs_Community.exe", "vs_Community.exe")
+Start-Process -Wait -FilePath "UnitySetup64.exe" -ArgumentList "-UI=reduced /D=C:\Program Files\Unity"
+Start-Process -Wait -FilePath "UnitySetup-Windows-IL2CPP-Support-for-Editor-2019.3.0a12.exe" -ArgumentList "/S /D=C:\Program Files\Unity"
+Start-Process -Wait -FilePath "vs_community.exe" -ArgumentList "--productId `"Microsoft.VisualStudio.Product.Community`" --add `"Microsoft.VisualStudio.Workload.ManagedGame`" --add `"Microsoft.VisualStudio.Workload.NativeDesktop`" --add `"Microsoft.VisualStudio.Component.VC.Tools.x86.x64`" --add `"Microsoft.VisualStudio.Component.Windows10SDK.16299.Desktop`" --add `"Microsoft.VisualStudio.Component.Git`" --passive --norestart --wait"
 
 # now shutdown, in preparation for creating an image
 # Stop-Computer isn't working, also not when specifying -AsJob, so reverting to using `shutdown` command instead

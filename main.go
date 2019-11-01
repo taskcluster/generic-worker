@@ -71,7 +71,7 @@ var (
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
 
-	version  = "16.4.0"
+	version  = "16.5.2"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 )
 
@@ -236,6 +236,7 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			TaskclusterProxyPort:           80,
 			TasksDir:                       defaultTasksDir(),
 			WorkerGroup:                    "test-worker-group",
+			WorkerLocation:                 "",
 			WorkerManagerBaseURL:           "",
 			WorkerTypeMetadata:             map[string]interface{}{},
 		},

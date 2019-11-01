@@ -1,10 +1,13 @@
 #!/bin/bash -e
 
 ######
-# This script allows you to test a new generic-worker Windows release on
-# gecko try. It deploys your chosen generic-worker release to a set of
-# staging worker types that are created for this purpose, in order not
-# to impact other worker types while testing a generic-worker release.
+# This script allows you to test a new generic-worker Windows release on gecko
+# try, or to release to production if the push went well. By default it deploys
+# your chosen generic-worker release to a set of staging worker types that are
+# created for this purpose, in order not to impact other worker types while
+# testing a generic-worker release. However, with the -p option you can either
+# deploy directly to production in OCC, or to an OCC branch in order to create
+# a PR for the production deployment.
 #
 # TODO: this should be rewritten as e.g. a go program, to reduce number
 # of system dependencies (e.g. bash, curl, jq, grep, sleep, ...).
@@ -33,7 +36,7 @@ ORIG_ARGS="${@}"
 while getopts ":pb:" opt; do
   case "${opt}" in
     p) DEPLOYMENT_ENVIRONMENT=PRODUCTION
-       MANIFESTS='gecko-1-b-win2012.json gecko-2-b-win2012.json gecko-3-b-win2012.json gecko-t-win7-32.json gecko-t-win7-32-gpu.json gecko-t-win10-64.json gecko-t-win10-64-gpu.json'
+       MANIFESTS='gecko-1-b-win2012.json gecko-2-b-win2012.json gecko-3-b-win2012.json gecko-t-win7-32.json gecko-t-win7-32-gpu.json gecko-t-win10-64.json gecko-t-win10-64-gpu.json gecko-1-b-win2012-xlarge.json gecko-t-win10-64-gpu-s.json mpd001-1-b-win2012.json mpd001-3-b-win2012.json'
        ;;
     b) BRANCH="${OPTARG}"
        ;;
@@ -46,7 +49,7 @@ NEW_GW_VERSION="${1}"
 NEW_TP_VERSION="${2}"
 
 if [ -z "${NEW_GW_VERSION}" ] || [ -z "${NEW_TP_VERSION}" ]; then
-  echo "Please specify version of generic-worker and taskcluster-proxy to use in gecko try push, e.g. '${0}' [[-p] -b BRANCH] 12.0.0 5.1.0" >&2
+  echo "Please specify version of generic-worker and taskcluster-proxy to use, e.g. '${0}' [[-p] -b BRANCH] 12.0.0 5.1.0" >&2
   exit 64
 fi
 
@@ -81,7 +84,7 @@ echo "Upgrading ${DEPLOYMENT_ENVIRONMENT} worker types..."
 cd "$(dirname "${0}")"
 THIS_SCRIPT_DIR="$(pwd)"
 
-CHECKOUT="$(mktemp -d -t generic-worker-gecko-try.XXXXXXXXXX)"
+CHECKOUT="$(mktemp -d -t generic-worker-push-to-occ.XXXXXXXXXX)"
 cd "${CHECKOUT}"
 
 function add_github {
@@ -130,7 +133,8 @@ cat manifest.tt
 
 git clone git@github.com:mozilla-releng/OpenCloudConfig.git
 cd OpenCloudConfig/userdata/Manifest
-git checkout "${BRANCH}"
+# create branch if it doesn't exist, or just check it out if it does...
+git checkout "${BRANCH}" || git checkout -b "${BRANCH}"
 for MANIFEST in ${MANIFESTS}; do
   cat "${MANIFEST}" > "${MANIFEST}.bak"
   cat "${MANIFEST}.bak" \
@@ -149,17 +153,29 @@ for MANIFEST in ${MANIFESTS}; do
   rm "${MANIFEST}.bak"
 done
 
-DEPLOY="deploy: $(git status --porcelain | sed -n 's/^ M userdata\/Manifest\/\(.*\)\.json$/\1/p' | tr '\n' ' ')"
+WORKER_TYPES="$(git status --porcelain | sed -n 's/^ M userdata\/Manifest\/\(.*\)\.json$/\1/p' | tr '\n' ' ')"
+DEPLOY="deploy: ${WORKER_TYPES}"
 THIS_REV="$(git -C "${THIS_SCRIPT_DIR}" rev-parse HEAD)"
 THIS_FILE="$(git -C "${THIS_SCRIPT_DIR}" ls-files --full-name "$(basename "${0}")")"
 git add .
-git commit -m "Deploying generic-worker ${NEW_GW_VERSION} / taskcluster-proxy ${NEW_TP_VERSION} to *${DEPLOYMENT_ENVIRONMENT}*.
+if "${BRANCH}" == "master" ]; then
+  git -c "commit.gpgsign=false" commit -m "Deploying generic-worker ${NEW_GW_VERSION} / taskcluster-proxy ${NEW_TP_VERSION} to *${DEPLOYMENT_ENVIRONMENT}*.
 
 Commit made with:
-
     ${0} $(echo ${ORIG_ARGS})
 
 See https://github.com/taskcluster/generic-worker/blob/$THIS_REV/$THIS_FILE" -m "${DEPLOY}"
+else
+  git -c "commit.gpgsign=false" commit -m "Upgrade to generic-worker ${NEW_GW_VERSION} / taskcluster-proxy ${NEW_TP_VERSION}.
+ 
+This change updates worker types:
+  ${WORKER_TYPES}
+
+Commit made with:
+    ${0} $(echo ${ORIG_ARGS})
+
+See https://github.com/taskcluster/generic-worker/blob/$THIS_REV/$THIS_FILE"
+fi
 OCC_COMMIT="$(git rev-parse HEAD)"
 git push origin "${BRANCH}"
 
