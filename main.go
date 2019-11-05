@@ -202,6 +202,25 @@ func main() {
 	}
 }
 
+func loadConfigFile(configData []byte, filename string, c *gwconfig.Config) (*gwconfig.Config, error) {
+	buffer := bytes.NewBuffer(configData)
+	decoder := json.NewDecoder(buffer)
+	decoder.DisallowUnknownFields()
+	var newConfig gwconfig.Config
+	err := decoder.Decode(&newConfig)
+	if err != nil {
+		// An error here is serious - it means the file existed but was invalid
+		return c, fmt.Errorf("Error unmarshaling generic worker config file %v as JSON: %v", filename, err)
+	}
+	err = c.MergeInJSON(configData, func(a map[string]interface{}) map[string]interface{} {
+		return a
+	})
+	if err != nil {
+		return c, fmt.Errorf("Error overlaying config file %v on top of defaults: %v", filename, err)
+	}
+	return c, nil
+}
+
 func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (*gwconfig.Config, error) {
 	// TODO: would be better to have a json schema, and also define defaults in
 	// only one place if possible (defaults also declared in `usage`)
@@ -279,20 +298,9 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			return nil, fmt.Errorf("FATAL: problem retrieving config/secrets from aws/gcp: %v", err)
 		}
 	} else {
-		buffer := bytes.NewBuffer(configData)
-		decoder := json.NewDecoder(buffer)
-		decoder.DisallowUnknownFields()
-		var newConfig gwconfig.Config
-		err = decoder.Decode(&newConfig)
+		c, err = loadConfigFile(configData, configFileAbs, c)
 		if err != nil {
-			// An error here is serious - it means the file existed but was invalid
-			return c, fmt.Errorf("Error unmarshaling generic worker config file %v as JSON: %v", configFileAbs, err)
-		}
-		err = c.MergeInJSON(configData, func(a map[string]interface{}) map[string]interface{} {
-			return a
-		})
-		if err != nil {
-			return c, fmt.Errorf("Error overlaying config file %v on top of defaults: %v", configFileAbs, err)
+			return c, err
 		}
 	}
 
