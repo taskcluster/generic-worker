@@ -30,7 +30,7 @@ the taskcluster component that executes tasks. It requests tasks from the taskcl
 and reports back results to the queue.
 
   Usage:
-    generic-worker run                      [--config         CONFIG-FILE]
+    generic-worker run                      [--config         CONFIG-FILE] [--config-defaults CONFIG-FILE]
                                             [--configure-for-aws | --configure-for-gcp]` + installServiceSummary() + `
     generic-worker show-payload-schema
     generic-worker new-ed25519-keypair      --file ED25519-PRIVATE-KEY-FILE` + customTargetsSummary() + `
@@ -58,6 +58,8 @@ and reports back results to the queue.
                                             installation should use, rather than the config
                                             to use during install.
                                             [default: generic-worker.config]
+    --config-defaults CONFIG-FILE           Default JSON configuration file to use. The settings
+                                            here will be overridden by --config or --configure-for-*.
     --configure-for-aws                     Use this option when installing or running a worker
                                             that is spawned by the AWS provisioner. It will cause
                                             the worker to query the EC2 metadata service when it

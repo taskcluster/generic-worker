@@ -122,7 +122,7 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 		t.Log("HTTP server for mock Provisioner and GCP metadata endpoints stopped")
 	}()
 	var err error
-	config, err = loadConfig(filepath.Join(testdataDir, t.Name(), "generic-worker.config"), false, true)
+	config, err = loadConfig(filepath.Join(testdataDir, t.Name(), "generic-worker.config"), "", false, true)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}

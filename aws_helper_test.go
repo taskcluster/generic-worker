@@ -262,7 +262,7 @@ func (m *MockAWSProvisionedEnvironment) Setup(t *testing.T) (teardown func(), er
 		s.ListenAndServe()
 		t.Log("HTTP server for mock Provisioner and EC2 metadata endpoints stopped")
 	}()
-	config, err = loadConfig(filepath.Join(testdataDir, t.Name(), "generic-worker.config"), true, false)
+	config, err = loadConfig(filepath.Join(testdataDir, t.Name(), "generic-worker.config"), "", true, false)
 	return func() {
 		td()
 		err := s.Shutdown(context.Background())

@@ -104,4 +104,3 @@ go get github.com/gordonklaus/ineffassign
 ineffassign .
 
 echo "Build successful!"
-git status

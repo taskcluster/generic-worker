@@ -130,7 +130,8 @@ func main() {
 		configureForAWS = arguments["--configure-for-aws"].(bool)
 		configureForGCP = arguments["--configure-for-gcp"].(bool)
 		configFile = arguments["--config"].(string)
-		config, err = loadConfig(configFile, configureForAWS, configureForGCP)
+		defaultsConfigFile := convertNilToEmptyString(arguments["--config-defaults"])
+		config, err = loadConfig(configFile, defaultsConfigFile, configureForAWS, configureForGCP)
 
 		// We need to persist the generic-worker config file if we fetched it
 		// over the network, for example if the config is fetched from the AWS
@@ -221,7 +222,7 @@ func loadConfigFile(configData []byte, filename string, c *gwconfig.Config) (*gw
 	return c, nil
 }
 
-func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (*gwconfig.Config, error) {
+func loadConfig(filename string, defaultsFilename string, queryAWSUserData bool, queryGCPMetaData bool) (*gwconfig.Config, error) {
 	// TODO: would be better to have a json schema, and also define defaults in
 	// only one place if possible (defaults also declared in `usage`)
 
@@ -272,6 +273,23 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			return "", err
 		}
 		return tempConfig.DeploymentID, nil
+	}
+
+	if defaultsFilename != "" {
+		defaultsConfigFileAbs, err := filepath.Abs(defaultsFilename)
+		if err != nil {
+			return nil, fmt.Errorf("Cannot determine absolute path location for generic-worker default config file '%v': %v", defaultsFilename, err)
+		}
+
+		log.Printf("Loading generic-worker default config file '%v'...", defaultsConfigFileAbs)
+		defaultsConfigData, err := ioutil.ReadFile(defaultsConfigFileAbs)
+		if err != nil {
+			return nil, err
+		}
+		c, err = loadConfigFile(defaultsConfigData, defaultsConfigFileAbs, c)
+		if err != nil {
+			return c, err
+		}
 	}
 
 	configFileAbs, err := filepath.Abs(filename)
