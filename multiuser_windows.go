@@ -222,8 +222,9 @@ func install(arguments map[string]interface{}) (err error) {
 		serviceName := convertNilToEmptyString(arguments["--service-name"])
 		configureForAWS := arguments["--configure-for-aws"].(bool)
 		configureForGCP := arguments["--configure-for-gcp"].(bool)
+		defaultsFilename := convertNilToEmptyString(arguments["--config-defaults"])
 		dir := filepath.Dir(exePath)
-		return deployService(configFile, nssm, serviceName, exePath, dir, configureForAWS, configureForGCP)
+		return deployService(configFile, defaultsFilename, nssm, serviceName, exePath, dir, configureForAWS, configureForGCP)
 	}
 	log.Fatal("Unknown install target - only 'service' is allowed")
 	return nil
@@ -387,8 +388,14 @@ func platformTargets(arguments map[string]interface{}) ExitCode {
 	return INTERNAL_ERROR
 }
 
-func CreateRunGenericWorkerBatScript(batScriptFilePath string, configureForAWS bool, configureForGCP bool) error {
+func CreateRunGenericWorkerBatScript(batScriptFilePath, configFile, defaultsConfigFile string, configureForAWS bool, configureForGCP bool) error {
 	runCommand := `.\generic-worker.exe run`
+	if configFile != "" {
+		runCommand += ` --config ` + configFile + ` `
+	}
+	if defaultsConfigFile != "" {
+		runCommand += ` --config-defaults ` + defaultsConfigFile + ` `
+	}
 	if configureForAWS {
 		runCommand += ` --configure-for-aws`
 	}
@@ -425,9 +432,9 @@ func CreateRunGenericWorkerBatScript(batScriptFilePath string, configureForAWS b
 // is required to install the service, specified as a file system path. The
 // serviceName is the service name given to the newly created service. if the
 // service already exists, it is simply updated.
-func deployService(configFile, nssm, serviceName, exePath, dir string, configureForAWS bool, configureForGCP bool) error {
+func deployService(configFile, defaultsConfigFile, nssm, serviceName, exePath, dir string, configureForAWS bool, configureForGCP bool) error {
 	targetScript := filepath.Join(filepath.Dir(exePath), "run-generic-worker.bat")
-	err := CreateRunGenericWorkerBatScript(targetScript, configureForAWS, configureForGCP)
+	err := CreateRunGenericWorkerBatScript(targetScript, configFile, defaultsConfigFile, configureForAWS, configureForGCP)
 	if err != nil {
 		return err
 	}
