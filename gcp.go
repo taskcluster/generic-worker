@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/taskcluster/generic-worker/gwconfig"
@@ -19,12 +20,13 @@ var (
 	GCPMetadataBaseURL = "http://metadata.google.internal/computeMetadata/v1"
 )
 
-type GCPUserData struct {
-	WorkerPoolID string                       `json:"workerPoolId"`
-	ProviderID   string                       `json:"providerId"`
-	WorkerGroup  string                       `json:"workerGroup"`
-	RootURL      string                       `json:"rootURL"`
-	WorkerConfig WorkerTypeDefinitionUserData `json:"workerConfig"`
+type GCPConfigProvider struct {
+}
+
+type GCPWorkerLocation struct {
+	Cloud  string `json:"cloud"`
+	Region string `json:"region"`
+	Zone   string `json:"zone"`
 }
 
 func queryGCPMetaData(client *http.Client, path string) ([]byte, error) {
@@ -44,80 +46,25 @@ func queryGCPMetaData(client *http.Client, path string) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-func updateConfigWithGCPSettings(c *gwconfig.Config) error {
+func (g *GCPConfigProvider) UpdateConfig(c *gwconfig.Config) error {
 	log.Print("Querying GCP Metadata to get default worker type config settings...")
-	// these are just default values, will be overwritten if set in worker type config
-	c.ShutdownMachineOnInternalError = true
-	c.ShutdownMachineOnIdle = true
 
 	client := &http.Client{}
-
-	workerID, err := queryGCPMetaData(client, "/instance/id")
-	if err != nil {
-		return fmt.Errorf("Could not query instance ID: %v", err)
-	}
-	c.WorkerID = string(workerID)
 
 	taskclusterConfig, err := queryGCPMetaData(client, "/instance/attributes/taskcluster")
 	if err != nil {
 		return fmt.Errorf("Could not query taskcluster configuration: %v", err)
 	}
 
-	var userData GCPUserData
-	err = json.Unmarshal(taskclusterConfig, &userData)
+	userData := new(WorkerManagerUserData)
+	err = json.Unmarshal(taskclusterConfig, userData)
 	if err != nil {
 		return err
 	}
 
-	wp := strings.SplitN(userData.WorkerPoolID, "/", -1)
-	if len(wp) != 2 {
-		return fmt.Errorf("Was expecting WorkerPoolID to have syntax <provisionerId>/<workerType> but was %q", userData.WorkerPoolID)
-	}
-
-	c.ProvisionerID = wp[0]
-	c.WorkerType = wp[1]
-	c.WorkerGroup = userData.WorkerGroup
-	c.RootURL = userData.RootURL
-
-	// We need a worker manager client for fetching taskcluster credentials.
-	// Ensure auth is disabled in client, since we don't have credentials yet.
-	wm := c.WorkerManager()
-	wm.Authenticate = false
-	wm.Credentials = nil
-
-	identity, err := queryGCPMetaData(client, "/instance/service-accounts/default/identity?audience="+userData.RootURL+"&format=full")
-	if err != nil {
-		return fmt.Errorf("Could not query google indentity token: %v", err)
-	}
-	providerType := tcworkermanager.GoogleProviderType{
-		Token: string(identity),
-	}
-
-	workerIdentityProof, err := json.Marshal(providerType)
-	if err != nil {
-		return fmt.Errorf("Could not marshal google provider type %#v: %v", providerType, err)
-	}
-
-	reg, err := wm.RegisterWorker(&tcworkermanager.RegisterWorkerRequest{
-		WorkerPoolID:        userData.WorkerPoolID,
-		ProviderID:          userData.ProviderID,
-		WorkerGroup:         userData.WorkerGroup,
-		WorkerID:            c.WorkerID,
-		WorkerIdentityProof: json.RawMessage(workerIdentityProof),
-	})
-
-	if err != nil {
-		return fmt.Errorf("Could not register worker: %v", err)
-	}
-
-	c.AccessToken = reg.Credentials.AccessToken
-	c.Certificate = reg.Credentials.Certificate
-	c.ClientID = reg.Credentials.ClientID
-
-	// TODO: process reg.Expires
-
-	gcpMetadata := map[string]interface{}{}
+	gcpMetadata := map[string]string{}
 	for _, path := range []string{
+		"/project/project-id",
 		"/instance/image",
 		"/instance/id",
 		"/instance/machine-type",
@@ -133,34 +80,56 @@ func updateConfigWithGCPSettings(c *gwconfig.Config) error {
 		}
 		gcpMetadata[key] = string(value)
 	}
+
 	c.WorkerTypeMetadata["gcp"] = gcpMetadata
-	c.WorkerID = gcpMetadata["id"].(string)
-	c.PublicIP = net.ParseIP(gcpMetadata["external-ip"].(string))
-	c.PrivateIP = net.ParseIP(gcpMetadata["ip"].(string))
-	c.InstanceID = gcpMetadata["id"].(string)
-	c.InstanceType = gcpMetadata["machine-type"].(string)
-	c.AvailabilityZone = gcpMetadata["zone"].(string)
+	c.WorkerID = gcpMetadata["id"]
+	c.PublicIP = net.ParseIP(gcpMetadata["external-ip"])
+	c.PrivateIP = net.ParseIP(gcpMetadata["ip"])
+	c.InstanceID = gcpMetadata["id"]
+	c.InstanceType = gcpMetadata["machine-type"]
 
-	// Parse the config before applying it, to ensure that no disallowed fields
-	// are included.
-	_, err = userData.WorkerConfig.PublicHostSetup()
+	// See https://github.com/taskcluster/taskcluster-worker-runner/blob/6b5bbd197eed4be664171a482bf4d8d4f81a21b2/provider/google/google.go#L79-L84
+	c.AvailabilityZone = path.Base(gcpMetadata["zone"])
+	if len(c.AvailabilityZone) < 2 {
+		return fmt.Errorf("GCP availability zone must be at least 2 chars, since region is availability zone minus last two chars. Availability zone %q has only %v chars.", c.AvailabilityZone, len(c.AvailabilityZone))
+	}
+	c.Region = c.AvailabilityZone[:len(c.AvailabilityZone)-2]
+
+	identity, err := queryGCPMetaData(client, "/instance/service-accounts/default/identity?audience="+userData.RootURL+"&format=full")
 	if err != nil {
-		return fmt.Errorf("Error retrieving/interpreting host setup from GCP metadata: %v", err)
+		return fmt.Errorf("Could not query google indentity token: %v", err)
+	}
+	providerType := tcworkermanager.GoogleProviderType{
+		Token: string(identity),
 	}
 
-	err = c.MergeInJSON(userData.WorkerConfig.GenericWorker, func(a map[string]interface{}) map[string]interface{} {
-		if config, exists := a["config"]; exists {
-			return config.(map[string]interface{})
+	err = userData.UpdateConfig(c, providerType)
+	if err != nil {
+		return err
+	}
+
+	// Don't override WorkerLocation if configuration specifies an explicit
+	// value.
+	//
+	// See:
+	//   * https://github.com/taskcluster/taskcluster-rfcs/blob/master/rfcs/0148-taskcluster-worker-location.md
+	//   * https://github.com/taskcluster/taskcluster-worker-runner#google
+	if c.WorkerLocation == "" {
+		workerLocation := &GCPWorkerLocation{
+			Cloud:  "google",
+			Region: c.Region,
+			Zone:   c.AvailabilityZone,
 		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("Error applying /workerConfig/genericWorker/config of workerpool from metadata to config: %v", err)
-	}
 
-	if c.IdleTimeoutSecs == 0 {
-		c.IdleTimeoutSecs = 3600
+		workerLocationJSON, err := json.Marshal(workerLocation)
+		if err != nil {
+			return fmt.Errorf("Error encoding worker location %#v as JSON: %v", workerLocation, err)
+		}
+		c.WorkerLocation = string(workerLocationJSON)
 	}
-
 	return nil
+}
+
+func (g *GCPConfigProvider) NewestDeploymentID() (string, error) {
+	return WMDeploymentID()
 }

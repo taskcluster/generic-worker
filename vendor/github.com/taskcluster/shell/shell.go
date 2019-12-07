@@ -9,6 +9,10 @@ func Escape(tokens ...string) (escaped string) {
 	var escapedToken string
 	escapedTokens := []string{}
 	for _, j := range tokens {
+		if j == "" {
+			escapedTokens = append(escapedTokens, `''`)
+			continue
+		}
 		for _, k := range j {
 			if !strings.ContainsRune(safeChars, k) {
 				goto escape

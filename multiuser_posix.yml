@@ -38,8 +38,16 @@ properties:
       ```
 
       Note, the following environment variables will automatically be set in the task
-      commands:
+      commands, but may be overridden by environment variables in the task payload:
+        * `HOME` - the home directory of the task user
+        * `PATH` - `/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`
+        * `USER` - the name of the task user
+
+      The following environment variables will automatically be set in the task
+      commands, and may not be overridden by environment variables in the task payload:
+        * `DISPLAY` - `:0` (Linux only)
         * `TASK_ID` - the task ID of the currently running task
+        * `RUN_ID` - the run ID of the currently running task
         * `TASKCLUSTER_ROOT_URL` - the root URL of the taskcluster deployment
         * `TASKCLUSTER_PROXY_URL` (if taskcluster proxy feature enabled) - the
            taskcluster authentication proxy for making unauthenticated taskcluster
@@ -49,6 +57,10 @@ properties:
           json file containing the current task OS user account name and password.
           This is only useful for the generic-worker multiuser CI tasks, where
           `runTasksAsCurrentUser` is set to `true`.
+        * `TASKCLUSTER_WORKER_LOCATION` (if running in AWS or GCP or explicitly set
+          in the generic-worker config file). See
+          [RFC #0148](https://github.com/taskcluster/taskcluster-rfcs/blob/master/rfcs/0148-taskcluster-worker-location.md)
+          for details.
 
       Since: generic-worker 0.0.1
     type: object
@@ -132,6 +144,39 @@ properties:
             See [mime.TypeByExtension](https://godoc.org/mime#TypeByExtension).
 
             Since: generic-worker 10.4.0
+        contentEncoding:
+          title: Content-Encoding header when serving artifact over HTTP.
+          type: string
+          enum:
+            - identity
+            - gzip
+          description: |-
+            Content-Encoding for the artifact. If not provided, `gzip` will be used, except for the
+            following file extensions, where `identity` will be used, since they are already
+            compressed:
+
+            * jpg
+            * jpeg
+            * png
+            * gif
+            * webp
+            * 7z
+            * zip
+            * gz
+            * tgz
+            * bz2
+            * tbz
+            * whl
+            * xz
+            * swf
+            * flv
+            * woff
+            * woff2
+
+            Note, setting `contentEncoding` on a directory artifact will apply the same content
+            encoding to all the files contained in the directory.
+
+            Since: generic-worker 16.2.0
       required:
       - type
       - path

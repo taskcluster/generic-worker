@@ -3,7 +3,7 @@
 <img align="right" src="https://avatars3.githubusercontent.com/u/6257436?s=256" /> A generic worker for [taskcluster](https://tools.taskcluster.net/), written in go.
 
 [![Taskcluster CI Status](https://github.taskcluster.net/v1/repository/taskcluster/generic-worker/master/badge.svg)](https://github.taskcluster.net/v1/repository/taskcluster/generic-worker/master/latest)
-[![Linux Build Status](https://img.shields.io/travis/taskcluster/generic-worker.svg?style=flat-square&label=linux+build)](https://travis-ci.org/taskcluster/generic-worker)
+[![Travis CI](https://img.shields.io/travis/taskcluster/generic-worker.svg?style=flat-square&label=travis+ci)](https://travis-ci.org/taskcluster/generic-worker)
 [![GoDoc](https://godoc.org/github.com/taskcluster/generic-worker?status.svg)](https://godoc.org/github.com/taskcluster/generic-worker)
 [![Coverage Status](https://coveralls.io/repos/taskcluster/generic-worker/badge.svg?branch=master&service=github)](https://coveralls.io/github/taskcluster/generic-worker?branch=master)
 [![License](https://img.shields.io/badge/license-MPL%202.0-orange.svg)](http://mozilla.org/MPL/2.0)
@@ -1061,7 +1061,7 @@ Once you have been granted the above scope:
 To see a full description of all the config options available to you, run `generic-worker --help`:
 
 ```
-generic-worker (multiuser engine) 16.1.0
+generic-worker (multiuser engine) 16.5.5
 
 generic-worker is a taskcluster worker that can run on any platform that supports go (golang).
 See http://taskcluster.github.io/generic-worker/ for more details. Essentially, the worker is
@@ -1154,7 +1154,7 @@ and reports back results to the queue.
                                             the worker. The directory will be created if it does
                                             not exist. This may be a relative path to the
                                             current directory, or an absolute path.
-                                            [default: caches]
+                                            [default: "caches"]
           certificate                       Taskcluster certificate, when using temporary
                                             credentials only.
           checkForNewDeploymentEverySecs    The number of seconds between consecutive calls
@@ -1190,7 +1190,7 @@ and reports back results to the queue.
                                             populating preloaded caches and readonly mounts. The
                                             directory will be created if it does not exist. This
                                             may be a relative path to the current directory, or
-                                            an absolute path. [default: downloads]
+                                            an absolute path. [default: "downloads"]
           idleTimeoutSecs                   How many seconds to wait without getting a new
                                             task to perform, before the worker process exits.
                                             An integer, >= 0. A value of 0 means "never reach
@@ -1203,7 +1203,7 @@ and reports back results to the queue.
                                             logs over https. If not set, http will be used.
           livelogExecutable                 Filepath of LiveLog executable to use; see
                                             https://github.com/taskcluster/livelog
-                                            [default: livelog]
+                                            [default: "livelog"]
           livelogGETPort                    Port number for livelog HTTP GET requests.
                                             [default: 60023]
           livelogKey                        SSL key to be used by livelog for hosting logs
@@ -1224,7 +1224,7 @@ and reports back results to the queue.
                                               * <rootURL>/api/aws-provisioner/v1 for all other rootURLs
           provisionerId                     The taskcluster provisioner which is taking care
                                             of provisioning environments with generic-worker
-                                            running on them. [default: test-provisioner]
+                                            running on them. [default: "test-provisioner"]
           purgeCacheBaseURL                 The base URL for purge cache API calls.
                                             If not provided, the base URL for API calls is
                                             instead derived from rootURL setting as follows:
@@ -1269,7 +1269,7 @@ and reports back results to the queue.
                                             posses this scope, no crash reports will be sent.
                                             Similarly, if this property is not specified or
                                             is the empty string, no reports will be sent.
-                                            [default: generic-worker]
+                                            [default: "generic-worker"]
           shutdownMachineOnIdle             If true, when the worker is deemed to have been
                                             idle for enough time (see idleTimeoutSecs) the
                                             worker will issue an OS shutdown command. If false,
@@ -1285,18 +1285,36 @@ and reports back results to the queue.
           subdomain                         Subdomain to use in stateless dns name for live
                                             logs; see
                                             https://github.com/taskcluster/stateless-dns-server
-                                            [default: taskcluster-worker.net]
+                                            [default: "taskcluster-worker.net"]
           taskclusterProxyExecutable        Filepath of taskcluster-proxy executable to use; see
                                             https://github.com/taskcluster/taskcluster-proxy
-                                            [default: taskcluster-proxy]
+                                            [default: "taskcluster-proxy"]
           taskclusterProxyPort              Port number for taskcluster-proxy HTTP requests.
                                             [default: 80]
           tasksDir                          The location where task directories should be
-                                            created on the worker. [default: /Users]
+                                            created on the worker. [default: "/Users"]
           workerGroup                       Typically this would be an aws region - an
                                             identifier to uniquely identify which pool of
                                             workers this worker logically belongs to.
-                                            [default: test-worker-group]
+                                            [default: "test-worker-group"]
+          workerLocation                    If a non-empty string, task commands will have environment variable
+                                            TASKCLUSTER_WORKER_LOCATION set to the value provided.
+
+                                            If an empty string, and --configure-for-aws is specified,
+                                            TASKCLUSTER_WORKER_LOCATION environment variable will be set to a
+                                            string containing the JSON object:
+                                            {"cloud":"aws","region":"<REGION>","availabilityZone":"<AZ>"}
+                                            See: https://github.com/taskcluster/taskcluster-worker-runner#aws
+
+                                            If an empty string, and --configure-for-gcp is specified,
+                                            TASKCLUSTER_WORKER_LOCATION environment variable will be set to a
+                                            string containing the JSON object:
+                                            {"cloud":"google","region":"<REGION>","zone":"<ZONE>"}
+                                            See: https://github.com/taskcluster/taskcluster-worker-runner#google
+
+                                            Otherwise TASKCLUSTER_WORKER_LOCATION environment
+                                            variable will not be implicitly set in task commands.
+                                            [default: ""]
           workerManagerBaseURL              The base URL for taskcluster worker-manager API calls.
                                             If not provided, the base URL for API calls is
                                             instead derived from rootURL setting as follows:
@@ -1393,6 +1411,16 @@ go test -v ./...
 
 There are a few environment variables that you can set to influence the tests:
 
+### `GW_SKIP_PYTHON_TESTS`
+
+Set to a non-empty string if you wish to skip all tests that require python to
+be installed.
+
+### `GW_SKIP_MOZILLA_BUILD_TESTS`
+
+Set to a non-empty string if you wish to skip all tests that require
+mozilla-build to be installed.
+
 ### `GW_SKIP_INTEGRATION_TESTS`
 
 Set to a non-empty string if you wish to skip all tests that submit tasks to a
@@ -1439,7 +1467,7 @@ worker.
 Run the `release.sh` script like so:
 
 ```
-$ ./release.sh 16.1.0
+$ ./release.sh 16.5.5
 ```
 
 This will perform some checks, tag the repo, push the tag to github, which will then trigger travis-ci to run tests, and publish the new release.
@@ -1450,16 +1478,87 @@ See [worker_types README.md](https://github.com/taskcluster/generic-worker/blob/
 
 # Release notes
 
+In v16.5.5 since v16.5.4
+========================
+
+* [Bug 1594353 - generic-worker: "Not able to secure config file" on Windows](https://bugzil.la/1594353)
+
+In v16.5.4 since v16.5.3
+========================
+
+This release is also unfortunately broken on Windows Server 2012 R2 (although runs on all other
+supported platforms including Windows 7 and Windows 10). Fixed in 16.5.5.
+
+* [Bug 1593483 - generic-worker looks for deploymentId in the wrong place](https://bugzil.la/1593483)
+
+In v16.5.3 since v16.5.2
+========================
+
+This release was intended to fix bug 1593483 but unfortunately did not. Bug
+1593483 was later fixed in 16.5.4.
+
+In v16.5.2 since v16.5.1
+========================
+
+This release fixes the bug that caused macOS multiuser generic-worker to be broken since v16.0.0.
+
+* [Bug 1592233 - calculate UID for new user under macOS multiuser](https://bugzil.la/1592233)
+
+In v16.5.1 since v16.5.0
+========================
+
+* [Bug 1591769 - generic-worker 16.5.0 does not start up](https://bugzil.la/1591769)
+
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
+In v16.5.0 since v16.4.0
+========================
+
+This release is buggy and does not start up. Please do __not__ use this release!
+
+* [Bug 1590134 - Set TASKCLUSTER_WORKER_LOCATION environment variable in task command environments (RFC #0148)](https://bugzil.la/1590134)
+
+In v16.4.0 since v16.3.1
+========================
+
+* [Bug 1588834 - Add support for aws-provider to generic-worker.](https://bugzil.la/1588834)
+
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
+In v16.3.1 since v16.3.0
+========================
+
+* [Bug 1588789 - log workerReady the first time we're ready to call queue.claimWork](https://bugzil.la/1588789)
+
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
+In v16.3.0 since v16.2.0
+========================
+
+* [Bug 1587471 - generic-worker: log metric events](https://bugzil.la/1587471)
+
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
+In v16.2.0 since v16.1.0
+========================
+
+* [Bug 1536780 - generic-worker: Support contentEncoding artifact property in task payload](https://bugzil.la/1536780)
+
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
 In v16.1.0 since v16.0.0
 ========================
 
 * [Bug 1578264 - Support deployments in GCP](https://bugzil.la/1578264)
 
+This multiuser macOS release is broken. If you require macOS multiuser, please use version 16.5.2 or higher.
+
 In v16.0.0 since v15.1.5
 ========================
 
 This major release includes support for multiuser on linux. There are no
-changes to the other platforms.
+changes to other platforms, except that macOS multiuser was accidentally broken
+in this release. For macOS multiuser, please use release 16.5.2 or higher.
 
 [Installation
 instructions](https://github.com/taskcluster/generic-worker#linux-simplemultiuserdocker-build)

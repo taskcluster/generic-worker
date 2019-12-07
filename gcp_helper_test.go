@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/taskcluster/generic-worker/gwconfig"
 	"github.com/taskcluster/taskcluster-client-go/tcworkermanager"
 )
 
@@ -26,9 +27,9 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 	// Create custom *http.ServeMux rather than using http.DefaultServeMux, so
 	// registered handler functions won't interfere with future tests that also
 	// use http.DefaultServeMux.
-	ec2MetadataHandler := http.NewServeMux()
-	ec2MetadataHandler.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-		switch req.URL.Path {
+	gcpMetadataHandler := http.NewServeMux()
+	gcpMetadataHandler.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		switch req.URL.EscapedPath() {
 
 		// simulate GCP endpoints
 
@@ -58,11 +59,18 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 		case "/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip":
 			fmt.Fprintf(w, "1.2.3.4")
 		case "/computeMetadata/v1/instance/zone":
-			fmt.Fprintf(w, "us-west1")
+			fmt.Fprintf(w, "/project/1234/zone/in-central1-b")
 		case "/computeMetadata/v1/instance/hostname":
 			fmt.Fprintf(w, "1-2-3-4-at.google.com")
 		case "/computeMetadata/v1/instance/network-interfaces/0/ip":
 			fmt.Fprintf(w, "10.10.10.10")
+		case "/computeMetadata/v1/project/project-id":
+			fmt.Fprintf(w, "proj-1234")
+
+		// simulate taskcluster secrets endpoints
+		case "/api/secrets/v1/secret/worker-pool%3Atest-provisioner%2F" + workerType:
+			w.WriteHeader(404)
+			fmt.Fprintf(w, "No secret for worker type %v", workerType)
 
 		case "/api/worker-manager/v1/worker/register":
 			if req.Method != "POST" {
@@ -92,7 +100,7 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 			resp := map[string]interface{}{
 				"credentials": map[string]interface{}{
 					"accessToken": "test-access-token",
-					"certificate": "test-certificate",
+					"certificate": "",
 					"clientId":    "test-client-id",
 				},
 			}
@@ -100,12 +108,12 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 
 		default:
 			w.WriteHeader(400)
-			fmt.Fprintf(w, "Cannot serve URL %v", req.URL)
+			fmt.Fprintf(w, "Cannot serve URL %q", req.URL.EscapedPath())
 		}
 	})
 	s := &http.Server{
 		Addr:           "localhost:13243",
-		Handler:        ec2MetadataHandler,
+		Handler:        gcpMetadataHandler,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -115,7 +123,10 @@ func (m *MockGCPProvisionedEnvironment) Setup(t *testing.T) func() {
 		t.Log("HTTP server for mock Provisioner and GCP metadata endpoints stopped")
 	}()
 	var err error
-	config, err = loadConfig(filepath.Join(testdataDir, t.Name(), "generic-worker.config"), false, true)
+	configFile := &gwconfig.File{
+		Path: filepath.Join(testdataDir, t.Name(), "generic-worker.config"),
+	}
+	configProvider, err = loadConfig(configFile, false, true)
 	if err != nil {
 		t.Fatalf("Error: %v", err)
 	}

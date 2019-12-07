@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path/filepath"
 	"testing"
+
+	"github.com/taskcluster/generic-worker/fileutil"
 )
 
 func TestNoWorkerTypeUserDataGenericWorkerProperty(t *testing.T) {
@@ -11,7 +13,9 @@ func TestNoWorkerTypeUserDataGenericWorkerProperty(t *testing.T) {
 	m.WorkerTypeDefinitionUserDataFunc = func(t *testing.T) interface{} {
 		return map[string]string{"foo": "bar"}
 	}
-	defer m.ExpectError(t, "No /userData/genericWorker object defined in worker type definition")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "No /userData/genericWorker object defined in worker type definition", err)
 }
 
 func TestNoPublicConfig(t *testing.T) {
@@ -19,11 +23,13 @@ func TestNoPublicConfig(t *testing.T) {
 	m.WorkerTypeDefinitionUserDataFunc = func(t *testing.T) interface{} {
 		return map[string]map[string]interface{}{
 			"genericWorker": {
-				"files": []File{},
+				"files": []fileutil.File{},
 			},
 		}
 	}
-	defer m.ExpectError(t, "No /userData/genericWorker/config object defined in worker type definition")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "No /userData/genericWorker/config object defined in worker type definition", err)
 }
 
 func TestNoWorkerTypeSecret(t *testing.T) {
@@ -31,7 +37,9 @@ func TestNoWorkerTypeSecret(t *testing.T) {
 	m.WorkerTypeSecretFunc = func(t *testing.T, w http.ResponseWriter) {
 		w.WriteHeader(404)
 	}
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 }
 
 func TestSecretServiceError(t *testing.T) {
@@ -39,21 +47,27 @@ func TestSecretServiceError(t *testing.T) {
 	m.WorkerTypeSecretFunc = func(t *testing.T, w http.ResponseWriter) {
 		w.WriteHeader(403)
 	}
-	defer m.ExpectError(t, "problem retrieving config/secrets from aws/gcp")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "Error fetching secret worker-type:"+config.ProvisionerID+"/"+config.WorkerType+" from taskcluster-secrets service", err)
 }
 
 func TestPrivateConfigInUserData(t *testing.T) {
 	m := &MockAWSProvisionedEnvironment{}
 	m.PublicConfig = m.ValidPublicConfig(t)
 	m.PublicConfig["livelogSecret"] = "this-shouldn't-he-here"
-	defer m.ExpectError(t, "json: unknown field")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "json: unknown field", err)
 }
 
 func TestPublicConfigInWorkerTypeSecret(t *testing.T) {
 	m := &MockAWSProvisionedEnvironment{}
 	m.PrivateConfig = m.ValidPrivateConfig(t)
 	m.PrivateConfig["tasksDir"] = "this-shouldn't-be-here"
-	defer m.ExpectError(t, "json: unknown field")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "json: unknown field", err)
 }
 
 func TestAdditionalPropertyUnderWorkerTypeDefinitionUserDataGenericWorkerProperty(t *testing.T) {
@@ -63,7 +77,9 @@ func TestAdditionalPropertyUnderWorkerTypeDefinitionUserDataGenericWorkerPropert
 		data["genericWorker"]["whoops"] = 123
 		return data
 	}
-	defer m.ExpectError(t, "json: unknown field")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "json: unknown field", err)
 }
 
 func TestInvalidWorkerTypeDefinitionFiles(t *testing.T) {
@@ -73,7 +89,9 @@ func TestInvalidWorkerTypeDefinitionFiles(t *testing.T) {
 		data["genericWorker"]["files"] = 123
 		return data
 	}
-	defer m.ExpectError(t, "json: cannot unmarshal number into Go struct field")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "json: cannot unmarshal number into Go struct field", err)
 }
 
 func TestAdditionalFieldInWorkerTypeSecret(t *testing.T) {
@@ -89,12 +107,16 @@ func TestAdditionalFieldInWorkerTypeSecret(t *testing.T) {
 		}
 		WriteJSON(t, w, resp)
 	}
-	defer m.ExpectError(t, "json: unknown field")()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectError(t, "json: unknown field", err)
 }
 
 func TestNoShutdown(t *testing.T) {
 	m := &MockAWSProvisionedEnvironment{}
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 	payload := GenericWorkerPayload{
 		Command:    sleep(10),
 		MaxRunTime: 8,
@@ -109,12 +131,19 @@ func TestAWSWorkerTypeMetadata(t *testing.T) {
 	m := &MockAWSProvisionedEnvironment{
 		PretendMetadata: expected,
 	}
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 	md := config.WorkerTypeMetadata
 	machineSetup := md["machine-setup"].(map[string]interface{})
 	actual := machineSetup["pretend-metadata"].(string)
 	if actual != expected {
 		t.Fatalf("Was expecting pretend metadata '%v' but got '%v'", expected, actual)
+	}
+	expectedWorkerLocation := `{"cloud":"aws","region":"quadrant-4","availabilityZone":"outer-space"}`
+	actualWorkerLocation := config.WorkerLocation
+	if actualWorkerLocation != expectedWorkerLocation {
+		t.Fatalf("Was expecting worker location %q but got %q", expectedWorkerLocation, actualWorkerLocation)
 	}
 }
 
@@ -143,7 +172,9 @@ func TestFileExtraction(t *testing.T) {
 		},
 	}
 
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 	checkSHA256OfFile(t, filepath.Join(testDir, "important-docs", "mydad.svg"), "7a8402876469a063097fb1241462bf0adf456c5e5863def3850e9eb1d4fa1734")
 	checkSHA256OfFile(t, filepath.Join(testDir, "nothing-special.txt"), "b874e6c45ab0a910095b9580f7a4955c33d153afb8ad3ae6e04b30daaa3d9d34")
 }
@@ -153,7 +184,9 @@ func TestDeploymentIDUpdated(t *testing.T) {
 		OldDeploymentID: "old",
 		NewDeploymentID: "new",
 	}
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 	provisioner = config.AWSProvisioner()
 	if !deploymentIDUpdated() {
 		t.Fatalf("Was expecting deploymentIDUpdated() function to see that deployment ID was updated")
@@ -165,7 +198,9 @@ func TestDeploymentIDNotUpdated(t *testing.T) {
 		OldDeploymentID: "old",
 		NewDeploymentID: "old",
 	}
-	defer m.ExpectNoError(t)()
+	teardown, err := m.Setup(t)
+	defer teardown()
+	m.ExpectNoError(t, err)
 	provisioner = config.AWSProvisioner()
 	if deploymentIDUpdated() {
 		t.Fatalf("Was expecting deploymentIDUpdated() function to see that deployment ID was not updated")

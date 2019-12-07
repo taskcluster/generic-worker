@@ -105,6 +105,30 @@
   version = "v0.0.1"
 
 [[projects]]
+  digest = "1:5bcaba5067932e65fd5337c8a839c3ae2312a1618fbd2d05cd99a3efa07c88e8"
+  name = "github.com/elastic/go-sysinfo"
+  packages = [
+    ".",
+    "internal/registry",
+    "providers/darwin",
+    "providers/linux",
+    "providers/shared",
+    "providers/windows",
+    "types",
+  ]
+  pruneopts = "UT"
+  revision = "51d9d1362d77a4792dfb39a7a19f056cdf1b9840"
+  version = "v1.1.0"
+
+[[projects]]
+  digest = "1:1ccb0a9b1971646dcaa9537cce0423a14aaf0643311abb8da753cd59372915d5"
+  name = "github.com/elastic/go-windows"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "8c929792e70203792e3baf128c380e28754ae8b5"
+  version = "v1.0.1"
+
+[[projects]]
   digest = "1:bbc4aacabe6880bdbce849c64cb061b7eddf39f132af4ea2853ddd32f85fbec3"
   name = "github.com/fatih/camelcase"
   packages = ["."]
@@ -153,22 +177,19 @@
   version = "v1.4.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:8a187cfc0da6aea41d2bc0f2d8fe09ccbca7441eab9cb63764b2842891e8481a"
-  name = "github.com/hectane/go-acl"
-  packages = [
-    ".",
-    "api",
-  ]
-  pruneopts = "UT"
-  revision = "e28f47eff0c447e859f6c95bf830678734822412"
-
-[[projects]]
   digest = "1:bb81097a5b62634f3e9fec1014657855610c82d19b9a40c17612e32651e35dca"
   name = "github.com/jmespath/go-jmespath"
   packages = ["."]
   pruneopts = "UT"
   revision = "c2b33e84"
+
+[[projects]]
+  branch = "master"
+  digest = "1:ca41e6bafdc8d60c47dba38e9adfc75219a2892b09e5c2160161e7b6bf9562c2"
+  name = "github.com/joeshaw/multierror"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "69b34d4ec901851247ae7e77d33909caf9df99ed"
 
 [[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
@@ -246,6 +267,18 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:a210815b437763623ecca8eb91e6a0bf4f2d6773c5a6c9aec0e28f19e5fd6deb"
+  name = "github.com/prometheus/procfs"
+  packages = [
+    ".",
+    "internal/fs",
+    "internal/util",
+  ]
+  pruneopts = "UT"
+  revision = "499c85531f756d1129edd26485a5f73871eeb308"
+  version = "v0.0.5"
+
+[[projects]]
   digest = "1:33a48129d0a0eeb790b9ccba3560d2bc191b023e14285369e9f7dfae1e22830a"
   name = "github.com/sirupsen/logrus"
   packages = [
@@ -285,11 +318,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:951106573999407dd9676fcdf4c6184b58fc58055be3e1af54f109a451dda786"
+  digest = "1:d0e9402943b249967ff519c601b944901bd757bf766cc0687399ac3afac2f758"
   name = "github.com/taskcluster/shell"
   packages = ["."]
   pruneopts = "UT"
-  revision = "70c77c91e399f7116e6aa2c6e7abc18946ec4ada"
+  revision = "c688067f12d36940aeeb557b74e3838b30beb427"
 
 [[projects]]
   branch = "master"
@@ -460,6 +493,14 @@
   revision = "51d6538a90f86fe93ac480b35f37b2be17fef232"
   version = "v2.2.2"
 
+[[projects]]
+  branch = "master"
+  digest = "1:c10265d5a71326618d37e97169eddb3582f78e8ac7dcf87403b4cf619efd519a"
+  name = "howett.net/plist"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "591f970eefbbeb04d7b37f334a0c4c3256e32876"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -470,12 +511,13 @@
     "github.com/dchest/uniuri",
     "github.com/dgrijalva/jwt-go",
     "github.com/docopt/docopt-go",
+    "github.com/elastic/go-sysinfo",
     "github.com/getsentry/raven-go",
     "github.com/ghodss/yaml",
     "github.com/gorilla/websocket",
-    "github.com/hectane/go-acl",
     "github.com/kr/text",
     "github.com/mholt/archiver",
+    "github.com/pborman/uuid",
     "github.com/peterbourgon/mergemap",
     "github.com/sirupsen/logrus",
     "github.com/stretchr/testify/assert",

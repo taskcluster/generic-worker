@@ -10,7 +10,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +25,7 @@ import (
 	"time"
 
 	docopt "github.com/docopt/docopt-go"
+	sysinfo "github.com/elastic/go-sysinfo"
 	"github.com/taskcluster/generic-worker/expose"
 	"github.com/taskcluster/generic-worker/gwconfig"
 	"github.com/taskcluster/generic-worker/host"
@@ -42,6 +42,8 @@ var (
 	reclaimEvery5Seconds = false
 	// Current working directory of process
 	cwd = CwdOrPanic()
+	// workerReady becomes true when it is able to call queue.claimWork for the first time
+	workerReady = false
 	// Whether we are running under the aws provisioner
 	configureForAWS bool
 	// Whether we are running in GCP
@@ -51,15 +53,15 @@ var (
 	taskContext = &TaskContext{}
 	// queue is the object we will use for accessing queue api. See
 	// https://docs.taskcluster.net/reference/platform/queue/api-docs
-	queue      *tcqueue.Queue
-	config     *gwconfig.Config
-	configFile string
-	Features   []Feature
+	queue          *tcqueue.Queue
+	config         *gwconfig.Config
+	configProvider gwconfig.Provider
+	Features       []Feature
 
 	logName = "public/logs/live_backing.log"
 	logPath = filepath.Join("generic-worker", "live_backing.log")
 
-	version  = "16.1.0"
+	version  = "16.5.5"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 )
 
@@ -117,8 +119,15 @@ func main() {
 	case arguments["run"]:
 		configureForAWS = arguments["--configure-for-aws"].(bool)
 		configureForGCP = arguments["--configure-for-gcp"].(bool)
-		configFile = arguments["--config"].(string)
-		config, err = loadConfig(configFile, configureForAWS, configureForGCP)
+
+		configFileAbs, err := filepath.Abs(arguments["--config"].(string))
+		exitOnError(CANT_LOAD_CONFIG, err, "Cannot determine absolute path location for generic-worker config file '%v'", arguments["--config"])
+
+		configFile := &gwconfig.File{
+			Path: configFileAbs,
+		}
+
+		configProvider, err = loadConfig(configFile, configureForAWS, configureForGCP)
 
 		// We need to persist the generic-worker config file if we fetched it
 		// over the network, for example if the config is fetched from the AWS
@@ -137,11 +146,11 @@ func main() {
 		// logs, so this should provide a reliable way to inspect what config
 		// was in the case of an unexpected failure, including default values
 		// for config settings not provided in the user-supplied config file.
-		if _, statError := os.Stat(configFile); os.IsNotExist(statError) && config != nil {
-			err = config.Persist(configFile)
-			exitOnError(CANT_SAVE_CONFIG, err, "Not able to persist config file %v", configFile)
+		if configFile.DoesNotExist() {
+			errPersist := configFile.Persist(config)
+			exitOnError(CANT_SAVE_CONFIG, errPersist, "Not able to persist config file %v", configFile)
 		}
-		exitOnError(CANT_LOAD_CONFIG, err, "Error loading configuration file %v", configFile)
+		exitOnError(CANT_LOAD_CONFIG, err, "Error loading configuration")
 
 		// Config known to be loaded successfully at this point...
 
@@ -152,24 +161,28 @@ func main() {
 		//   process, then we can't avoid that tasks can read the config file,
 		//   we can just hope that the config file is at least not writable by
 		//   the current user. In this case we won't change file permissions.
-		secureConfigFile()
+		secure(configFile.Path)
 
 		exitCode := RunWorker()
 		log.Printf("Exiting worker with exit code %v", exitCode)
 		switch exitCode {
 		case REBOOT_REQUIRED:
+			logEvent("instanceReboot", nil, time.Now())
 			if !config.DisableReboots {
 				host.ImmediateReboot()
 			}
 		case IDLE_TIMEOUT:
+			logEvent("instanceShutdown", nil, time.Now())
 			if config.ShutdownMachineOnIdle {
 				host.ImmediateShutdown("generic-worker idle timeout")
 			}
 		case INTERNAL_ERROR:
+			logEvent("instanceShutdown", nil, time.Now())
 			if config.ShutdownMachineOnInternalError {
 				host.ImmediateShutdown("generic-worker internal error")
 			}
 		case NONCURRENT_DEPLOYMENT_ID:
+			logEvent("instanceShutdown", nil, time.Now())
 			host.ImmediateShutdown("generic-worker deploymentId is not latest")
 		}
 		os.Exit(int(exitCode))
@@ -186,12 +199,18 @@ func main() {
 	}
 }
 
-func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (*gwconfig.Config, error) {
-	// TODO: would be better to have a json schema, and also define defaults in
-	// only one place if possible (defaults also declared in `usage`)
+func loadConfig(configFile *gwconfig.File, queryAWSUserData bool, queryGCPMetaData bool) (gwconfig.Provider, error) {
+
+	configProvider, err := ConfigProvider(configFile, queryAWSUserData, queryGCPMetaData)
+	if err != nil {
+		return nil, err
+	}
 
 	// first assign defaults
-	c := &gwconfig.Config{
+
+	// TODO: would be better to have a json schema, and also define defaults in
+	// only one place if possible (defaults also declared in `usage`)
+	config = &gwconfig.Config{
 		PublicConfig: gwconfig.PublicConfig{
 			AuthBaseURL:                    "",
 			CachesDir:                      "caches",
@@ -220,55 +239,27 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 			TaskclusterProxyPort:           80,
 			TasksDir:                       defaultTasksDir(),
 			WorkerGroup:                    "test-worker-group",
+			WorkerLocation:                 "",
 			WorkerManagerBaseURL:           "",
 			WorkerTypeMetadata:             map[string]interface{}{},
 		},
 	}
 
-	configFileAbs, err := filepath.Abs(filename)
-	if err != nil {
-		return nil, fmt.Errorf("Cannot determine absolute path location for generic-worker config file '%v': %v", filename, err)
-	}
-
-	log.Printf("Loading generic-worker config file '%v'...", configFileAbs)
-	configData, err := ioutil.ReadFile(configFileAbs)
-	// configFileAbs won't exist on the first run of generic-worker in gcp/aws
-	// so an error here could indicate that we need to fetch config externally
-	if err != nil {
-		// overlay with data from amazon/gcp, if applicable
-		switch {
-		case queryAWSUserData:
-			err = updateConfigWithAmazonSettings(c)
-		case queryGCPMetaData:
-			err = updateConfigWithGCPSettings(c)
-		default:
-			// don't wrap this with fmt.Errorf as different platforms produce different error text, so easier to process native error type
-			return nil, err
-		}
-		if err != nil {
-			return nil, fmt.Errorf("FATAL: problem retrieving config/secrets from aws/gcp: %v", err)
-		}
+	if configFile.DoesNotExist() {
+		// apply values from provider
+		err = configProvider.UpdateConfig(config)
 	} else {
-		buffer := bytes.NewBuffer(configData)
-		decoder := json.NewDecoder(buffer)
-		decoder.DisallowUnknownFields()
-		var newConfig gwconfig.Config
-		err = decoder.Decode(&newConfig)
-		if err != nil {
-			// An error here is serious - it means the file existed but was invalid
-			return c, fmt.Errorf("Error unmarshaling generic worker config file %v as JSON: %v", configFileAbs, err)
-		}
-		err = c.MergeInJSON(configData, func(a map[string]interface{}) map[string]interface{} {
-			return a
-		})
-		if err != nil {
-			return c, fmt.Errorf("Error overlaying config file %v on top of defaults: %v", configFileAbs, err)
-		}
+		// apply values from config file
+		err = configFile.UpdateConfig(config)
 	}
 
-	// Add any useful worker config to worker metadata
-	c.WorkerTypeMetadata["config"] = map[string]interface{}{
-		"deploymentId": c.DeploymentID,
+	if err != nil {
+		return nil, err
+	}
+
+	// Add useful worker config to worker metadata
+	config.WorkerTypeMetadata["config"] = map[string]interface{}{
+		"deploymentId": config.DeploymentID,
 	}
 	gwMetadata := map[string]interface{}{
 		"go-arch":    runtime.GOARCH,
@@ -282,8 +273,26 @@ func loadConfig(filename string, queryAWSUserData bool, queryGCPMetaData bool) (
 		gwMetadata["revision"] = revision
 		gwMetadata["source"] = "https://github.com/taskcluster/generic-worker/commits/" + revision
 	}
-	c.WorkerTypeMetadata["generic-worker"] = gwMetadata
-	return c, nil
+	config.WorkerTypeMetadata["generic-worker"] = gwMetadata
+	return configProvider, nil
+}
+
+func ConfigProvider(configFile *gwconfig.File, queryAWSUserData bool, queryGCPMetaData bool) (gwconfig.Provider, error) {
+	var configProvider gwconfig.Provider
+	switch {
+	case queryAWSUserData:
+		var err error
+		configProvider, err = InferAWSConfigProvider()
+		if err != nil {
+			return nil, err
+		}
+	case queryGCPMetaData:
+		configProvider = &GCPConfigProvider{}
+	default:
+		configProvider = configFile
+	}
+
+	return configProvider, nil
 }
 
 var exposer expose.Exposer
@@ -382,6 +391,9 @@ func RunWorker() (exitCode ExitCode) {
 	log.Printf("Config: %v", config)
 	log.Printf("Detected %s platform", runtime.GOOS)
 	log.Printf("Detected %s engine", engine)
+	if host, err := sysinfo.Host(); err == nil {
+		logEvent("instanceBoot", nil, host.Info().BootTime)
+	}
 
 	err = setupExposer()
 	if err != nil {
@@ -419,7 +431,7 @@ func RunWorker() (exitCode ExitCode) {
 	// loop, claiming and running tasks!
 	lastActive := time.Now()
 	// use zero value, to be sure that a check is made before first task runs
-	lastQueriedProvisioner := time.Time{}
+	lastCheckedDeploymentID := time.Time{}
 	lastReportedNoTasks := time.Now()
 	sigInterrupt := make(chan os.Signal, 1)
 	signal.Notify(sigInterrupt, os.Interrupt)
@@ -431,8 +443,8 @@ func RunWorker() (exitCode ExitCode) {
 		// See https://bugzil.la/1298010 - routinely check if this worker type is
 		// outdated, and shut down if a new deployment is required.
 		// Round(0) forces wall time calculation instead of monotonic time in case machine slept etc
-		if configureForAWS && time.Now().Round(0).Sub(lastQueriedProvisioner) > time.Duration(config.CheckForNewDeploymentEverySecs)*time.Second {
-			lastQueriedProvisioner = time.Now()
+		if time.Now().Round(0).Sub(lastCheckedDeploymentID) > time.Duration(config.CheckForNewDeploymentEverySecs)*time.Second {
+			lastCheckedDeploymentID = time.Now()
 			if deploymentIDUpdated() {
 				return NONCURRENT_DEPLOYMENT_ID
 			}
@@ -450,7 +462,11 @@ func RunWorker() (exitCode ExitCode) {
 		wait5Seconds := time.NewTimer(time.Second * 5)
 
 		if task != nil {
+			logEvent("taskQueued", task, time.Time(task.Definition.Created))
+			logEvent("taskStart", task, time.Now())
+
 			errors := task.Run()
+			logEvent("taskFinish", task, time.Now())
 			if errors.Occurred() {
 				log.Printf("ERROR(s) encountered: %v", errors)
 				task.Error(errors.Error())
@@ -476,7 +492,7 @@ func RunWorker() (exitCode ExitCode) {
 			log.Printf("Resolved %v tasks in total so far%v.", tasksResolved, remainingTaskCountText)
 			if remainingTasks == 0 {
 				log.Printf("Completed all task(s) (number of tasks to run = %v)", config.NumberOfTasksToRun)
-				if configureForAWS && deploymentIDUpdated() {
+				if deploymentIDUpdated() {
 					return NONCURRENT_DEPLOYMENT_ID
 				}
 				return TASKS_COMPLETE
@@ -526,8 +542,27 @@ func RunWorker() (exitCode ExitCode) {
 	}
 }
 
+func deploymentIDUpdated() bool {
+	latestDeploymentID, err := configProvider.NewestDeploymentID()
+	switch {
+	case err != nil:
+		log.Printf("%v", err)
+	case latestDeploymentID == config.DeploymentID:
+		log.Printf("No change to deploymentId - %q == %q", config.DeploymentID, latestDeploymentID)
+	default:
+		log.Printf("New deploymentId found! %q => %q - therefore shutting down!", config.DeploymentID, latestDeploymentID)
+		return true
+	}
+	return false
+}
+
 // ClaimWork queries the Queue to find a task.
 func ClaimWork() *TaskRun {
+	// only log workerReady the first time queue.claimWork is called
+	if !workerReady {
+		workerReady = true
+		logEvent("workerReady", nil, time.Now())
+	}
 	req := &tcqueue.ClaimWorkRequest{
 		Tasks:       1,
 		WorkerGroup: config.WorkerGroup,
@@ -915,7 +950,7 @@ func (task *TaskRun) Run() (err *ExecutionErrors) {
 	if err.Occurred() {
 		return
 	}
-	log.Printf("Running task https://tools.taskcluster.net/task-inspector/#%v/%v", task.TaskID, task.RunID)
+	log.Printf("Running task %v/tasks/%v/runs/%v", config.RootURL, task.TaskID, task.RunID)
 
 	task.Commands = make([]*process.Command, len(task.Payload.Command))
 	// generate commands, in case features want to modify them
@@ -1195,6 +1230,7 @@ func exitOnError(exitCode ExitCode, err error, logMessage string, args ...interf
 		return
 	}
 	log.Printf(logMessage, args...)
-	log.Printf("%v", err)
+	log.Printf("Root cause: %v", err)
+	log.Printf("%#v (%T)", err, err)
 	os.Exit(int(exitCode))
 }

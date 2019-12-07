@@ -13,6 +13,38 @@ import (
 type (
 	Artifact struct {
 
+		// Content-Encoding for the artifact. If not provided, `gzip` will be used, except for the
+		// following file extensions, where `identity` will be used, since they are already
+		// compressed:
+		//
+		// * jpg
+		// * jpeg
+		// * png
+		// * gif
+		// * webp
+		// * 7z
+		// * zip
+		// * gz
+		// * tgz
+		// * bz2
+		// * tbz
+		// * whl
+		// * xz
+		// * swf
+		// * flv
+		// * woff
+		// * woff2
+		//
+		// Note, setting `contentEncoding` on a directory artifact will apply the same content
+		// encoding to all the files contained in the directory.
+		//
+		// Since: generic-worker 16.2.0
+		//
+		// Possible values:
+		//   * "identity"
+		//   * "gzip"
+		ContentEncoding string `json:"contentEncoding,omitempty"`
+
 		// Explicitly set the value of the HTTP `Content-Type` response header when the artifact(s)
 		// is/are served over HTTP(S). If not provided (this property is optional) the worker will
 		// guess the content type of artifacts based on the filename extension of the file storing
@@ -180,10 +212,15 @@ type (
 		// Note, the following environment variables will automatically be set in the task
 		// commands:
 		//   * `TASK_ID` - the task ID of the currently running task
+		//   * `RUN_ID` - the run ID of the currently running task
 		//   * `TASKCLUSTER_ROOT_URL` - the root URL of the taskcluster deployment
 		//   * `TASKCLUSTER_PROXY_URL` (if taskcluster proxy feature enabled) - the
 		//      taskcluster authentication proxy for making unauthenticated taskcluster
 		//      API calls
+		//   * `TASKCLUSTER_WORKER_LOCATION` (if running in AWS or GCP or explicitly set
+		//     in the generic-worker config file). See
+		//     [RFC #0148](https://github.com/taskcluster/taskcluster-rfcs/blob/master/rfcs/0148-taskcluster-worker-location.md)
+		//     for details.
 		//
 		// Since: generic-worker 0.0.1
 		//
@@ -558,6 +595,15 @@ func taskPayloadSchema() string {
       "items": {
         "additionalProperties": false,
         "properties": {
+          "contentEncoding": {
+            "description": "Content-Encoding for the artifact. If not provided, ` + "`" + `gzip` + "`" + ` will be used, except for the\nfollowing file extensions, where ` + "`" + `identity` + "`" + ` will be used, since they are already\ncompressed:\n\n* jpg\n* jpeg\n* png\n* gif\n* webp\n* 7z\n* zip\n* gz\n* tgz\n* bz2\n* tbz\n* whl\n* xz\n* swf\n* flv\n* woff\n* woff2\n\nNote, setting ` + "`" + `contentEncoding` + "`" + ` on a directory artifact will apply the same content\nencoding to all the files contained in the directory.\n\nSince: generic-worker 16.2.0",
+            "enum": [
+              "identity",
+              "gzip"
+            ],
+            "title": "Content-Encoding header when serving artifact over HTTP.",
+            "type": "string"
+          },
           "contentType": {
             "description": "Explicitly set the value of the HTTP ` + "`" + `Content-Type` + "`" + ` response header when the artifact(s)\nis/are served over HTTP(S). If not provided (this property is optional) the worker will\nguess the content type of artifacts based on the filename extension of the file storing\nthe artifact content. It does this by looking at the system filename-to-mimetype mappings\ndefined in multiple ` + "`" + `mime.types` + "`" + ` files located under ` + "`" + `/etc` + "`" + `. Note, setting ` + "`" + `contentType` + "`" + `\non a directory artifact will apply the same contentType to all files contained in the\ndirectory.\n\nSee [mime.TypeByExtension](https://godoc.org/mime#TypeByExtension).\n\nSince: generic-worker 10.4.0",
             "title": "Content-Type header when serving artifact over HTTP",
@@ -616,7 +662,7 @@ func taskPayloadSchema() string {
       "additionalProperties": {
         "type": "string"
       },
-      "description": "Env vars must be string to __string__ mappings (not number or boolean). For example:\n` + "`" + `` + "`" + `` + "`" + `\n{\n  \"PATH\": \"/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin\",\n  \"GOOS\": \"darwin\",\n  \"FOO_ENABLE\": \"true\",\n  \"BAR_TOTAL\": \"3\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nNote, the following environment variables will automatically be set in the task\ncommands:\n  * ` + "`" + `TASK_ID` + "`" + ` - the task ID of the currently running task\n  * ` + "`" + `TASKCLUSTER_ROOT_URL` + "`" + ` - the root URL of the taskcluster deployment\n  * ` + "`" + `TASKCLUSTER_PROXY_URL` + "`" + ` (if taskcluster proxy feature enabled) - the\n     taskcluster authentication proxy for making unauthenticated taskcluster\n     API calls\n\nSince: generic-worker 0.0.1",
+      "description": "Env vars must be string to __string__ mappings (not number or boolean). For example:\n` + "`" + `` + "`" + `` + "`" + `\n{\n  \"PATH\": \"/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin\",\n  \"GOOS\": \"darwin\",\n  \"FOO_ENABLE\": \"true\",\n  \"BAR_TOTAL\": \"3\"\n}\n` + "`" + `` + "`" + `` + "`" + `\n\nNote, the following environment variables will automatically be set in the task\ncommands:\n  * ` + "`" + `TASK_ID` + "`" + ` - the task ID of the currently running task\n  * ` + "`" + `RUN_ID` + "`" + ` - the run ID of the currently running task\n  * ` + "`" + `TASKCLUSTER_ROOT_URL` + "`" + ` - the root URL of the taskcluster deployment\n  * ` + "`" + `TASKCLUSTER_PROXY_URL` + "`" + ` (if taskcluster proxy feature enabled) - the\n     taskcluster authentication proxy for making unauthenticated taskcluster\n     API calls\n  * ` + "`" + `TASKCLUSTER_WORKER_LOCATION` + "`" + ` (if running in AWS or GCP or explicitly set\n    in the generic-worker config file). See\n    [RFC #0148](https://github.com/taskcluster/taskcluster-rfcs/blob/master/rfcs/0148-taskcluster-worker-location.md)\n    for details.\n\nSince: generic-worker 0.0.1",
       "title": "Env vars",
       "type": "object"
     },
