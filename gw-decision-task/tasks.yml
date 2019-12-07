@@ -4,7 +4,7 @@ Types:
     Name: 'Build/test generic-worker (${ENGINE} engine) on ${PLATFORM}'
     Description: 'This builds and tests the ${ARCH} version of generic-worker (${ENGINE} engine) on ${PLATFORM}'
     Mounts:
-      - 'go1.10.8'
+      - 'go1.13.5'
       - 'git2.24.0.2'
       - 'jq1.6'
       - 'ci-creds'
@@ -16,7 +16,7 @@ Types:
       - 'secrets:get:project/taskcluster/testing/generic-worker/ci-creds'
     Artifacts:
       - Name: 'public/build/generic-worker-${OS}-${ARCH}${EXTENSION}'
-        Path: 'gopath1.10.8/bin/generic-worker${EXTENSION}'
+        Path: 'gopath1.13.5/bin/generic-worker${EXTENSION}'
         Type: 'file'
     MaxRunTime: 3600
 
@@ -27,7 +27,7 @@ Types:
                  See [go dep docs](https://golang.github.io/dep/docs/daily-dep.html#key-takeaways)
                  for more information.
     Mounts:
-      - 'go1.10.8'
+      - 'go1.13.5'
     Command: CheckDeps
     MaxRunTime: 3600
 
@@ -105,7 +105,7 @@ WorkerPools:
   proj-taskcluster/gw-ci-windows10-arm:
     Platform: 'Windows 10 (arm)'
     OS: 'windows'
-    # There is no arm release for go 1.10.8 on windows, but 386 release works
+    # There is no arm release for go 1.13.5 on windows, but 386 release works
     # through emulation provided by the host OS.
     Arch: '386'
   proj-taskcluster/gw-ci-windows2012r2-amd64:
@@ -124,8 +124,8 @@ Commands:
         - -vxec
         - |
           export CGO_ENABLED=0
-          export GOROOT="$(pwd)/go1.10.8/go"
-          export GOPATH="$(pwd)/gopath1.10.8"
+          export GOROOT="$(pwd)/go1.13.5/go"
+          export GOPATH="$(pwd)/gopath1.13.5"
           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
           go version
           go env
@@ -154,8 +154,8 @@ Commands:
           # go test: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64
           test $(uname -m) == "x86_64" && RACE=-race || RACE=
           export CGO_ENABLED=0
-          export GOROOT="$(pwd)/go1.10.8/go"
-          export GOPATH="$(pwd)/gopath1.10.8"
+          export GOROOT="$(pwd)/go1.13.5/go"
+          export GOPATH="$(pwd)/gopath1.13.5"
           export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
           git --version
           go version
@@ -200,8 +200,8 @@ Commands:
       - certutil -decode tc-creds.bat.b64 tc-creds.bat
       - call tc-creds.bat 2>&1
       - set CGO_ENABLED=0
-      - set GOPATH=%CD%\gopath1.10.8
-      - set GOROOT=%CD%\go1.10.8\go
+      - set GOPATH=%CD%\gopath1.13.5
+      - set GOROOT=%CD%\go1.13.5\go
       - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
       - git version
       - go version
@@ -240,31 +240,31 @@ Commands:
       - ineffassign .
 
 Mounts:
-  go1.10.8:
-    directory: go1.10.8
+  go1.13.5:
+    directory: go1.13.5
     content:
       darwin:
         amd64:
-          url: 'https://storage.googleapis.com/golang/go1.10.8.darwin-amd64.tar.gz'
-          sha256: 'f41bc914a721ac98a187df824b3b40f0a7f35bfb3c6d31221bdd940d537d3c28'
+          url: 'https://storage.googleapis.com/golang/go1.13.5.darwin-amd64.tar.gz'
+          sha256: '97f9ec90d54f3a580789f1f855b17282e7dbccb69a44b20a20c2167e907db800'
           format: tar.gz
       linux:
         armv6l:
-          url: 'https://storage.googleapis.com/golang/go1.10.8.linux-armv6l.tar.gz'
-          sha256: '6fdbc67524fc4c15fc87014869dddce9ecda7958b78f3cb1bbc5b0a9b61bfb95'
+          url: 'https://storage.googleapis.com/golang/go1.13.5.linux-armv6l.tar.gz'
+          sha256: '26259f61d52ee2297b1e8feef3a0fc82144b666a2b95512402c31cc49713c133'
           format: tar.gz
         amd64:
-          url: 'https://storage.googleapis.com/golang/go1.10.8.linux-amd64.tar.gz'
-          sha256: 'd8626fb6f9a3ab397d88c483b576be41fa81eefcec2fd18562c87626dbb3c39e'
+          url: 'https://storage.googleapis.com/golang/go1.13.5.linux-amd64.tar.gz'
+          sha256: '512103d7ad296467814a6e3f635631bd35574cab3369a97a323c9a585ccaa569'
           format: tar.gz
       windows:
         386:
-          url: 'https://storage.googleapis.com/golang/go1.10.8.windows-386.zip'
-          sha256: '9ded97d830bef3734ea6de70df0159656d6a63e01484175b34d72b8db326bda0'
+          url: 'https://storage.googleapis.com/golang/go1.13.5.windows-386.zip'
+          sha256: '5a9ace58c0fb487a07a3dec494a59957aa8425fbefd04d1a3fb1d0aa0d95fb8d'
           format: zip
         amd64:
-          url: 'https://storage.googleapis.com/golang/go1.10.8.windows-amd64.zip'
-          sha256: 'ab63b55c349f75cce4b93aefa9b52828f50ebafb302da5057db0e686d7873d7a'
+          url: 'https://storage.googleapis.com/golang/go1.13.5.windows-amd64.zip'
+          sha256: '027275e04d795fbadc898ba7a50ed0ab2161ff4c5e613c94dbb066b2ca24ec11'
           format: zip
   git2.24.0.2:
     directory: git
