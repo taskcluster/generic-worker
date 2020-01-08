@@ -522,7 +522,7 @@ func RunWorker() (exitCode ExitCode) {
 				remainingTaskCountText = fmt.Sprintf(" (will exit after resolving %v more)", remainingTasks)
 			}
 			log.Printf("Resolved %v tasks in total so far%v.", tasksResolved, remainingTaskCountText)
-			if remainingTasks == 0 {
+			if remainingTasks <= 0 {
 				log.Printf("Completed all task(s) (number of tasks to run = %v)", config.NumberOfTasksToRun)
 				if deploymentIDUpdated() {
 					return NONCURRENT_DEPLOYMENT_ID
