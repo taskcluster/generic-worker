@@ -216,7 +216,8 @@ Commands:
       - 'git reset --hard %GITHUB_SHA%'
       - 'git clean -fdx'
       - 'git checkout -B tmp -t "X%TASK_ID%"'
-      - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
+#     - go get -v -u github.com/taskcluster/livelog github.com/taskcluster/taskcluster-proxy github.com/gordonklaus/ineffassign
+      - go get -v -u github.com/gordonklaus/ineffassign
       - cd gw-codegen
       - go get -v
       - cd ..
