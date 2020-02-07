@@ -20,37 +20,37 @@ Types:
         Type: 'file'
     MaxRunTime: 3600
 
-  CheckDeps:
-    Name: 'Run `dep check` to ensure golang vendored dependencies are up-to-date'
-    Description: |
-                 Run `dep check` to ensure golang vendored dependencies are up-to-date.
-                 See [go dep docs](https://golang.github.io/dep/docs/daily-dep.html#key-takeaways)
-                 for more information.
-    Mounts:
-      - 'go1.10.8'
-    Command: CheckDeps
-    MaxRunTime: 3600
+# CheckDeps:
+#   Name: 'Run `dep check` to ensure golang vendored dependencies are up-to-date'
+#   Description: |
+#                Run `dep check` to ensure golang vendored dependencies are up-to-date.
+#                See [go dep docs](https://golang.github.io/dep/docs/daily-dep.html#key-takeaways)
+#                for more information.
+#   Mounts:
+#     - 'go1.10.8'
+#   Command: CheckDeps
+#   MaxRunTime: 3600
 
 Tasks:
   BuildAndTest:
-    - WorkerPool: 'proj-taskcluster/gw-ci-macos'
-      Env:
-        ENGINE: 'multiuser'
-    - WorkerPool: 'proj-taskcluster/gw-ci-macos'
-      Env:
-        ENGINE: 'simple'
-    - WorkerPool: 'proj-taskcluster/gw-ci-raspbian-stretch'
-      Env:
-        ENGINE: 'simple'
-    - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
-      Env:
-        ENGINE: 'multiuser'
-    - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
-      Env:
-        ENGINE: 'simple'
-    - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
-      Env:
-        ENGINE: 'docker'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-macos'
+#     Env:
+#       ENGINE: 'multiuser'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-macos'
+#     Env:
+#       ENGINE: 'simple'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-raspbian-stretch'
+#     Env:
+#       ENGINE: 'simple'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
+#     Env:
+#       ENGINE: 'multiuser'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
+#     Env:
+#       ENGINE: 'simple'
+#   - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
+#     Env:
+#       ENGINE: 'docker'
     - WorkerPool: 'proj-taskcluster/gw-ci-windows10-amd64'
       Env:
         ENGINE: 'multiuser'
@@ -82,8 +82,8 @@ Tasks:
 #     Env:                                                          #
 #       ENGINE: 'multiuser'                                         #
 #####################################################################
-  CheckDeps:
-    - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
+# CheckDeps:
+#   - WorkerPool: 'proj-taskcluster/gw-ci-ubuntu-18-04'
 
 WorkerPools:
   proj-taskcluster/gw-ci-macos:
@@ -234,6 +234,7 @@ Commands:
       - set CGO_ENABLED=%CGO_ENABLED_TESTS%
       - set GORACE=history_size=7
       - copy "%TASK_USER_CREDENTIALS%" "%CD%\next-task-user.json"
+      - cd win32
       - 'go test -tags "%ENGINE%" -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%GITHUB_SHA%" -v %RACE% ./...'
       - set GW_TESTS_RUN_AS_CURRENT_USER=true
       - 'go test -tags "%ENGINE%" -timeout 45m -ldflags "-X github.com/taskcluster/generic-worker.revision=%GITHUB_SHA%" -v %RACE%'
